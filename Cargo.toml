@@ -1,0 +1,21 @@
+[package]
+name = "bevior_tree"
+version = "0.1.0"
+edition = "2021"
+categories = [ "game-development" ]
+description = "Behavior tree plugin for Bevy."
+exclude = [ "assets/" ]
+keywords = [ "gamedev", "bevy", "ai", "behavior-tree" ]
+readme = "README.md"
+repository = "https://github.com/hyranno/bevior_tree"
+
+
+[dependencies]
+bevy = { version = "0.11", default-features = false }
+genawaiter = { version = "0.99" }
+
+[dev-dependencies]
+bevy = "0.11"
+
+[package.metadata.docs.rs]
+all-features = true
