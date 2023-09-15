@@ -50,6 +50,13 @@ impl BehaviorTree {
         }
     }
 }
+impl Drop for BehaviorTree {
+    fn drop(&mut self) {
+        if let Some(gen) = self.gen.as_mut() {
+            gen.abort();
+        }
+    }
+}
 
 fn update (
     world: &mut World,
