@@ -62,6 +62,18 @@ where
         self.on_exit.push(Box::new(callback));
         self
     }
+    pub fn insert_while_running<T: Bundle + 'static + Clone>(
+        self,
+        bundle: T,
+    ) -> Self {
+        self
+            .on_enter(Box::new(move |entity, mut commands: Commands| {
+                commands.entity(entity).insert(bundle.clone());
+            }))
+            .on_exit(Box::new(|entity, mut commands: Commands| {
+                commands.entity(entity).remove::<T>();
+            }))
+    }
 }
 impl<Checker> Node for TaskImpl<Checker>
 where
