@@ -120,6 +120,14 @@ F: Fn(bool) -> bool + 'static + Send + Sync,
     child: Arc<dyn Node>,
     convert: F,
 }
+impl<F> ResultConverter<F>
+where
+    F: Fn(bool) -> bool + 'static + Send + Sync,
+{
+    pub fn new(child: Arc<dyn Node>, convert: F) -> Arc<Self> {
+        Arc::new(Self { child, convert })
+    }
+}
 impl<F> Node for ResultConverter<F>
 where
     F: Fn(bool) -> bool + 'static + Send + Sync,
