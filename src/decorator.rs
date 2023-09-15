@@ -1,3 +1,4 @@
+//! Decorator nodes.
 
 use std::sync::{Arc, Mutex};
 use genawaiter::sync::Gen;
@@ -7,7 +8,7 @@ use bevy::ecs::{entity::Entity, system::{ReadOnlySystemParam, SystemParam, Syste
 use super::{Node, NodeGen, NodeResult, complete_or_yield, nullable_access::NullableWorldAccess};
 
 
-
+/// Check condition for conditional node.
 pub trait ConditionChecker: 'static + Sized + Send + Sync {
     type Param<'w, 's>: ReadOnlySystemParam;
     fn check (
@@ -20,6 +21,7 @@ pub trait ConditionChecker: 'static + Sized + Send + Sync {
 }
 
 
+/// Node that repeat subnode while condition is matched.
 pub struct ConditionalLoop<Checker: ConditionChecker> {
     child: Arc<dyn Node>,
     checker: Checker,
@@ -71,6 +73,7 @@ impl ConditionChecker for Always {
     }
 }
 
+/// Returns true until given count.
 pub struct RepeatCount {
     pub count: u32,
 }
@@ -87,6 +90,7 @@ impl ConditionChecker for RepeatCount {
     }
 }
 
+/// Returns true until the subnode return given result.
 pub struct UntilResult {
     pub until: NodeResult,
 }
@@ -108,6 +112,7 @@ impl ConditionChecker for UntilResult {
 }
 
 
+/// Node that converts result of subnode.
 pub struct ResultConverter<F>
 where
 F: Fn(bool) -> bool + 'static + Send + Sync,

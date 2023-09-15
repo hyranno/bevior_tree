@@ -1,3 +1,4 @@
+//! Sequencial composit nodes.
 
 use std::sync::{Arc, Mutex};
 use genawaiter::sync::Gen;

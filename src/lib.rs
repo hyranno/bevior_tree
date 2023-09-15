@@ -1,3 +1,4 @@
+//! Behavior tree plugin for Bevy.
 
 use std::{sync::{Arc, Mutex}, future::Future};
 use bevy::prelude::*;
@@ -11,6 +12,7 @@ pub mod decorator;
 
 mod nullable_access;
 
+/// Module for convenient imports. Use with `use bevior_tree::prelude::*;`.
 pub mod prelude {
     pub use std::sync::Arc;
     pub use crate::{
@@ -22,6 +24,7 @@ pub mod prelude {
 }
 
 
+/// Add to your app to use this crate
 pub struct BehaviorTreePlugin;
 impl Plugin for BehaviorTreePlugin {
     fn build(&self, app: &mut App) {
@@ -31,6 +34,8 @@ impl Plugin for BehaviorTreePlugin {
     }
 }
 
+/// Behavior tree component.
+/// Task nodes of the tree affect the entity with this component.
 #[derive(Component)]
 pub struct BehaviorTree {
     root: Arc<dyn Node>,
@@ -38,8 +43,10 @@ pub struct BehaviorTree {
     result: Option<NodeResult>,
     world: Arc<Mutex<NullableWorldAccess>>,
 }
+/// Add to the same entity with the BehaviorTree to temporarily freeze the update.
 #[derive(Component)]
 pub struct Freeze;
+/// Add to the same entity with the BehaviorTree to abort the process.
 #[derive(Component)]
 pub struct Abort;
 
@@ -101,6 +108,7 @@ fn update (
     }
 }
 
+/// Nodes return this on complete.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum NodeResult {
     Success,
@@ -132,6 +140,8 @@ type Y = ();
 type R = ResumeSignal;
 type C = NodeResult;
 
+/// Representation of one execution of the node.
+/// In the implementation, it is generator function.
 pub trait NodeGen: Send + Sync {
     fn resume(&mut self) -> GeneratorState<Y, C>;
     fn abort(&mut self) -> GeneratorState<Y, C>;
@@ -147,6 +157,7 @@ F: Future<Output = C> + Send + Sync + 'static
     }
 }
 
+/// Node of behavior tree.
 pub trait Node: Send + Sync {
     fn run(self: Arc<Self>, world: Arc<Mutex<NullableWorldAccess>>, entity: Entity) -> Box<dyn NodeGen>;
 }
