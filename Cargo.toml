@@ -8,6 +8,7 @@ exclude = [ "assets/" ]
 keywords = [ "gamedev", "bevy", "ai", "behavior-tree" ]
 readme = "README.md"
 repository = "https://github.com/hyranno/bevior_tree"
+license = "MIT OR Apache-2.0"
 
 
 [dependencies]
