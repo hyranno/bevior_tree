@@ -12,8 +12,8 @@ pub struct SequencialAnd {
     nodes: Vec<Arc<dyn Node>>,
 }
 impl SequencialAnd {
-    pub fn new(nodes: Vec<Arc<dyn Node>>,) -> Self {
-        Self { nodes }
+    pub fn new(nodes: Vec<Arc<dyn Node>>,) -> Arc<Self> {
+        Arc::new(Self { nodes })
     }
 }
 impl Node for SequencialAnd {
@@ -38,8 +38,8 @@ pub struct SequencialOr {
     nodes: Vec<Arc<dyn Node>>,
 }
 impl SequencialOr {
-    pub fn new(nodes: Vec<Arc<dyn Node>>,) -> Self {
-        Self { nodes }
+    pub fn new(nodes: Vec<Arc<dyn Node>>,) -> Arc<Self> {
+        Arc::new(Self { nodes })
     }
 }
 impl Node for SequencialOr {

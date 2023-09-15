@@ -26,8 +26,8 @@ pub struct ConditionalLoop<Checker: ConditionChecker> {
     system_state: Mutex<Option<SystemState<Checker::Param<'static, 'static>>>>,
 }
 impl<Checker: ConditionChecker> ConditionalLoop<Checker> {
-    pub fn new(child: Arc<dyn Node>, checker: Checker) -> Self {
-        Self { child, checker, system_state: Mutex::new(None) }
+    pub fn new(child: Arc<dyn Node>, checker: Checker) -> Arc<Self> {
+        Arc::new(Self { child, checker, system_state: Mutex::new(None) })
     }
 }
 impl<Checker: ConditionChecker> Node for ConditionalLoop<Checker> {

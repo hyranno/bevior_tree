@@ -12,6 +12,7 @@ pub mod decorator;
 mod nullable_access;
 
 pub mod prelude {
+    pub use std::sync::Arc;
     pub use crate::{
         *,
         task::*,

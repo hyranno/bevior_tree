@@ -4,7 +4,6 @@
 
 use bevy::prelude::*;
 use bevior_tree::prelude::*;
-use std::sync::Arc;
 
 fn main() {
     App::new()
@@ -39,17 +38,17 @@ fn init(mut commands: Commands, asset_server: Res<AssetServer>) {
         },
 
         // This behavior tree handles the enemy's behavior.
-        BehaviorTree::new(Arc::new(
-            ConditionalLoop::new(Arc::new(
+        BehaviorTree::new(
+            ConditionalLoop::new(
                 Sequence::new(vec![
                     // TaskImpl can be used as DoNothingTask.
                     Arc::new(TaskImpl::new(NearTaskChecker {target: player, range: 300.})),
                     // Task to follow the player.
-                    Arc::new(FollowTask::new(player, 300., 100.)),
-                ])),
+                    FollowTask::new(player, 300., 100.),
+                ]),
                 Always
             )
-        )),
+        ),
     ));
 }
 
@@ -123,16 +122,16 @@ impl FollowTask {
         target: Entity,
         range: f32,
         speed: f32,
-    ) -> Self {
+    ) -> Arc<Self> {
         let task = TaskImpl::new(FollowTaskChecker {target, range})
             // Task inserts some components to the entity while running.
             .insert_while_running(Follow {target, speed})
             // Or run some commands on enter/exit.
             .on_enter(|_entity, mut _commands| { info!("Beginning to follow."); })
         ;
-        Self {
+        Arc::new(Self {
             task: Arc::new(task),
-        }
+        })
     }
 }
 impl Task for FollowTask {
