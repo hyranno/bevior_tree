@@ -11,6 +11,15 @@ pub mod decorator;
 
 mod nullable_access;
 
+pub mod prelude {
+    pub use crate::{
+        *,
+        task::*,
+        sequencial::*,
+        decorator::*,
+    };
+}
+
 
 pub struct BehaviorTreePlugin;
 impl Plugin for BehaviorTreePlugin {
