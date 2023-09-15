@@ -107,3 +107,27 @@ impl ConditionChecker for UntilResult {
     }
 }
 
+
+pub struct ResultConverter<F>
+where
+F: Fn(bool) -> bool + 'static + Send + Sync,
+{
+    child: Arc<dyn Node>,
+    convert: F,
+}
+impl<F> Node for ResultConverter<F>
+where
+    F: Fn(bool) -> bool + 'static + Send + Sync,
+{
+    fn run(self: Arc<Self>, world: Arc<Mutex<NullableWorldAccess>>, entity: Entity) -> Box<dyn NodeGen> {
+        let producer = |co| async move {
+            let mut gen = self.child.clone().run(world.clone(), entity);
+            let node_result = complete_or_yield(&co, &mut gen).await;
+            match node_result {
+                NodeResult::Aborted => { node_result },
+                _ => { (self.convert)(node_result.into()).into() },
+            }
+        };
+        Box::new(Gen::new(producer))
+    }
+}

@@ -97,6 +97,20 @@ pub enum NodeResult {
     Failure,
     Aborted,
 }
+impl Into<bool> for NodeResult {
+    fn into(self) -> bool {
+        match self {
+            NodeResult::Success => true,
+            NodeResult::Failure => false,
+            _ => {warn!("converted {:?} into bool", self); false}
+        }
+    }
+}
+impl From<bool> for NodeResult {
+    fn from(value: bool) -> Self {
+        if value { NodeResult::Success } else { NodeResult::Failure }
+    }
+}
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum ResumeSignal {
