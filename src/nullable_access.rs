@@ -52,7 +52,7 @@ impl NullableWorldAccess {
         Ok(checker.check(entity, param, loop_count, last_result))
     }
 
-    pub fn entity_command_call(&mut self, entity: Entity, system: &Box<dyn Fn(Entity, Commands) + Send + Sync>)
+    pub fn entity_command_call(&mut self, entity: Entity, system: &(impl Fn(Entity, Commands) + Send + Sync))
         -> Result<(), NullableAccessError>
     {
         let Some(world) = self.ptr.as_deref_mut() else {
