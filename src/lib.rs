@@ -7,6 +7,7 @@ use self::nullable_access::{NullableWorldAccess, TemporalWorldSharing};
 
 pub mod task;
 pub mod sequencial;
+pub mod decorator;
 
 mod nullable_access;
 
@@ -90,7 +91,7 @@ fn update (
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum NodeResult {
     Success,
     Failure,
