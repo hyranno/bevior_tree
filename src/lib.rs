@@ -12,6 +12,9 @@ pub mod decorator;
 
 mod nullable_access;
 
+#[cfg(test)]
+mod tester_util;
+
 /// Module for convenient imports. Use with `use bevior_tree::prelude::*;`.
 pub mod prelude {
     pub use std::sync::Arc;
@@ -189,4 +192,35 @@ async fn complete_or_yield(co: &Co<(), ResumeSignal>, gen: &mut Box<dyn NodeGen>
             GeneratorState::Complete(result) => { return result; }
         }
     }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use crate::tester_util::*;
+
+    #[test]
+    fn test_tree_end_with_result() {
+        let mut app = App::new();
+        app.add_plugins((BehaviorTreePlugin, TesterPlugin));
+        let task = TesterTask::new(0, 1, TaskState::Success);
+        let tree = BehaviorTree::new(task);
+        let entity = app.world.spawn(tree).id();
+        app.update();
+        app.update();
+        let tree = app.world.get::<BehaviorTree>(entity).unwrap();
+        assert!(
+            tree.result.is_some(),
+            "BehaviorTree should have result on the end."
+        );
+        assert!(
+            tree.result.unwrap() == NodeResult::Success,
+            "BehaviorTree should have result that match with the result of the root."
+        );
+        assert!(
+            tree.gen.is_none(),
+            "BehaviorTree shold not have generator after the run."
+        );
+    }
+
 }

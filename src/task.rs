@@ -11,6 +11,7 @@ use genawaiter::sync::{Gen, Co};
 
 use super::{Node, NodeGen, NodeResult, ResumeSignal, nullable_access::NullableWorldAccess};
 
+#[derive(Debug, Clone, Copy)]
 pub enum TaskState {
     Running,
     Success,
