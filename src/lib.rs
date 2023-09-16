@@ -223,4 +223,52 @@ mod tests {
         );
     }
 
+    #[test]
+    fn test_freeze() {
+        let mut app = App::new();
+        app.add_plugins((BehaviorTreePlugin, TesterPlugin));
+        let task = TesterTask::new(0, 2, TaskState::Success);
+        let tree = BehaviorTree::new(task);
+        let entity = app.world.spawn(tree).id();
+        app.update();
+        app.world.entity_mut(entity).insert(Freeze);
+        app.update();  // 0
+        app.update();  // 1
+        app.update();  // 2
+        app.world.entity_mut(entity).remove::<Freeze>();
+        app.update();  // 3, task complete
+        let expected = TestLog {log: vec![
+            TestLogEntry {task_id: 0, updated_count: 0, frame: 1},
+            TestLogEntry {task_id: 0, updated_count: 1, frame: 2},
+            TestLogEntry {task_id: 0, updated_count: 2, frame: 3},
+            TestLogEntry {task_id: 0, updated_count: 3, frame: 4},
+        ]};
+        assert!(
+            app.world.get_resource::<TestLog>().unwrap() == &expected,
+            "Task should not proceed while freeze."
+        );
+    }
+
+    #[test]
+    fn test_abort() {
+        let mut app = App::new();
+        app.add_plugins((BehaviorTreePlugin, TesterPlugin));
+        let task = TesterTask::new(0, 4, TaskState::Success);
+        let tree = BehaviorTree::new(task);
+        let entity = app.world.spawn(tree).id();
+        app.update();
+        app.update();  // 0
+        app.world.entity_mut(entity).insert(Abort);
+        app.update();  // 1, tree abort
+        app.update();
+        let expected = TestLog {log: vec![
+            TestLogEntry {task_id: 0, updated_count: 0, frame: 1},
+            TestLogEntry {task_id: 0, updated_count: 1, frame: 2},
+        ]};
+        assert!(
+            app.world.get_resource::<TestLog>().unwrap() == &expected,
+            "BehaviorTree should be aborted."
+        );
+    }
+
 }
