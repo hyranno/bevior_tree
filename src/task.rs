@@ -119,8 +119,10 @@ where
                     },
                 }
             }
+            // If aborted with dropping BehaviorTree, world will not be accessible.
+            #[allow(unused_must_use)]
             for event in self.on_exit.iter() {
-                world.lock().unwrap().entity_command_call(entity, &event).unwrap();
+                world.lock().unwrap().entity_command_call(entity, &event);
             }
             result.unwrap()
         };

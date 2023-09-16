@@ -50,6 +50,7 @@ pub struct BehaviorTree {
 #[derive(Component)]
 pub struct Freeze;
 /// Add to the same entity with the BehaviorTree to abort the process.
+/// You should abort before remove the BehaviorTree, or on_exit of the running task will not be executed.
 #[derive(Component)]
 pub struct Abort;
 
@@ -268,6 +269,29 @@ mod tests {
         assert!(
             app.world.get_resource::<TestLog>().unwrap() == &expected,
             "BehaviorTree should be aborted."
+        );
+    }
+
+    #[test]
+    fn test_drop() {
+        let mut app = App::new();
+        app.add_plugins((BehaviorTreePlugin, TesterPlugin));
+        let task = TesterTask::new(0, 4, TaskState::Success);
+        let tree = BehaviorTree::new(task);
+        let entity = app.world.spawn(tree).id();
+        app.update();
+        app.update();  // 0
+        app.world.entity_mut(entity).remove::<BehaviorTree>();
+        app.update();  // 1, BehaviorTree still exists on Update stage.
+        app.update();  // 2, Dropping BehaviorTree with running task will not execute on_exit 
+        let expected = TestLog {log: vec![
+            TestLogEntry {task_id: 0, updated_count: 0, frame: 1},
+            TestLogEntry {task_id: 0, updated_count: 1, frame: 2},
+            TestLogEntry {task_id: 0, updated_count: 2, frame: 3},
+        ]};
+        assert!(
+            app.world.get_resource::<TestLog>().unwrap() == &expected,
+            "Dropped BehaviorTree should be aborted."
         );
     }
 
