@@ -144,3 +144,49 @@ where
         Box::new(Gen::new(producer))
     }
 }
+
+
+#[cfg(test)]
+mod tests {
+    use crate::tester_util::*;
+
+    #[test]
+    fn test_repeat_count() {
+        let mut app = App::new();
+        app.add_plugins((BehaviorTreePlugin, TesterPlugin));
+        let task = TesterTask::new(0, 1, TaskState::Success);
+        let repeater = ConditionalLoop::new(task, RepeatCount {count: 3});
+        let tree = BehaviorTree::new(repeater);
+        let _entity = app.world.spawn(tree).id();
+        app.update();
+        app.update();  // 0
+        app.update();  // 1
+        app.update();  // 2, repeater complete
+        let expected = TestLog {log: vec![
+            TestLogEntry {task_id: 0, updated_count: 0, frame: 1},
+            TestLogEntry {task_id: 0, updated_count: 0, frame: 2},
+            TestLogEntry {task_id: 0, updated_count: 0, frame: 3},
+        ]};
+        assert!(
+            app.world.get_resource::<TestLog>().unwrap() == &expected,
+            "ConditionalLoop should repeat the task."
+        );
+    }
+
+    #[test]
+    fn test_invert_result() {
+        let mut app = App::new();
+        app.add_plugins((BehaviorTreePlugin, TesterPlugin));
+        let task = TesterTask::new(0, 1, TaskState::Success);
+        let inverter = ResultConverter::new(task, |res| !res);
+        let tree = BehaviorTree::new(inverter);
+        let entity = app.world.spawn(tree).id();
+        app.update();
+        app.update();
+        let tree = app.world.get::<BehaviorTree>(entity).unwrap();
+        assert!(
+            tree.result.unwrap() == NodeResult::Failure,
+            "ResultConverter should change the result."
+        );
+    }
+}

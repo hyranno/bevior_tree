@@ -87,3 +87,92 @@ impl Node for ForcedSequence {
         self.delegate.clone().run(world, entity)
     }
 }
+
+
+#[cfg(test)]
+mod tests {
+    use crate::tester_util::*;
+
+    #[test]
+    fn test_sequencial_and() {
+        let mut app = App::new();
+        app.add_plugins((BehaviorTreePlugin, TesterPlugin));
+        let task0 = TesterTask::new(0, 1, TaskState::Success);
+        let task1 = TesterTask::new(1, 1, TaskState::Success);
+        let task2 = TesterTask::new(2, 1, TaskState::Failure);
+        let task3 = TesterTask::new(3, 1, TaskState::Success);
+        let sequence = Sequence::new(vec![task0, task1, task2, task3]);
+        let tree = BehaviorTree::new(sequence);
+        let _entity = app.world.spawn(tree).id();
+        app.update();
+        app.update();  // 0
+        app.update();  // 1
+        app.update();  // 2, sequence complete with Failure
+        app.update();  // nop
+        let expected = TestLog {log: vec![
+            TestLogEntry {task_id: 0, updated_count: 0, frame: 1},
+            TestLogEntry {task_id: 1, updated_count: 0, frame: 2},
+            TestLogEntry {task_id: 2, updated_count: 0, frame: 3},
+        ]};
+        assert!(
+            app.world.get_resource::<TestLog>().unwrap() == &expected,
+            "SequencialAnd should match result."
+        );
+    }
+
+    #[test]
+    fn test_sequencial_or() {
+        let mut app = App::new();
+        app.add_plugins((BehaviorTreePlugin, TesterPlugin));
+        let task0 = TesterTask::new(0, 1, TaskState::Failure);
+        let task1 = TesterTask::new(1, 1, TaskState::Failure);
+        let task2 = TesterTask::new(2, 1, TaskState::Success);
+        let task3 = TesterTask::new(3, 1, TaskState::Failure);
+        let sequence = Selector::new(vec![task0, task1, task2, task3]);
+        let tree = BehaviorTree::new(sequence);
+        let _entity = app.world.spawn(tree).id();
+        app.update();
+        app.update();  // 0
+        app.update();  // 1
+        app.update();  // 2, sequence complete with Success
+        app.update();  // nop
+        let expected = TestLog {log: vec![
+            TestLogEntry {task_id: 0, updated_count: 0, frame: 1},
+            TestLogEntry {task_id: 1, updated_count: 0, frame: 2},
+            TestLogEntry {task_id: 2, updated_count: 0, frame: 3},
+        ]};
+        assert!(
+            app.world.get_resource::<TestLog>().unwrap() == &expected,
+            "SequencialOr should match result."
+        );
+    }
+
+    #[test]
+    fn test_forced_sequence() {
+        let mut app = App::new();
+        app.add_plugins((BehaviorTreePlugin, TesterPlugin));
+        let task0 = TesterTask::new(0, 1, TaskState::Success);
+        let task1 = TesterTask::new(1, 1, TaskState::Failure);
+        let task2 = TesterTask::new(2, 1, TaskState::Success);
+        let task3 = TesterTask::new(3, 1, TaskState::Failure);
+        let sequence = ForcedSequence::new(vec![task0, task1, task2, task3]);
+        let tree = BehaviorTree::new(sequence);
+        let _entity = app.world.spawn(tree).id();
+        app.update();
+        app.update();  // 0
+        app.update();  // 1
+        app.update();  // 2,
+        app.update();  // 3, sequence complete
+        let expected = TestLog {log: vec![
+            TestLogEntry {task_id: 0, updated_count: 0, frame: 1},
+            TestLogEntry {task_id: 1, updated_count: 0, frame: 2},
+            TestLogEntry {task_id: 2, updated_count: 0, frame: 3},
+            TestLogEntry {task_id: 3, updated_count: 0, frame: 4},
+        ]};
+        assert!(
+            app.world.get_resource::<TestLog>().unwrap() == &expected,
+            "ForcedSequence should run all the tasks."
+        );
+    }
+
+}
