@@ -1,3 +1,9 @@
+//! Task, the leaf nodes of the trees.
+//! 
+//! Task node does not directly run your task.
+//! It can do something on enter or exit, checking the completion of the task every frame while running.
+//! Typically, it adds and removes some components to the entity.
+//! You need some system to update according to the components.
 
 use std::sync::{Arc, Mutex};
 use bevy::{prelude::*, ecs::system::{ReadOnlySystemParam, SystemParam, SystemState}};
@@ -5,12 +11,14 @@ use genawaiter::sync::{Gen, Co};
 
 use super::{Node, NodeGen, NodeResult, ResumeSignal, nullable_access::NullableWorldAccess};
 
+#[derive(Debug, Clone, Copy)]
 pub enum TaskState {
     Running,
     Success,
     Failure,
 }
 
+/// Implement this for your task node.
 pub trait Task: Send + Sync {
     type Checker: TaskChecker;
     fn task_impl(&self) -> Arc<TaskImpl<Self::Checker>>;
@@ -25,6 +33,8 @@ where
 }
 
 
+/// Core implementation of task node.
+/// You can directly use this as a task node for simple task.
 pub struct TaskImpl<Checker>
 where
     Checker: TaskChecker,
@@ -62,6 +72,19 @@ where
         self.on_exit.push(Box::new(callback));
         self
     }
+    /// Insert the bundle on enter the task, then remove it on exit.
+    pub fn insert_while_running<T: Bundle + 'static + Clone>(
+        self,
+        bundle: T,
+    ) -> Self {
+        self
+            .on_enter(Box::new(move |entity, mut commands: Commands| {
+                commands.entity(entity).insert(bundle.clone());
+            }))
+            .on_exit(Box::new(|entity, mut commands: Commands| {
+                commands.entity(entity).remove::<T>();
+            }))
+    }
 }
 impl<Checker> Node for TaskImpl<Checker>
 where
@@ -96,8 +119,10 @@ where
                     },
                 }
             }
+            // If aborted with dropping BehaviorTree, world will not be accessible.
+            #[allow(unused_must_use)]
             for event in self.on_exit.iter() {
-                world.lock().unwrap().entity_command_call(entity, &event).unwrap();
+                world.lock().unwrap().entity_command_call(entity, &event);
             }
             result.unwrap()
         };
@@ -106,6 +131,8 @@ where
 }
 
 
+/// Check the status of the task.
+/// Will be called every frame while the task is running, on `PostUpdate` stage.
 pub trait TaskChecker: 'static + Sized + Send + Sync {
     type Param<'w, 's>: ReadOnlySystemParam;
     fn check (
