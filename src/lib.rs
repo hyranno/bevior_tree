@@ -21,7 +21,7 @@ pub mod prelude {
     pub use crate::{
         *,
         task::*,
-        sequencial::*,
+        sequencial::variants::*,
         decorator::*,
     };
 }

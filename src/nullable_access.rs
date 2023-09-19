@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex};
 
 use bevy::{prelude::*, ecs::system::SystemState};
 
-use crate::{decorator::ConditionChecker, NodeResult};
+use crate::{decorator::ConditionChecker, NodeResult, sequencial::Scorer};
 
 use super::task::{TaskState, TaskChecker};
 
@@ -50,6 +50,25 @@ impl NullableWorldAccess {
         }
         let param = system_state.as_mut().unwrap().get(world);
         Ok(checker.check(entity, param, loop_count, last_result))
+    }
+
+    pub fn score_node<S>(
+        &mut self,
+        entity: Entity,
+        scorer: &S,
+        system_state: &mut Option<SystemState<S::Param<'static, 'static>>>,
+    ) -> Result<f32, NullableAccessError>
+    where
+        S: Scorer,
+    {
+        let Some(world) = self.ptr.as_deref_mut() else {
+            return Err(NullableAccessError::NotAvailableNow);
+        };
+        if system_state.is_none() {
+            *system_state = Some(SystemState::new(world));
+        }
+        let param = system_state.as_mut().unwrap().get(world);
+        Ok(scorer.score(entity, param))
     }
 
     pub fn entity_command_call(&mut self, entity: Entity, system: &(impl Fn(Entity, Commands) + Send + Sync))
