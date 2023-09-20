@@ -1,7 +1,13 @@
-use std::cmp::Reverse;
+use std::{cmp::Reverse, sync::{Arc, Mutex}};
+use bevy::prelude::*;
 use ordered_float::OrderedFloat;
 
-use super::*;
+use crate::{Node, NodeGen, NodeResult};
+use crate::nullable_access::NullableWorldAccess;
+use super::{ScoredSequence, NodeScorer, NodeScorerImpl, ConstantScorer};
+
+#[cfg(feature = "random")]
+pub mod random;
 
 pub fn score_uniform(nodes: Vec<Arc<dyn Node>>) -> Vec<Box<dyn NodeScorer>> {
     nodes.iter().map(|node| Box::new(
@@ -12,6 +18,7 @@ pub fn score_uniform(nodes: Vec<Arc<dyn Node>>) -> Vec<Box<dyn NodeScorer>> {
 pub fn pick_identity(nodes: Vec<(f32, Arc<dyn Node>)>) -> Vec<(f32, Arc<dyn Node>)> {
     nodes
 }
+/// Sort descending by score.
 pub fn pick_sorted(mut nodes: Vec<(f32, Arc<dyn Node>)>) -> Vec<(f32, Arc<dyn Node>)> {
     nodes.sort_by_key(|(score, _)| Reverse(OrderedFloat(*score)));
     nodes
@@ -152,15 +159,15 @@ impl ScoreOrderedForcedSequence {
 }
 
 /// Node that runs just one child with highest score on enter the node.
-pub struct ScoreOrderedForcedSelector {
+pub struct ScoredForcedSelector {
     delegate: Arc<ScoredSequence>,
 }
-impl Node for ScoreOrderedForcedSelector {
+impl Node for ScoredForcedSelector {
     fn run(self: Arc<Self>, world: Arc<Mutex<NullableWorldAccess>>, entity: Entity) -> Box<dyn NodeGen> {
         self.delegate.clone().run(world, entity)
     }
 }
-impl ScoreOrderedForcedSelector {
+impl ScoredForcedSelector {
     pub fn new(node_scorers: Vec<Box<dyn NodeScorer>>) -> Arc<Self> {
         Arc::new(Self {delegate: ScoredSequence::new(
             node_scorers,
@@ -387,7 +394,7 @@ mod tests {
     fn test_score_ordered_forced_selector() {
         let mut app = App::new();
         app.add_plugins((BehaviorTreePlugin, TesterPlugin));
-        let sequence = ScoreOrderedForcedSelector::new(vec![
+        let sequence = ScoredForcedSelector::new(vec![
             Box::new(NodeScorerImpl::new(
                 ConstantScorer {score: 0.1},
                 TesterTask::new(0, 1, TaskState::Failure)
@@ -413,7 +420,6 @@ mod tests {
         let expected = TestLog {log: vec![
             TestLogEntry {task_id: 3, updated_count: 0, frame: 1},
         ]};
-        println!("{:?}", app.world.get_resource::<TestLog>().unwrap());
         assert!(
             app.world.get_resource::<TestLog>().unwrap() == &expected,
             "ScoreOrderedForcedSelector should match result."
