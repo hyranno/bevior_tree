@@ -10,10 +10,15 @@ readme = "README.md"
 repository = "https://github.com/hyranno/bevior_tree"
 license = "MIT OR Apache-2.0"
 
+[features]
+default = ["random"]
+random = ["dep:rand"]
 
 [dependencies]
 bevy = { version = "0.11", default-features = false }
 genawaiter = { version = "0.99" }
+ordered-float = { version = "3.9" }
+rand = { version = "0.8", optional = true}
 
 [dev-dependencies]
 bevy = "0.11"

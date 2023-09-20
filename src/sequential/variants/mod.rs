@@ -1,84 +1,79 @@
-//! Sequencial composit nodes.
-
 use std::sync::{Arc, Mutex};
-use genawaiter::sync::Gen;
+use bevy::prelude::*;
 
-use bevy::ecs::entity::Entity;
+use crate::{Node, NodeGen, NodeResult};
+use crate::nullable_access::NullableWorldAccess;
+use super::{ScoredSequence, NodeScorer, NodeScorerImpl, ConstantScorer};
 
-use super::{Node, NodeGen, NodeResult, complete_or_yield, nullable_access::NullableWorldAccess};
+pub mod sorted;
 
+#[cfg(feature = "random")]
+pub mod random;
 
-pub struct SequenceWhile {
-    nodes: Vec<Arc<dyn Node>>,
-    cond: Box<dyn Fn(NodeResult) -> bool + 'static + Send + Sync>,
-    complete_value: NodeResult,
-}
-impl SequenceWhile {
-    pub fn new(
-        nodes: Vec<Arc<dyn Node>>,
-        cond: impl Fn(NodeResult)->bool + 'static + Send + Sync,
-        complete_value: NodeResult
-    ) -> Arc<Self> {
-        Arc::new(Self { nodes, cond: Box::new(cond), complete_value })
-    }
-}
-impl Node for SequenceWhile {
-    fn run(self: Arc<Self>, world: Arc<Mutex<NullableWorldAccess>>, entity: Entity) -> Box<dyn NodeGen> {
-        let producer = |co| async move {
-            for node in self.nodes.iter() {
-                let mut gen = node.clone().run(world.clone(), entity);
-                let node_result = complete_or_yield(&co, &mut gen).await;
-                if !(self.cond)(node_result) {
-                    return node_result;
-                }
-            }
-            self.complete_value
-        };
-        Box::new(Gen::new(producer))
-    }
+pub fn score_uniform(nodes: Vec<Arc<dyn Node>>) -> Vec<Box<dyn NodeScorer>> {
+    nodes.iter().map(|node| Box::new(
+        NodeScorerImpl::new(ConstantScorer {score: 1.0}, node.clone())
+    ) as Box<dyn NodeScorer>).collect()
 }
 
-pub type Sequence = SequencialAnd;
-pub struct SequencialAnd {
-    delegate: Arc<SequenceWhile>,
+pub fn pick_identity(nodes: Vec<(f32, Arc<dyn Node>)>) -> Vec<(f32, Arc<dyn Node>)> {
+    nodes
 }
-impl SequencialAnd {
+
+
+pub type Sequence = SequentialAnd;
+/// Node that runs children in order while their result is Success.
+pub struct SequentialAnd {
+    delegate: Arc<ScoredSequence>,
+}
+impl SequentialAnd {
     pub fn new(nodes: Vec<Arc<dyn Node>>,) -> Arc<Self> {
-        Arc::new(Self {delegate: SequenceWhile::new(
-            nodes, |res| res==NodeResult::Success, NodeResult::Success
+        Arc::new(Self {delegate: ScoredSequence::new(
+            score_uniform(nodes),
+            pick_identity,
+            |res| res==NodeResult::Success,
+            NodeResult::Success,
         )})
     }
 }
-impl Node for SequencialAnd {
+impl Node for SequentialAnd {
     fn run(self: Arc<Self>, world: Arc<Mutex<NullableWorldAccess>>, entity: Entity) -> Box<dyn NodeGen> {
         self.delegate.clone().run(world, entity)
     }
 }
 
-pub type Selector = SequencialOr;
-pub struct SequencialOr {
-    delegate: Arc<SequenceWhile>,
+pub type Selector = SequentialOr;
+/// Node that runs children in order until one of them returns Success.
+pub struct SequentialOr {
+    delegate: Arc<ScoredSequence>,
 }
-impl SequencialOr {
+impl SequentialOr {
     pub fn new(nodes: Vec<Arc<dyn Node>>,) -> Arc<Self> {
-        Arc::new(Self {delegate: SequenceWhile::new(
-            nodes, |res| res==NodeResult::Failure, NodeResult::Failure
+        Arc::new(Self {delegate: ScoredSequence::new(
+            score_uniform(nodes),
+            pick_identity,
+            |res| res==NodeResult::Failure,
+            NodeResult::Failure,
         )})
     }
 }
-impl Node for SequencialOr {
+impl Node for SequentialOr {
     fn run(self: Arc<Self>, world: Arc<Mutex<NullableWorldAccess>>, entity: Entity) -> Box<dyn NodeGen> {
         self.delegate.clone().run(world, entity)
     }
 }
 
+/// Node that runs all children in order.
 pub struct ForcedSequence {
-    delegate: Arc<SequenceWhile>,
+    delegate: Arc<ScoredSequence>,
 }
 impl ForcedSequence {
     pub fn new(nodes: Vec<Arc<dyn Node>>,) -> Arc<Self> {
-        Arc::new(Self {delegate: SequenceWhile::new(
-            nodes, |_| true, NodeResult::Success
+        Arc::new(Self {delegate: ScoredSequence::new(
+            score_uniform(nodes),
+            pick_identity,
+            |_| true,
+            NodeResult::Success,
         )})
     }
 }
@@ -89,12 +84,16 @@ impl Node for ForcedSequence {
 }
 
 
+
 #[cfg(test)]
 mod tests {
-    use crate::tester_util::*;
+    use crate::*;
+    use crate::task::*;
+    use crate::tester_util::{TesterPlugin, TesterTask, TestLog, TestLogEntry};
+    use super::*;
 
     #[test]
-    fn test_sequencial_and() {
+    fn test_sequential_and() {
         let mut app = App::new();
         app.add_plugins((BehaviorTreePlugin, TesterPlugin));
         let task0 = TesterTask::new(0, 1, TaskState::Success);
@@ -116,12 +115,12 @@ mod tests {
         ]};
         assert!(
             app.world.get_resource::<TestLog>().unwrap() == &expected,
-            "SequencialAnd should match result."
+            "SequentialAnd should match result."
         );
     }
 
     #[test]
-    fn test_sequencial_or() {
+    fn test_sequential_or() {
         let mut app = App::new();
         app.add_plugins((BehaviorTreePlugin, TesterPlugin));
         let task0 = TesterTask::new(0, 1, TaskState::Failure);
@@ -143,7 +142,7 @@ mod tests {
         ]};
         assert!(
             app.world.get_resource::<TestLog>().unwrap() == &expected,
-            "SequencialOr should match result."
+            "SequentialOr should match result."
         );
     }
 
