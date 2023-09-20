@@ -6,7 +6,7 @@ use rand::{distributions::Uniform, Rng, prelude::Distribution};
 
 use crate::{Node, NodeGen, NodeResult};
 use crate::nullable_access::NullableWorldAccess;
-use crate::sequencial::{ScoredSequence, NodeScorer, };
+use crate::sequential::{ScoredSequence, NodeScorer, };
 
 
 /// Weighted random sampling.
@@ -35,15 +35,15 @@ pub fn pick_random_one<R: Rng>(nodes: Vec<(f32, Arc<dyn Node>)>, rng: &mut R) ->
 
 /// Node that runs children while their result is Success.
 /// Children are sorted random weighted by score on enter the node.
-pub struct RandomOrderedSequencialAnd{
+pub struct RandomOrderedSequentialAnd{
     delegate: Arc<ScoredSequence>,
 }
-impl Node for RandomOrderedSequencialAnd {
+impl Node for RandomOrderedSequentialAnd {
     fn run(self: Arc<Self>, world: Arc<Mutex<NullableWorldAccess>>, entity: Entity) -> Box<dyn NodeGen> {
         self.delegate.clone().run(world, entity)
     }
 }
-impl RandomOrderedSequencialAnd
+impl RandomOrderedSequentialAnd
 {
     pub fn new<R>(node_scorers: Vec<Box<dyn NodeScorer>>, rng: Arc<Mutex<R>>) -> Arc<Self>
     where
@@ -60,15 +60,15 @@ impl RandomOrderedSequencialAnd
 
 /// Node that runs children while their result is Failure.
 /// Children are sorted random weighted by score on enter the node.
-pub struct RandomOrderedSequencialOr{
+pub struct RandomOrderedSequentialOr{
     delegate: Arc<ScoredSequence>,
 }
-impl Node for RandomOrderedSequencialOr {
+impl Node for RandomOrderedSequentialOr {
     fn run(self: Arc<Self>, world: Arc<Mutex<NullableWorldAccess>>, entity: Entity) -> Box<dyn NodeGen> {
         self.delegate.clone().run(world, entity)
     }
 }
-impl RandomOrderedSequencialOr
+impl RandomOrderedSequentialOr
 {
     pub fn new<R>(node_scorers: Vec<Box<dyn NodeScorer>>, rng: Arc<Mutex<R>>) -> Arc<Self>
     where
@@ -135,16 +135,16 @@ mod tests {
     use crate::*;
     use crate::task::*;
     use crate::tester_util::{TesterPlugin, TesterTask, TestLog, TestLogEntry};
-    use crate::sequencial::{NodeScorerImpl, ConstantScorer};
+    use crate::sequential::{NodeScorerImpl, ConstantScorer};
     use super::*;
 
     use rand::SeedableRng;
 
     #[test]
-    fn test_random_ordered_sequencial_and() {
+    fn test_random_ordered_sequential_and() {
         let mut app = App::new();
         app.add_plugins((BehaviorTreePlugin, TesterPlugin));
-        let sequence = RandomOrderedSequencialAnd::new(
+        let sequence = RandomOrderedSequentialAnd::new(
             vec![
                 Box::new(NodeScorerImpl::new(
                     ConstantScorer {score: 0.1},
@@ -180,15 +180,15 @@ mod tests {
         let found =app.world.get_resource::<TestLog>().unwrap();
         assert!(
             found == &expected,
-            "RandomOrderedSequencialAnd should match result. found: {:?}", found
+            "RandomOrderedSequentialAnd should match result. found: {:?}", found
         );
     }
 
     #[test]
-    fn test_random_ordered_sequencial_or() {
+    fn test_random_ordered_sequential_or() {
         let mut app = App::new();
         app.add_plugins((BehaviorTreePlugin, TesterPlugin));
-        let sequence = RandomOrderedSequencialOr::new(
+        let sequence = RandomOrderedSequentialOr::new(
             vec![
                 Box::new(NodeScorerImpl::new(
                     ConstantScorer {score: 0.1},
@@ -224,7 +224,7 @@ mod tests {
         let found =app.world.get_resource::<TestLog>().unwrap();
         assert!(
             found == &expected,
-            "RandomOrderedSequencialOr should match result. found: {:?}", found
+            "RandomOrderedSequentialOr should match result. found: {:?}", found
         );
     }
 

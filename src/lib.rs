@@ -7,7 +7,7 @@ use genawaiter::{sync::{Co, Gen}, GeneratorState};
 use self::nullable_access::{NullableWorldAccess, TemporalWorldSharing};
 
 pub mod task;
-pub mod sequencial;
+pub mod sequential;
 pub mod decorator;
 
 mod nullable_access;
@@ -21,7 +21,7 @@ pub mod prelude {
     pub use crate::{
         *,
         task::*,
-        sequencial::variants::*,
+        sequential::variants::*,
         decorator::*,
     };
 }

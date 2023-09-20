@@ -21,12 +21,12 @@ pub fn pick_identity(nodes: Vec<(f32, Arc<dyn Node>)>) -> Vec<(f32, Arc<dyn Node
 }
 
 
-pub type Sequence = SequencialAnd;
+pub type Sequence = SequentialAnd;
 /// Node that runs children in order while their result is Success.
-pub struct SequencialAnd {
+pub struct SequentialAnd {
     delegate: Arc<ScoredSequence>,
 }
-impl SequencialAnd {
+impl SequentialAnd {
     pub fn new(nodes: Vec<Arc<dyn Node>>,) -> Arc<Self> {
         Arc::new(Self {delegate: ScoredSequence::new(
             score_uniform(nodes),
@@ -36,18 +36,18 @@ impl SequencialAnd {
         )})
     }
 }
-impl Node for SequencialAnd {
+impl Node for SequentialAnd {
     fn run(self: Arc<Self>, world: Arc<Mutex<NullableWorldAccess>>, entity: Entity) -> Box<dyn NodeGen> {
         self.delegate.clone().run(world, entity)
     }
 }
 
-pub type Selector = SequencialOr;
+pub type Selector = SequentialOr;
 /// Node that runs children in order until one of them returns Success.
-pub struct SequencialOr {
+pub struct SequentialOr {
     delegate: Arc<ScoredSequence>,
 }
-impl SequencialOr {
+impl SequentialOr {
     pub fn new(nodes: Vec<Arc<dyn Node>>,) -> Arc<Self> {
         Arc::new(Self {delegate: ScoredSequence::new(
             score_uniform(nodes),
@@ -57,7 +57,7 @@ impl SequencialOr {
         )})
     }
 }
-impl Node for SequencialOr {
+impl Node for SequentialOr {
     fn run(self: Arc<Self>, world: Arc<Mutex<NullableWorldAccess>>, entity: Entity) -> Box<dyn NodeGen> {
         self.delegate.clone().run(world, entity)
     }
@@ -93,7 +93,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_sequencial_and() {
+    fn test_sequential_and() {
         let mut app = App::new();
         app.add_plugins((BehaviorTreePlugin, TesterPlugin));
         let task0 = TesterTask::new(0, 1, TaskState::Success);
@@ -115,12 +115,12 @@ mod tests {
         ]};
         assert!(
             app.world.get_resource::<TestLog>().unwrap() == &expected,
-            "SequencialAnd should match result."
+            "SequentialAnd should match result."
         );
     }
 
     #[test]
-    fn test_sequencial_or() {
+    fn test_sequential_or() {
         let mut app = App::new();
         app.add_plugins((BehaviorTreePlugin, TesterPlugin));
         let task0 = TesterTask::new(0, 1, TaskState::Failure);
@@ -142,7 +142,7 @@ mod tests {
         ]};
         assert!(
             app.world.get_resource::<TestLog>().unwrap() == &expected,
-            "SequencialOr should match result."
+            "SequentialOr should match result."
         );
     }
 

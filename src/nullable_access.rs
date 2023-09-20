@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex};
 
 use bevy::{prelude::*, ecs::system::SystemState};
 
-use crate::{decorator::ConditionChecker, NodeResult, sequencial::Scorer};
+use crate::{decorator::ConditionChecker, NodeResult, sequential::Scorer};
 
 use super::task::{TaskState, TaskChecker};
 

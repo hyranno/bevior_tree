@@ -4,7 +4,7 @@ use ordered_float::OrderedFloat;
 
 use crate::{Node, NodeGen, NodeResult};
 use crate::nullable_access::NullableWorldAccess;
-use crate::sequencial::{ScoredSequence, NodeScorer};
+use crate::sequential::{ScoredSequence, NodeScorer};
 
 
 /// Sort descending by score.
@@ -22,15 +22,15 @@ pub fn pick_max(nodes: Vec<(f32, Arc<dyn Node>)>) -> Vec<(f32, Arc<dyn Node>)> {
 
 /// Node that runs children while their result is Success.
 /// Children are sorted descending by score on enter the node.
-pub struct ScoreOrderedSequencialAnd {
+pub struct ScoreOrderedSequentialAnd {
     delegate: Arc<ScoredSequence>,
 }
-impl Node for ScoreOrderedSequencialAnd {
+impl Node for ScoreOrderedSequentialAnd {
     fn run(self: Arc<Self>, world: Arc<Mutex<NullableWorldAccess>>, entity: Entity) -> Box<dyn NodeGen> {
         self.delegate.clone().run(world, entity)
     }
 }
-impl ScoreOrderedSequencialAnd {
+impl ScoreOrderedSequentialAnd {
     pub fn new(node_scorers: Vec<Box<dyn NodeScorer>>) -> Arc<Self> {
         Arc::new(Self {delegate: ScoredSequence::new(
             node_scorers,
@@ -43,15 +43,15 @@ impl ScoreOrderedSequencialAnd {
 
 /// Node that runs children while their result is Failure.
 /// Children are sorted descending by score on enter the node.
-pub struct ScoreOrderedSequencialOr {
+pub struct ScoreOrderedSequentialOr {
     delegate: Arc<ScoredSequence>,
 }
-impl Node for ScoreOrderedSequencialOr {
+impl Node for ScoreOrderedSequentialOr {
     fn run(self: Arc<Self>, world: Arc<Mutex<NullableWorldAccess>>, entity: Entity) -> Box<dyn NodeGen> {
         self.delegate.clone().run(world, entity)
     }
 }
-impl ScoreOrderedSequencialOr {
+impl ScoreOrderedSequentialOr {
     pub fn new(node_scorers: Vec<Box<dyn NodeScorer>>) -> Arc<Self> {
         Arc::new(Self {delegate: ScoredSequence::new(
             node_scorers,
@@ -109,14 +109,14 @@ mod tests {
     use crate::*;
     use crate::task::*;
     use crate::tester_util::{TesterPlugin, TesterTask, TestLog, TestLogEntry};
-    use crate::sequencial::{NodeScorerImpl, ConstantScorer};
+    use crate::sequential::{NodeScorerImpl, ConstantScorer};
     use super::*;
 
     #[test]
-    fn test_score_ordered_sequencial_and() {
+    fn test_score_ordered_sequential_and() {
         let mut app = App::new();
         app.add_plugins((BehaviorTreePlugin, TesterPlugin));
-        let sequence = ScoreOrderedSequencialAnd::new(vec![
+        let sequence = ScoreOrderedSequentialAnd::new(vec![
             Box::new(NodeScorerImpl::new(
                 ConstantScorer {score: 0.1},
                 TesterTask::new(0, 1, TaskState::Success)
@@ -148,15 +148,15 @@ mod tests {
         ]};
         assert!(
             app.world.get_resource::<TestLog>().unwrap() == &expected,
-            "ScoreOrderedSequencialAnd should match result."
+            "ScoreOrderedSequentialAnd should match result."
         );
     }
 
     #[test]
-    fn test_score_ordered_sequencial_or() {
+    fn test_score_ordered_sequential_or() {
         let mut app = App::new();
         app.add_plugins((BehaviorTreePlugin, TesterPlugin));
-        let sequence = ScoreOrderedSequencialOr::new(vec![
+        let sequence = ScoreOrderedSequentialOr::new(vec![
             Box::new(NodeScorerImpl::new(
                 ConstantScorer {score: 0.1},
                 TesterTask::new(0, 1, TaskState::Failure)
@@ -188,7 +188,7 @@ mod tests {
         ]};
         assert!(
             app.world.get_resource::<TestLog>().unwrap() == &expected,
-            "ScoreOrderedSequencialAnd should match result."
+            "ScoreOrderedSequentialAnd should match result."
         );
     }
 
