@@ -1,5 +1,28 @@
+use std::cmp::Reverse;
+use ordered_float::OrderedFloat;
 
 use super::*;
+
+pub fn score_uniform(nodes: Vec<Arc<dyn Node>>) -> Vec<Box<dyn NodeScorer>> {
+    nodes.iter().map(|node| Box::new(
+        NodeScorerImpl::new(ConstantScorer {score: 1.0}, node.clone())
+    ) as Box<dyn NodeScorer>).collect()
+}
+
+pub fn pick_identity(nodes: Vec<(f32, Arc<dyn Node>)>) -> Vec<(f32, Arc<dyn Node>)> {
+    nodes
+}
+pub fn pick_sorted(mut nodes: Vec<(f32, Arc<dyn Node>)>) -> Vec<(f32, Arc<dyn Node>)> {
+    nodes.sort_by_key(|(score, _)| Reverse(OrderedFloat(*score)));
+    nodes
+}
+pub fn pick_max(nodes: Vec<(f32, Arc<dyn Node>)>) -> Vec<(f32, Arc<dyn Node>)> {
+    let picked = nodes.into_iter().max_by_key(|(score, _)| OrderedFloat(*score));
+    match picked {
+        Some(node) => vec![node],
+        None => vec![],
+    }
+}
 
 
 pub type Sequence = SequencialAnd;
@@ -10,10 +33,8 @@ pub struct SequencialAnd {
 impl SequencialAnd {
     pub fn new(nodes: Vec<Arc<dyn Node>>,) -> Arc<Self> {
         Arc::new(Self {delegate: ScoredSequence::new(
-            nodes.iter().map(|node| Box::new(
-                NodeScorerImpl::new(ConstantScorer {score: 1.0}, node.clone())
-            ) as Box<dyn NodeScorer>).collect(),
-            |nodes| nodes,
+            score_uniform(nodes),
+            pick_identity,
             |res| res==NodeResult::Success,
             NodeResult::Success,
         )})
@@ -33,10 +54,8 @@ pub struct SequencialOr {
 impl SequencialOr {
     pub fn new(nodes: Vec<Arc<dyn Node>>,) -> Arc<Self> {
         Arc::new(Self {delegate: ScoredSequence::new(
-            nodes.iter().map(|node| Box::new(
-                NodeScorerImpl::new(ConstantScorer {score: 1.0}, node.clone())
-            ) as Box<dyn NodeScorer>).collect(),
-            |nodes| nodes,
+            score_uniform(nodes),
+            pick_identity,
             |res| res==NodeResult::Failure,
             NodeResult::Failure,
         )})
@@ -55,10 +74,8 @@ pub struct ForcedSequence {
 impl ForcedSequence {
     pub fn new(nodes: Vec<Arc<dyn Node>>,) -> Arc<Self> {
         Arc::new(Self {delegate: ScoredSequence::new(
-            nodes.iter().map(|node| Box::new(
-                NodeScorerImpl::new(ConstantScorer {score: 1.0}, node.clone())
-            ) as Box<dyn NodeScorer>).collect(),
-            |nodes| nodes,
+            score_uniform(nodes),
+            pick_identity,
             |_| true,
             NodeResult::Success,
         )})
@@ -85,10 +102,7 @@ impl ScoreOrderedSequencialAnd {
     pub fn new(node_scorers: Vec<Box<dyn NodeScorer>>) -> Arc<Self> {
         Arc::new(Self {delegate: ScoredSequence::new(
             node_scorers,
-            |mut nodes| {
-                nodes.sort_by(|(score_a, _), (score_b, _)| score_b.total_cmp(score_a));
-                nodes
-            },
+            pick_sorted,
             |res| res==NodeResult::Success,
             NodeResult::Success,
         )})
@@ -109,10 +123,7 @@ impl ScoreOrderedSequencialOr {
     pub fn new(node_scorers: Vec<Box<dyn NodeScorer>>) -> Arc<Self> {
         Arc::new(Self {delegate: ScoredSequence::new(
             node_scorers,
-            |mut nodes| {
-                nodes.sort_by(|(score_a, _), (score_b, _)| score_b.total_cmp(score_a));
-                nodes
-            },
+            pick_sorted,
             |res| res==NodeResult::Failure,
             NodeResult::Failure,
         )})
@@ -133,10 +144,7 @@ impl ScoreOrderedForcedSequence {
     pub fn new(node_scorers: Vec<Box<dyn NodeScorer>>) -> Arc<Self> {
         Arc::new(Self {delegate: ScoredSequence::new(
             node_scorers,
-            |mut nodes| {
-                nodes.sort_by(|(score_a, _), (score_b, _)| score_b.total_cmp(score_a));
-                nodes
-            },
+            pick_sorted,
             |_| true,
             NodeResult::Success,
         )})
@@ -156,13 +164,9 @@ impl ScoreOrderedForcedSelector {
     pub fn new(node_scorers: Vec<Box<dyn NodeScorer>>) -> Arc<Self> {
         Arc::new(Self {delegate: ScoredSequence::new(
             node_scorers,
-            |mut nodes| {
-                // Not optimized, needs only first.
-                nodes.sort_by(|(score_a, _), (score_b, _)| score_b.total_cmp(score_a));
-                nodes
-            },
+            pick_max,
             |_| false,
-            NodeResult::Failure,  // Be used when the nodes is empty.
+            NodeResult::Failure,  // Be used only when the nodes is empty.
         )})
     }
 }
@@ -409,6 +413,7 @@ mod tests {
         let expected = TestLog {log: vec![
             TestLogEntry {task_id: 3, updated_count: 0, frame: 1},
         ]};
+        println!("{:?}", app.world.get_resource::<TestLog>().unwrap());
         assert!(
             app.world.get_resource::<TestLog>().unwrap() == &expected,
             "ScoreOrderedForcedSelector should match result."

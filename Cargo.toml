@@ -14,6 +14,7 @@ license = "MIT OR Apache-2.0"
 [dependencies]
 bevy = { version = "0.11", default-features = false }
 genawaiter = { version = "0.99" }
+ordered-float = { version = "3.9" }
 
 [dev-dependencies]
 bevy = "0.11"
