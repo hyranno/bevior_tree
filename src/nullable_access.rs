@@ -108,18 +108,22 @@ pub enum NullableAccessError {
     NotAvailableNow,
 }
 
-pub struct TemporalWorldSharing {
+
+/// `NullableWorldAccess` can access to the world while this struct is alive.
+pub struct TemporalWorldSharing<'a> {
     accessor: Arc<Mutex<NullableWorldAccess>>,
+    _world: &'a World,  // To ensure this struct does not live longer than the reference.
 }
-impl TemporalWorldSharing {
-    pub fn new(accessor: Arc<Mutex<NullableWorldAccess>>, value: &mut World) -> Self {
-        let ptr: *mut World = value;
+impl<'a> TemporalWorldSharing<'a> {
+    pub fn new(accessor: Arc<Mutex<NullableWorldAccess>>, world: &'a mut World) -> Self {
+        // unsafely changing lifetime `&'a` to `&'static`.
+        let ptr: *mut World = world;
         let prolonged_ref: &'static mut World = unsafe{ ptr.as_mut().unwrap() };
         accessor.lock().unwrap().ptr = Some(prolonged_ref);
-        Self {accessor}
+        Self {accessor, _world: world}
     }
 }
-impl Drop for TemporalWorldSharing {
+impl<'a> Drop for TemporalWorldSharing<'a> {
     fn drop(&mut self) {
         self.accessor.lock().unwrap().ptr = None;
     }
