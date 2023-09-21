@@ -8,6 +8,7 @@ use self::nullable_access::{NullableWorldAccess, TemporalWorldSharing};
 
 pub mod task;
 pub mod sequential;
+pub mod parallel;
 pub mod decorator;
 
 mod nullable_access;
@@ -42,7 +43,7 @@ impl Plugin for BehaviorTreePlugin {
 #[derive(Component)]
 pub struct BehaviorTree {
     root: Arc<dyn Node>,
-    gen: Option<Box<dyn NodeGen>>,
+    runner: Option<NodeRunner>,
     result: Option<NodeResult>,
     world: Arc<Mutex<NullableWorldAccess>>,
 }
@@ -58,15 +59,18 @@ impl BehaviorTree {
     pub fn new(root: Arc<dyn Node>) -> Self {
         Self {
             root,
-            gen: None,
+            runner: None,
             result: None,
             world: Arc::<Mutex::<NullableWorldAccess>>::default(),
         }
     }
+    pub fn result(&self) -> Option<NodeResult> {
+        self.result
+    }
     fn stub(&self) -> Self {
         Self {
             root: Arc::<StubNode>::default(),
-            gen: None,
+            runner: None,
             result: None,
             world: Arc::default(),
         }
@@ -74,8 +78,8 @@ impl BehaviorTree {
 }
 impl Drop for BehaviorTree {
     fn drop(&mut self) {
-        if let Some(gen) = self.gen.as_mut() {
-            gen.abort();
+        if let Some(gen) = self.runner.as_mut() {
+            gen.abort_if_incomplete();
         }
     }
 }
@@ -96,13 +100,28 @@ fn update (
     for (entity, tree, abort) in borrowed_trees.iter_mut() {
         if tree.result.is_some() { continue; }
         let _temporal_world = TemporalWorldSharing::new(tree.world.clone(), world);
-        if tree.gen.is_none() {
-            tree.gen = Some(tree.root.clone().run(tree.world.clone(), *entity));
+
+        match tree.runner.as_mut() {
+            None => {   // Not started yet.
+                if !*abort {
+                    tree.runner = Some(NodeRunner::new(tree.root.clone(), tree.world.clone(), *entity));
+                } else {
+                    tree.result = Some(NodeResult::Aborted);
+                }
+            },
+            Some(runner) => {   // Running.
+                if !*abort {
+                    runner.resume_if_incomplete();
+                } else {
+                    runner.abort_if_incomplete();
+                }
+                tree.result = runner.result();
+            },
         }
-        let Some(gen) = tree.gen.as_mut() else {unreachable!()};
-        if let GeneratorState::Complete(result) = if !*abort {gen.resume()} else {gen.abort()} {
-            tree.result = Some(result);
-            tree.gen = None;
+
+        // Drop used runner.
+        if tree.result.is_some() {
+            tree.runner = None;
         }
     }
 
@@ -143,20 +162,21 @@ pub enum ResumeSignal {
 type Y = ();
 type R = ResumeSignal;
 type C = NodeResult;
+pub type NodeGenState = GeneratorState<Y, C>;
 
 /// Representation of one execution of the node.
 /// In the implementation, it is generator function.
 pub trait NodeGen: Send + Sync {
-    fn resume(&mut self) -> GeneratorState<Y, C>;
-    fn abort(&mut self) -> GeneratorState<Y, C>;
+    fn resume(&mut self) -> NodeGenState;
+    fn abort(&mut self) -> NodeGenState;
 }
 impl<F> NodeGen for Gen<Y, R, F> where
 F: Future<Output = C> + Send + Sync + 'static
 {
-    fn resume(&mut self) -> GeneratorState<Y, C> {
+    fn resume(&mut self) -> NodeGenState {
         Gen::<Y, R, F>::resume_with(self, ResumeSignal::Resume)
     }
-    fn abort(&mut self) -> GeneratorState<Y, C> {
+    fn abort(&mut self) -> NodeGenState {
         Gen::<Y, R, F>::resume_with(self, ResumeSignal::Abort)
     }
 }
@@ -178,11 +198,44 @@ impl Node for StubNode {
 }
 
 
+/// Container for `NodeGen` and its result.
+pub struct NodeRunner {
+    gen: Box<dyn NodeGen>,
+    state: NodeGenState,
+}
+impl NodeRunner {
+    pub fn new(node: Arc<dyn Node>, world: Arc<Mutex<NullableWorldAccess>>, entity: Entity) -> Self {
+        let mut gen = node.run(world, entity);
+        let state = gen.resume();
+        Self { gen, state }
+    }
+    pub fn state(&self) -> &NodeGenState {
+        &self.state
+    }
+    pub fn result(&self) -> Option<NodeResult> {
+        match self.state {
+            NodeGenState::Yielded(()) => None,
+            NodeGenState::Complete(res) => Some(res)
+        }
+    }
+    pub fn resume_if_incomplete(&mut self) {
+        if self.result().is_none() {
+            self.state = self.gen.resume();
+        }
+    }
+    pub fn abort_if_incomplete(&mut self) {
+        if self.result().is_none() {
+            self.state = self.gen.abort();
+        }
+    }
+}
+
+
 async fn complete_or_yield(co: &Co<(), ResumeSignal>, gen: &mut Box<dyn NodeGen>) -> NodeResult {
     let mut state = gen.resume();
     loop {
         match state {
-            GeneratorState::Yielded(yielded_value) => {
+            NodeGenState::Yielded(yielded_value) => {
                 let signal = co.yield_(yielded_value).await;
                 if signal == ResumeSignal::Abort {
                     gen.abort();
@@ -190,7 +243,7 @@ async fn complete_or_yield(co: &Co<(), ResumeSignal>, gen: &mut Box<dyn NodeGen>
                 }
                 state = gen.resume();
             },
-            GeneratorState::Complete(result) => { return result; }
+            NodeGenState::Complete(result) => { return result; }
         }
     }
 }
@@ -204,7 +257,7 @@ mod tests {
     fn test_tree_end_with_result() {
         let mut app = App::new();
         app.add_plugins((BehaviorTreePlugin, TesterPlugin));
-        let task = TesterTask::new(0, 1, TaskState::Success);
+        let task = TesterTask::<0>::new(1, TaskState::Success);
         let tree = BehaviorTree::new(task);
         let entity = app.world.spawn(tree).id();
         app.update();
@@ -219,7 +272,7 @@ mod tests {
             "BehaviorTree should have result that match with the result of the root."
         );
         assert!(
-            tree.gen.is_none(),
+            tree.runner.is_none(),
             "BehaviorTree shold not have generator after the run."
         );
     }
@@ -228,7 +281,7 @@ mod tests {
     fn test_freeze() {
         let mut app = App::new();
         app.add_plugins((BehaviorTreePlugin, TesterPlugin));
-        let task = TesterTask::new(0, 2, TaskState::Success);
+        let task = TesterTask::<0>::new(2, TaskState::Success);
         let tree = BehaviorTree::new(task);
         let entity = app.world.spawn(tree).id();
         app.update();
@@ -254,7 +307,7 @@ mod tests {
     fn test_abort() {
         let mut app = App::new();
         app.add_plugins((BehaviorTreePlugin, TesterPlugin));
-        let task = TesterTask::new(0, 4, TaskState::Success);
+        let task = TesterTask::<0>::new(4, TaskState::Success);
         let tree = BehaviorTree::new(task);
         let entity = app.world.spawn(tree).id();
         app.update();
@@ -276,7 +329,7 @@ mod tests {
     fn test_drop() {
         let mut app = App::new();
         app.add_plugins((BehaviorTreePlugin, TesterPlugin));
-        let task = TesterTask::new(0, 4, TaskState::Success);
+        let task = TesterTask::<0>::new(4, TaskState::Success);
         let tree = BehaviorTree::new(task);
         let entity = app.world.spawn(tree).id();
         app.update();

@@ -96,10 +96,10 @@ mod tests {
     fn test_sequential_and() {
         let mut app = App::new();
         app.add_plugins((BehaviorTreePlugin, TesterPlugin));
-        let task0 = TesterTask::new(0, 1, TaskState::Success);
-        let task1 = TesterTask::new(1, 1, TaskState::Success);
-        let task2 = TesterTask::new(2, 1, TaskState::Failure);
-        let task3 = TesterTask::new(3, 1, TaskState::Success);
+        let task0 = TesterTask::<0>::new(1, TaskState::Success);
+        let task1 = TesterTask::<1>::new(1, TaskState::Success);
+        let task2 = TesterTask::<2>::new(1, TaskState::Failure);
+        let task3 = TesterTask::<3>::new(1, TaskState::Success);
         let sequence = Sequence::new(vec![task0, task1, task2, task3]);
         let tree = BehaviorTree::new(sequence);
         let _entity = app.world.spawn(tree).id();
@@ -123,10 +123,10 @@ mod tests {
     fn test_sequential_or() {
         let mut app = App::new();
         app.add_plugins((BehaviorTreePlugin, TesterPlugin));
-        let task0 = TesterTask::new(0, 1, TaskState::Failure);
-        let task1 = TesterTask::new(1, 1, TaskState::Failure);
-        let task2 = TesterTask::new(2, 1, TaskState::Success);
-        let task3 = TesterTask::new(3, 1, TaskState::Failure);
+        let task0 = TesterTask::<0>::new(1, TaskState::Failure);
+        let task1 = TesterTask::<1>::new(1, TaskState::Failure);
+        let task2 = TesterTask::<2>::new(1, TaskState::Success);
+        let task3 = TesterTask::<3>::new(1, TaskState::Failure);
         let sequence = Selector::new(vec![task0, task1, task2, task3]);
         let tree = BehaviorTree::new(sequence);
         let _entity = app.world.spawn(tree).id();
@@ -150,10 +150,10 @@ mod tests {
     fn test_forced_sequence() {
         let mut app = App::new();
         app.add_plugins((BehaviorTreePlugin, TesterPlugin));
-        let task0 = TesterTask::new(0, 1, TaskState::Success);
-        let task1 = TesterTask::new(1, 1, TaskState::Failure);
-        let task2 = TesterTask::new(2, 1, TaskState::Success);
-        let task3 = TesterTask::new(3, 1, TaskState::Failure);
+        let task0 = TesterTask::<0>::new(1, TaskState::Success);
+        let task1 = TesterTask::<1>::new(1, TaskState::Failure);
+        let task2 = TesterTask::<2>::new(1, TaskState::Success);
+        let task3 = TesterTask::<3>::new(1, TaskState::Failure);
         let sequence = ForcedSequence::new(vec![task0, task1, task2, task3]);
         let tree = BehaviorTree::new(sequence);
         let _entity = app.world.spawn(tree).id();
