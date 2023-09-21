@@ -5,21 +5,30 @@
 
 use std::sync::{Arc, Mutex};
 
-use bevy::{prelude::*, ecs::system::SystemState};
+use bevy::{prelude::*, ecs::system::{SystemState, ReadOnlySystemParam}};
 
 use crate::{decorator::ConditionChecker, NodeResult, sequential::Scorer};
 
 use super::task::{TaskState, TaskChecker};
 
+/// Async closures used for `NodeGen` may live longer than `&World`, so they cannot have that reference.
+/// This class provides the access to the world with runtime check rather than lifetime restriction.
+/// Never leak out the `ptr` which unsafely holds the `&'w World` as `&'static World`.
 pub struct NullableWorldAccess {
     ptr: Option<&'static mut World>,
     command_system_state: Option<SystemState<Commands<'static, 'static>>>,
 }
 impl NullableWorldAccess {
-    pub fn check_task<Checker>(&mut self, entity: Entity, checker: &Checker, system_state: &mut Option<SystemState<Checker::Param<'static, 'static>>>)
-        -> Result<TaskState, NullableAccessError>
+
+    /// Read only access to the world.
+    /// Must not leak out the `ptr`.
+    /// Maybe there are ways to leak out via `R`, so this method is kept private.
+    /// Call this from outside the module via specialized methods.
+    fn call_read_only<Param, F, R>(&mut self, entity: Entity, system_state: &mut Option<SystemState<Param>>, f: F)
+        -> Result<R, NullableAccessError>
     where
-        Checker: TaskChecker,
+        Param: ReadOnlySystemParam,
+        F: Fn(Entity, Param::Item<'_, '_>) -> R
     {
         let Some(world) = self.ptr.as_deref_mut() else {
             return Err(NullableAccessError::NotAvailableNow);
@@ -28,7 +37,17 @@ impl NullableWorldAccess {
             *system_state = Some(SystemState::new(world));
         }
         let param = system_state.as_mut().unwrap().get(world);
-        Ok(checker.check(entity, param))
+        Ok(f(entity, param))
+    }
+
+    pub fn check_task<Checker>(&mut self, entity: Entity, checker: &Checker, system_state: &mut Option<SystemState<Checker::Param<'static, 'static>>>)
+        -> Result<TaskState, NullableAccessError>
+    where
+        Checker: TaskChecker,
+    {
+        self.call_read_only(entity, system_state, |e, p|
+            checker.check(e, p)
+        )
     }
 
     pub fn check_condition<Checker>(
@@ -42,14 +61,9 @@ impl NullableWorldAccess {
     where
         Checker: ConditionChecker,
     {
-        let Some(world) = self.ptr.as_deref_mut() else {
-            return Err(NullableAccessError::NotAvailableNow);
-        };
-        if system_state.is_none() {
-            *system_state = Some(SystemState::new(world));
-        }
-        let param = system_state.as_mut().unwrap().get(world);
-        Ok(checker.check(entity, param, loop_count, last_result))
+        self.call_read_only(entity, system_state, |e, p|
+            checker.check(e, p, loop_count, last_result)
+        )
     }
 
     pub fn score_node<S>(
@@ -61,14 +75,9 @@ impl NullableWorldAccess {
     where
         S: Scorer,
     {
-        let Some(world) = self.ptr.as_deref_mut() else {
-            return Err(NullableAccessError::NotAvailableNow);
-        };
-        if system_state.is_none() {
-            *system_state = Some(SystemState::new(world));
-        }
-        let param = system_state.as_mut().unwrap().get(world);
-        Ok(scorer.score(entity, param))
+        self.call_read_only(entity, system_state, |e, p|
+            scorer.score(e, p)
+        )
     }
 
     pub fn entity_command_call(&mut self, entity: Entity, system: &(impl Fn(Entity, Commands) + Send + Sync))
@@ -80,9 +89,7 @@ impl NullableWorldAccess {
         if self.command_system_state.is_none() {
             self.command_system_state = Some(SystemState::new(world));
         }
-        let Some(system_state) = self.command_system_state.as_mut() else {
-            return Err(NullableAccessError::SystemStateUnavailable);
-        };
+        let system_state = self.command_system_state.as_mut().unwrap();
         system(entity, system_state.get(world));
         system_state.apply(world);
         Ok(())
@@ -99,21 +106,24 @@ impl Default for NullableWorldAccess {
 #[derive(Debug)]
 pub enum NullableAccessError {
     NotAvailableNow,
-    SystemStateUnavailable,
 }
 
-pub struct TemporalWorldSharing {
+
+/// `NullableWorldAccess` can access to the world while this struct is alive.
+pub struct TemporalWorldSharing<'a> {
     accessor: Arc<Mutex<NullableWorldAccess>>,
+    _world: &'a World,  // To ensure this struct does not live longer than the reference.
 }
-impl TemporalWorldSharing {
-    pub fn new(accessor: Arc<Mutex<NullableWorldAccess>>, value: &mut World) -> Self {
-        let ptr: *mut World = value;
+impl<'a> TemporalWorldSharing<'a> {
+    pub fn new(accessor: Arc<Mutex<NullableWorldAccess>>, world: &'a mut World) -> Self {
+        // unsafely changing lifetime `&'a` to `&'static`.
+        let ptr: *mut World = world;
         let prolonged_ref: &'static mut World = unsafe{ ptr.as_mut().unwrap() };
         accessor.lock().unwrap().ptr = Some(prolonged_ref);
-        Self {accessor}
+        Self {accessor, _world: world}
     }
 }
-impl Drop for TemporalWorldSharing {
+impl<'a> Drop for TemporalWorldSharing<'a> {
     fn drop(&mut self) {
         self.accessor.lock().unwrap().ptr = None;
     }
