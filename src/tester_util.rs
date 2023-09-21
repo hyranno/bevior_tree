@@ -8,37 +8,44 @@ impl Plugin for TesterPlugin {
     fn build(&self, app: &mut App) {
         app
             .add_plugins(FrameCountPlugin)
-            .add_systems(Update, update)
+            .add_systems(Update, update::<0>)
+            .add_systems(Update, update::<1>)
+            .add_systems(Update, update::<2>)
+            .add_systems(Update, update::<3>)
+            .add_systems(Update, update::<4>)
+            .add_systems(Update, update::<5>)
+            .add_systems(Update, update::<6>)
+            .add_systems(Update, update::<7>)
             .init_resource::<TestLog>()
         ;
     }
 }
 
 /// Returns result after count.
-pub struct TesterTask {
+pub struct TesterTask<const ID: i32> {
     task: Arc<TaskImpl<<Self as Task>::Checker>>,
 }
-impl Task for TesterTask {
-    type Checker = TesterTaskChecker;
+impl<const ID: i32> Task for TesterTask<ID> {
+    type Checker = TesterTaskChecker::<ID>;
     fn task_impl(&self) -> Arc<TaskImpl<Self::Checker>> {
         self.task.clone()
     }
 }
-impl TesterTask {
-    pub fn new(id: u32, count: u32, result: TaskState) -> Arc<Self> {
-        let task = Arc::new(TaskImpl::new(TesterTaskChecker {count, result})
-            .insert_while_running(TesterComponent { task_id: id, updated_count: 0 })
+impl<const ID: i32> TesterTask<ID> {
+    pub fn new(count: u32, result: TaskState) -> Arc<Self> {
+        let task = Arc::new(TaskImpl::new(TesterTaskChecker::<ID> {count, result})
+            .insert_while_running(TesterComponent::<ID> { updated_count: 0 })
         );
         Arc::new(Self {task})
     }
 }
 
-pub struct TesterTaskChecker {
+pub struct TesterTaskChecker<const ID: i32> {
     pub count: u32,
     pub result: TaskState,
 }
-impl TaskChecker for TesterTaskChecker {
-    type Param<'w, 's> = Query<'w, 's, &'static TesterComponent>;
+impl<const ID: i32> TaskChecker for TesterTaskChecker<ID> {
+    type Param<'w, 's> = Query<'w, 's, &'static TesterComponent<ID>>;
     fn check (
         &self,
         entity: Entity,
@@ -56,8 +63,7 @@ impl TaskChecker for TesterTaskChecker {
 }
 
 #[derive(Debug, Component, Clone, Copy)]
-pub struct TesterComponent {
-    pub task_id: u32,
+pub struct TesterComponent<const ID: i32> {
     pub updated_count: u32,
 }
 
@@ -65,7 +71,7 @@ pub struct TesterComponent {
 pub struct TestLog {
     pub log: Vec<TestLogEntry>
 }
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub struct TestLogEntry {
     pub task_id: u32,
     pub updated_count: u32,
@@ -73,14 +79,14 @@ pub struct TestLogEntry {
 }
 
 
-fn update(
+fn update<const ID: i32>(
     mut log: ResMut<TestLog>,
-    mut comps: Query<&mut TesterComponent>,
+    mut comps: Query<&mut TesterComponent<ID>>,
     frame: Res<FrameCount>,
 ) {
     for mut comp in comps.iter_mut() {
         log.log.push(TestLogEntry {
-            task_id: comp.task_id,
+            task_id: ID as u32,
             updated_count: comp.updated_count,
             frame: frame.0,
         });
@@ -93,12 +99,12 @@ fn update(
 fn test_enter_tester_task() {
     let mut app = App::new();
     app.add_plugins((BehaviorTreePlugin, TesterPlugin));
-    let task = TesterTask::new(0, 1, TaskState::Success);
+    let task = TesterTask::<0>::new(1, TaskState::Success);
     let tree = BehaviorTree::new(task);
     let entity = app.world.spawn(tree).id();
     app.update();
     assert!(
-        app.world.get::<TesterComponent>(entity).is_some(),
+        app.world.get::<TesterComponent<0>>(entity).is_some(),
         "TesterComponent should added on enter."
     );
     // complete the task not to call abort()
@@ -109,13 +115,13 @@ fn test_enter_tester_task() {
 fn test_exit_tester_task() {
     let mut app = App::new();
     app.add_plugins((BehaviorTreePlugin, TesterPlugin));
-    let task = TesterTask::new(0, 1, TaskState::Success);
+    let task = TesterTask::<0>::new(1, TaskState::Success);
     let tree = BehaviorTree::new(task);
     let entity = app.world.spawn(tree).id();
     app.update();
     app.update();
     assert!(
-        app.world.get::<TesterComponent>(entity).is_none(),
+        app.world.get::<TesterComponent<0>>(entity).is_none(),
         "TesterComponent should removed on exit."
     );
 }
@@ -124,7 +130,7 @@ fn test_exit_tester_task() {
 fn test_log_test_task() {
     let mut app = App::new();
     app.add_plugins((BehaviorTreePlugin, TesterPlugin));
-    let task = TesterTask::new(0, 1, TaskState::Success);
+    let task = TesterTask::<0>::new(1, TaskState::Success);
     let tree = BehaviorTree::new(task);
     let _entity = app.world.spawn(tree).id();
     app.update();

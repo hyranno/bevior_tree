@@ -154,7 +154,7 @@ mod tests {
     fn test_repeat_count() {
         let mut app = App::new();
         app.add_plugins((BehaviorTreePlugin, TesterPlugin));
-        let task = TesterTask::new(0, 1, TaskState::Success);
+        let task = TesterTask::<0>::new(1, TaskState::Success);
         let repeater = ConditionalLoop::new(task, RepeatCount {count: 3});
         let tree = BehaviorTree::new(repeater);
         let _entity = app.world.spawn(tree).id();
@@ -177,7 +177,7 @@ mod tests {
     fn test_invert_result() {
         let mut app = App::new();
         app.add_plugins((BehaviorTreePlugin, TesterPlugin));
-        let task = TesterTask::new(0, 1, TaskState::Success);
+        let task = TesterTask::<0>::new(1, TaskState::Success);
         let inverter = ResultConverter::new(task, |res| !res);
         let tree = BehaviorTree::new(inverter);
         let entity = app.world.spawn(tree).id();

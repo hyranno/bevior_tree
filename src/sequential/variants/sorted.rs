@@ -119,19 +119,19 @@ mod tests {
         let sequence = ScoreOrderedSequentialAnd::new(vec![
             Box::new(NodeScorerImpl::new(
                 ConstantScorer {score: 0.1},
-                TesterTask::new(0, 1, TaskState::Success)
+                TesterTask::<0>::new(1, TaskState::Success)
             )),
             Box::new(NodeScorerImpl::new(
                 ConstantScorer {score: 0.3},
-                TesterTask::new(1, 1, TaskState::Success)
+                TesterTask::<1>::new(1, TaskState::Success)
             )),
             Box::new(NodeScorerImpl::new(
                 ConstantScorer {score: 0.2},
-                TesterTask::new(2, 1, TaskState::Failure)
+                TesterTask::<2>::new(1, TaskState::Failure)
             )),
             Box::new(NodeScorerImpl::new(
                 ConstantScorer {score: 0.4},
-                TesterTask::new(3, 1, TaskState::Success)
+                TesterTask::<3>::new(1, TaskState::Success)
             )),
         ]);
         let tree = BehaviorTree::new(sequence);
@@ -159,19 +159,19 @@ mod tests {
         let sequence = ScoreOrderedSequentialOr::new(vec![
             Box::new(NodeScorerImpl::new(
                 ConstantScorer {score: 0.1},
-                TesterTask::new(0, 1, TaskState::Failure)
+                TesterTask::<0>::new(1, TaskState::Failure)
             )),
             Box::new(NodeScorerImpl::new(
                 ConstantScorer {score: 0.3},
-                TesterTask::new(1, 1, TaskState::Failure)
+                TesterTask::<1>::new(1, TaskState::Failure)
             )),
             Box::new(NodeScorerImpl::new(
                 ConstantScorer {score: 0.2},
-                TesterTask::new(2, 1, TaskState::Success)
+                TesterTask::<2>::new(1, TaskState::Success)
             )),
             Box::new(NodeScorerImpl::new(
                 ConstantScorer {score: 0.4},
-                TesterTask::new(3, 1, TaskState::Failure)
+                TesterTask::<3>::new(1, TaskState::Failure)
             )),
         ]);
         let tree = BehaviorTree::new(sequence);
@@ -199,19 +199,19 @@ mod tests {
         let sequence = ScoreOrderedForcedSequence::new(vec![
             Box::new(NodeScorerImpl::new(
                 ConstantScorer {score: 0.1},
-                TesterTask::new(0, 1, TaskState::Failure)
+                TesterTask::<0>::new(1, TaskState::Failure)
             )),
             Box::new(NodeScorerImpl::new(
                 ConstantScorer {score: 0.3},
-                TesterTask::new(1, 1, TaskState::Failure)
+                TesterTask::<1>::new(1, TaskState::Failure)
             )),
             Box::new(NodeScorerImpl::new(
                 ConstantScorer {score: 0.2},
-                TesterTask::new(2, 1, TaskState::Success)
+                TesterTask::<2>::new(1, TaskState::Success)
             )),
             Box::new(NodeScorerImpl::new(
                 ConstantScorer {score: 0.4},
-                TesterTask::new(3, 1, TaskState::Failure)
+                TesterTask::<3>::new(1, TaskState::Failure)
             )),
         ]);
         let tree = BehaviorTree::new(sequence);
@@ -241,19 +241,19 @@ mod tests {
         let sequence = ScoredForcedSelector::new(vec![
             Box::new(NodeScorerImpl::new(
                 ConstantScorer {score: 0.1},
-                TesterTask::new(0, 1, TaskState::Failure)
+                TesterTask::<0>::new(1, TaskState::Failure)
             )),
             Box::new(NodeScorerImpl::new(
                 ConstantScorer {score: 0.3},
-                TesterTask::new(1, 1, TaskState::Failure)
+                TesterTask::<1>::new(1, TaskState::Failure)
             )),
             Box::new(NodeScorerImpl::new(
                 ConstantScorer {score: 0.2},
-                TesterTask::new(2, 1, TaskState::Success)
+                TesterTask::<2>::new(1, TaskState::Success)
             )),
             Box::new(NodeScorerImpl::new(
                 ConstantScorer {score: 0.4},
-                TesterTask::new(3, 1, TaskState::Failure)
+                TesterTask::<3>::new(1, TaskState::Failure)
             )),
         ]);
         let tree = BehaviorTree::new(sequence);

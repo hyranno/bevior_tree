@@ -148,19 +148,19 @@ mod tests {
             vec![
                 Box::new(NodeScorerImpl::new(
                     ConstantScorer {score: 0.1},
-                    TesterTask::new(0, 1, TaskState::Failure)
+                    TesterTask::<0>::new(1, TaskState::Failure)
                 )),
                 Box::new(NodeScorerImpl::new(
                     ConstantScorer {score: 0.3},
-                    TesterTask::new(1, 1, TaskState::Success)
+                    TesterTask::<1>::new(1, TaskState::Success)
                 )),
                 Box::new(NodeScorerImpl::new(
                     ConstantScorer {score: 0.2},
-                    TesterTask::new(2, 1, TaskState::Success)
+                    TesterTask::<2>::new(1, TaskState::Success)
                 )),
                 Box::new(NodeScorerImpl::new(
                     ConstantScorer {score: 0.4},
-                    TesterTask::new(3, 1, TaskState::Success)
+                    TesterTask::<3>::new(1, TaskState::Success)
                 )),
             ],
             Arc::new(Mutex::new(rand::rngs::StdRng::seed_from_u64(224)))
@@ -192,19 +192,19 @@ mod tests {
             vec![
                 Box::new(NodeScorerImpl::new(
                     ConstantScorer {score: 0.1},
-                    TesterTask::new(0, 1, TaskState::Success)
+                    TesterTask::<0>::new(1, TaskState::Success)
                 )),
                 Box::new(NodeScorerImpl::new(
                     ConstantScorer {score: 0.3},
-                    TesterTask::new(1, 1, TaskState::Failure)
+                    TesterTask::<1>::new(1, TaskState::Failure)
                 )),
                 Box::new(NodeScorerImpl::new(
                     ConstantScorer {score: 0.2},
-                    TesterTask::new(2, 1, TaskState::Failure)
+                    TesterTask::<2>::new(1, TaskState::Failure)
                 )),
                 Box::new(NodeScorerImpl::new(
                     ConstantScorer {score: 0.4},
-                    TesterTask::new(3, 1, TaskState::Failure)
+                    TesterTask::<3>::new(1, TaskState::Failure)
                 )),
             ],
             Arc::new(Mutex::new(rand::rngs::StdRng::seed_from_u64(224)))
@@ -236,19 +236,19 @@ mod tests {
             vec![
                 Box::new(NodeScorerImpl::new(
                     ConstantScorer {score: 0.1},
-                    TesterTask::new(0, 1, TaskState::Failure)
+                    TesterTask::<0>::new(1, TaskState::Failure)
                 )),
                 Box::new(NodeScorerImpl::new(
                     ConstantScorer {score: 0.3},
-                    TesterTask::new(1, 1, TaskState::Failure)
+                    TesterTask::<1>::new(1, TaskState::Failure)
                 )),
                 Box::new(NodeScorerImpl::new(
                     ConstantScorer {score: 0.2},
-                    TesterTask::new(2, 1, TaskState::Success)
+                    TesterTask::<2>::new(1, TaskState::Success)
                 )),
                 Box::new(NodeScorerImpl::new(
                     ConstantScorer {score: 0.4},
-                    TesterTask::new(3, 1, TaskState::Failure)
+                    TesterTask::<3>::new(1, TaskState::Failure)
                 )),
             ],
             Arc::new(Mutex::new(rand::rngs::StdRng::seed_from_u64(224)))
@@ -282,19 +282,19 @@ mod tests {
             vec![
                 Box::new(NodeScorerImpl::new(
                     ConstantScorer {score: 0.1},
-                    TesterTask::new(0, 1, TaskState::Failure)
+                    TesterTask::<0>::new(1, TaskState::Failure)
                 )),
                 Box::new(NodeScorerImpl::new(
                     ConstantScorer {score: 0.3},
-                    TesterTask::new(1, 1, TaskState::Failure)
+                    TesterTask::<1>::new(1, TaskState::Failure)
                 )),
                 Box::new(NodeScorerImpl::new(
                     ConstantScorer {score: 0.2},
-                    TesterTask::new(2, 1, TaskState::Success)
+                    TesterTask::<2>::new(1, TaskState::Success)
                 )),
                 Box::new(NodeScorerImpl::new(
                     ConstantScorer {score: 10.4},
-                    TesterTask::new(3, 1, TaskState::Failure)
+                    TesterTask::<3>::new(1, TaskState::Failure)
                 )),
             ],
             Arc::new(Mutex::new(rand::rngs::StdRng::seed_from_u64(224)))

@@ -204,7 +204,7 @@ mod tests {
     fn test_tree_end_with_result() {
         let mut app = App::new();
         app.add_plugins((BehaviorTreePlugin, TesterPlugin));
-        let task = TesterTask::new(0, 1, TaskState::Success);
+        let task = TesterTask::<0>::new(1, TaskState::Success);
         let tree = BehaviorTree::new(task);
         let entity = app.world.spawn(tree).id();
         app.update();
@@ -228,7 +228,7 @@ mod tests {
     fn test_freeze() {
         let mut app = App::new();
         app.add_plugins((BehaviorTreePlugin, TesterPlugin));
-        let task = TesterTask::new(0, 2, TaskState::Success);
+        let task = TesterTask::<0>::new(2, TaskState::Success);
         let tree = BehaviorTree::new(task);
         let entity = app.world.spawn(tree).id();
         app.update();
@@ -254,7 +254,7 @@ mod tests {
     fn test_abort() {
         let mut app = App::new();
         app.add_plugins((BehaviorTreePlugin, TesterPlugin));
-        let task = TesterTask::new(0, 4, TaskState::Success);
+        let task = TesterTask::<0>::new(4, TaskState::Success);
         let tree = BehaviorTree::new(task);
         let entity = app.world.spawn(tree).id();
         app.update();
@@ -276,7 +276,7 @@ mod tests {
     fn test_drop() {
         let mut app = App::new();
         app.add_plugins((BehaviorTreePlugin, TesterPlugin));
-        let task = TesterTask::new(0, 4, TaskState::Success);
+        let task = TesterTask::<0>::new(4, TaskState::Success);
         let tree = BehaviorTree::new(task);
         let entity = app.world.spawn(tree).id();
         app.update();
