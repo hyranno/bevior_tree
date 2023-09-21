@@ -8,6 +8,7 @@ use self::nullable_access::{NullableWorldAccess, TemporalWorldSharing};
 
 pub mod task;
 pub mod sequential;
+pub mod parallel;
 pub mod decorator;
 
 mod nullable_access;
