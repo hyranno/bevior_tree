@@ -9,7 +9,8 @@ use self::nullable_access::{NullableWorldAccess, TemporalWorldSharing};
 pub mod task;
 pub mod sequential;
 pub mod parallel;
-pub mod decorator;
+pub mod conditional;
+pub mod converter;
 
 mod nullable_access;
 
@@ -23,7 +24,8 @@ pub mod prelude {
         *,
         task::*,
         sequential::variants::*,
-        decorator::*,
+        conditional::{ConditionalLoop, ConditionChecker, variants::*},
+        converter::{ResultConverter, variants::*},
     };
 }
 
