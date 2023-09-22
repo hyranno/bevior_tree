@@ -3,12 +3,26 @@ use bevy::prelude::*;
 
 use crate::{Node, NodeGen, NodeResult};
 use crate::nullable_access::NullableWorldAccess;
-use super::{ScoredSequence, NodeScorer, NodeScorerImpl, ConstantScorer};
+use super::{ScoredSequence, NodeScorer, Scorer, NodeScorerImpl};
 
 pub mod sorted;
 
 #[cfg(feature = "random")]
 pub mod random;
+
+pub struct ConstantScorer {
+    score: f32,
+}
+impl Scorer for ConstantScorer {
+    type Param<'w, 's> = ();
+    fn score(
+        &self,
+        _entity: Entity,
+        _param: Self::Param<'_, '_>,
+    ) -> f32 {
+        self.score
+    }
+}
 
 pub fn score_uniform(nodes: Vec<Arc<dyn Node>>) -> Vec<Box<dyn NodeScorer>> {
     nodes.iter().map(|node| Box::new(
@@ -18,6 +32,10 @@ pub fn score_uniform(nodes: Vec<Arc<dyn Node>>) -> Vec<Box<dyn NodeScorer>> {
 
 pub fn pick_identity(nodes: Vec<(f32, Arc<dyn Node>)>) -> Vec<(f32, Arc<dyn Node>)> {
     nodes
+}
+
+pub fn last_result(results: Vec<NodeResult>) -> NodeResult {
+    *results.last().unwrap_or(&NodeResult::Failure)
 }
 
 
@@ -32,7 +50,7 @@ impl SequentialAnd {
             score_uniform(nodes),
             pick_identity,
             |res| res==NodeResult::Success,
-            NodeResult::Success,
+            |_| NodeResult::Success,
         )})
     }
 }
@@ -53,7 +71,7 @@ impl SequentialOr {
             score_uniform(nodes),
             pick_identity,
             |res| res==NodeResult::Failure,
-            NodeResult::Failure,
+            last_result,
         )})
     }
 }
@@ -73,7 +91,7 @@ impl ForcedSequence {
             score_uniform(nodes),
             pick_identity,
             |_| true,
-            NodeResult::Success,
+            last_result,
         )})
     }
 }

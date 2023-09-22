@@ -14,20 +14,20 @@ pub struct ScoredSequence {
     node_scorers: Mutex<Vec<Box<dyn NodeScorer>>>,
     picker: Box<dyn Fn(Vec<(f32, Arc<dyn Node>)>) -> Vec<(f32, Arc<dyn Node>)> + 'static + Send + Sync>,
     is_continue: Box<dyn Fn(NodeResult) -> bool + 'static + Send + Sync>,
-    complete_with: NodeResult,
+    complete_with: Box<dyn Fn(Vec<NodeResult>) -> NodeResult + 'static + Send + Sync>,
 }
 impl ScoredSequence {
     pub fn new(
         node_scorers: Vec<Box<dyn NodeScorer>>,
         picker: impl Fn(Vec<(f32, Arc<dyn Node>)>) -> Vec<(f32, Arc<dyn Node>)> + 'static + Send + Sync,
         is_continue: impl Fn(NodeResult) -> bool + 'static + Send + Sync,
-        complete_with: NodeResult,
+        complete_with: impl Fn(Vec<NodeResult>) -> NodeResult + 'static + Send + Sync,
     ) -> Arc<Self> {
         Arc::new(Self {
             node_scorers: Mutex::new(node_scorers),
             picker: Box::new(picker),
             is_continue: Box::new(is_continue),
-            complete_with,
+            complete_with: Box::new(complete_with),
         })
     }
 }
@@ -39,14 +39,16 @@ impl Node for ScoredSequence {
             ).collect()
         );
         let producer = |co| async move {
+            let mut results = vec![];
             for (_, node) in nodes.iter() {
                 let mut gen = node.clone().run(world.clone(), entity);
                 let node_result = complete_or_yield(&co, &mut gen).await;
                 if !(self.is_continue)(node_result) {
                     return node_result;
                 }
+                results.push(node_result);
             }
-            self.complete_with
+            (self.complete_with)(results)
         };
         Box::new(Gen::new(producer))
     }
@@ -97,16 +99,3 @@ pub trait Scorer: Send + Sync {
     ) -> f32;
 }
 
-pub struct ConstantScorer {
-    score: f32,
-}
-impl Scorer for ConstantScorer {
-    type Param<'w, 's> = ();
-    fn score(
-        &self,
-        _entity: Entity,
-        _param: Self::Param<'_, '_>,
-    ) -> f32 {
-        self.score
-    }
-}
