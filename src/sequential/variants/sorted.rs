@@ -5,6 +5,7 @@ use ordered_float::OrderedFloat;
 use crate::{Node, NodeGen, NodeResult};
 use crate::nullable_access::NullableWorldAccess;
 use crate::sequential::{ScoredSequence, NodeScorer};
+use super::last_result;
 
 
 /// Sort descending by score.
@@ -36,7 +37,7 @@ impl ScoreOrderedSequentialAnd {
             node_scorers,
             pick_sorted,
             |res| res==NodeResult::Success,
-            NodeResult::Success,
+            |_| NodeResult::Success,
         )})
     }
 }
@@ -57,7 +58,7 @@ impl ScoreOrderedSequentialOr {
             node_scorers,
             pick_sorted,
             |res| res==NodeResult::Failure,
-            NodeResult::Failure,
+            last_result,
         )})
     }
 }
@@ -78,7 +79,7 @@ impl ScoreOrderedForcedSequence {
             node_scorers,
             pick_sorted,
             |_| true,
-            NodeResult::Success,
+            last_result,
         )})
     }
 }
@@ -98,7 +99,7 @@ impl ScoredForcedSelector {
             node_scorers,
             pick_max,
             |_| false,
-            NodeResult::Failure,  // Be used only when the nodes is empty.
+            |_| NodeResult::Failure,  // Be used only when the nodes is empty.
         )})
     }
 }
@@ -109,7 +110,7 @@ mod tests {
     use crate::*;
     use crate::task::*;
     use crate::tester_util::{TesterPlugin, TesterTask, TestLog, TestLogEntry};
-    use crate::sequential::{NodeScorerImpl, ConstantScorer};
+    use crate::sequential::{NodeScorerImpl, variants::ConstantScorer};
     use super::*;
 
     #[test]
