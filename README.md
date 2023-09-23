@@ -17,11 +17,24 @@ This crate is written with reference to [`seldom_state`](https://github.com/Seld
     which is good for state machines.
 
 
+## Comparison
+`bevior_tree` is not the only option for making game ai.
+Also you don't have to choose only one.
+Choose or combine them for your needs.
+For example:
+* [`seldom_state`](https://github.com/Seldom-SE/seldom_state) is implementation of state machine.
+    Good for things that have rigid states, not limiting to ai.
+    No good for lots of interconnected states, since it has too much transitions to add.
+* [`big-brain`](https://github.com/zkat/big-brain) is implementation of utility ai.
+    Utility ai select next action by their utility (expected gain).
+    Perhaps you can use `ForcedSelector` kind in `bevior_tree::sequential` to do similar things.
+
+
 ## Compatibility
 
 | Bevy | `bevior_tree` | 
 | ---- | ------------- |
-| 0.11 | 0.1           |
+| 0.11 | 0.1 - 0.2     |
 
 
 ## License
