@@ -1,6 +1,7 @@
 use std::sync::{Arc, Mutex};
 
-use bevy::ecs::{entity::Entity, system::{ReadOnlySystemParam, SystemParam,}};
+use bevy::ecs::{entity::Entity, system::{ReadOnlySystemParam, SystemParam, SystemState,}};
+use genawaiter::sync::Gen;
 
 use crate::{Node, NodeGen, NodeResult, nullable_access::NullableWorldAccess};
 use super::{ConditionChecker, ConditionalLoop};
@@ -21,6 +22,33 @@ impl<Checker: EcsConditionChecker> Conditional<Checker> {
 impl<Checker: EcsConditionChecker> Node for Conditional<Checker> {
     fn run(self: Arc<Self>, world: Arc<Mutex<NullableWorldAccess>>, entity: Entity) -> Box<dyn NodeGen> {
         self.delegate.clone().run(world, entity)
+    }
+}
+
+/// Node that check the condition, then return it as `NodeResult`.
+pub struct CheckIf<Checker: EcsConditionChecker> {
+    checker: SeparableConditionChecker<Checker, Always>,
+    system_state: Mutex<Option<SystemState<Checker::Param<'static, 'static>>>>,
+}
+impl<Checker: EcsConditionChecker> CheckIf<Checker> {
+    pub fn new(checker: Checker) -> Arc<Self> {
+        Arc::new(Self {
+            checker: SeparableConditionChecker::new(checker, Always),
+            system_state: Mutex::new(None),
+        })
+    }
+}
+impl<Checker: EcsConditionChecker> Node for CheckIf<Checker> {
+    fn run(self: Arc<Self>, world: Arc<Mutex<NullableWorldAccess>>, entity: Entity) -> Box<dyn NodeGen> {
+        let producer = |_| async move {
+            world.lock().unwrap().check_condition(
+                entity,
+                &self.checker,
+                &mut self.system_state.lock().unwrap(),
+                0, None
+            ).unwrap().into()
+        };
+        Box::new(Gen::new(producer))
     }
 }
 
@@ -219,6 +247,38 @@ mod tests {
         assert!(
             app.world.get_resource::<TestLog>().unwrap() == &expected,
             "Conditional should do the task."
+        );
+    }
+
+    #[test]
+    fn test_check_if_false() {
+        let mut app = App::new();
+        app.add_plugins((BehaviorTreePlugin, TesterPlugin));
+        let task = CheckIf::new(TestMarkerExists);
+        let tree = BehaviorTree::new(task);
+        let entity = app.world.spawn(tree).id();
+        app.update();
+        app.update();
+        let tree = app.world.get::<BehaviorTree>(entity).unwrap();
+        assert!(
+            tree.result.unwrap() == NodeResult::Failure,
+            "CheckIf should match the result."
+        );
+    }
+
+    #[test]
+    fn test_check_if_true() {
+        let mut app = App::new();
+        app.add_plugins((BehaviorTreePlugin, TesterPlugin));
+        let task = CheckIf::new(TestMarkerExists);
+        let tree = BehaviorTree::new(task);
+        let entity = app.world.spawn((tree, TestMarker)).id();
+        app.update();
+        app.update();
+        let tree = app.world.get::<BehaviorTree>(entity).unwrap();
+        assert!(
+            tree.result.unwrap() == NodeResult::Success,
+            "CheckIf should match the result."
         );
     }
 

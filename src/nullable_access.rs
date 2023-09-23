@@ -7,10 +7,11 @@ use std::sync::{Arc, Mutex};
 
 use bevy::{prelude::*, ecs::system::{SystemState, ReadOnlySystemParam}};
 
-use crate::{conditional::ConditionChecker, NodeResult, sequential::Scorer};
+use crate::{conditional::ConditionChecker, NodeResult, sequential::Scorer, task::{TaskState, TaskChecker}};
 
-use super::task::{TaskState, TaskChecker};
 
+/// Provides access to `World` if available.
+/// 
 /// Async closures used for `NodeGen` may live longer than `&World`, so they cannot have that reference.
 /// This class provides the access to the world with runtime check rather than lifetime restriction.
 /// Never leak out the `ptr` which unsafely holds the `&'w World` as `&'static World`.
@@ -19,6 +20,10 @@ pub struct NullableWorldAccess {
     command_system_state: Option<SystemState<Commands<'static, 'static>>>,
 }
 impl NullableWorldAccess {
+
+    pub(crate) fn new() -> Self {
+        Self { ptr: None, command_system_state: None }
+    }
 
     /// Read only access to the world.
     /// Must not leak out the `ptr`.
@@ -40,6 +45,7 @@ impl NullableWorldAccess {
         Ok(f(entity, param))
     }
 
+    /// Call `TaskChecker::check` using `&mut World`.
     pub fn check_task<Checker>(&mut self, entity: Entity, checker: &Checker, system_state: &mut Option<SystemState<Checker::Param<'static, 'static>>>)
         -> Result<TaskState, NullableAccessError>
     where
@@ -50,6 +56,7 @@ impl NullableWorldAccess {
         )
     }
 
+    /// Call `ConditionChecker::check` using `&mut World`.
     pub fn check_condition<Checker>(
         &mut self,
         entity: Entity,
@@ -66,6 +73,7 @@ impl NullableWorldAccess {
         )
     }
 
+    /// Call `Scorer::score` using `&mut World`.
     pub fn score_node<S>(
         &mut self,
         entity: Entity,
@@ -80,6 +88,8 @@ impl NullableWorldAccess {
         )
     }
 
+    /// Call `Fn(Entity, Commands)` using `&mut World`.
+    /// Mainly for events on `TaskImpl`.
     pub fn entity_command_call(&mut self, entity: Entity, system: &(impl Fn(Entity, Commands) + Send + Sync))
         -> Result<(), NullableAccessError>
     {
@@ -95,14 +105,6 @@ impl NullableWorldAccess {
         Ok(())
     }
 }
-impl Default for NullableWorldAccess {
-    fn default() -> Self {
-        Self {
-            ptr: None,
-            command_system_state: None,
-        }
-    }
-}
 #[derive(Debug)]
 pub enum NullableAccessError {
     NotAvailableNow,
@@ -110,12 +112,12 @@ pub enum NullableAccessError {
 
 
 /// `NullableWorldAccess` can access to the world while this struct is alive.
-pub struct TemporalWorldSharing<'a> {
+pub(crate) struct TemporalWorldSharing<'a> {
     accessor: Arc<Mutex<NullableWorldAccess>>,
     _world: &'a World,  // To ensure this struct does not live longer than the reference.
 }
 impl<'a> TemporalWorldSharing<'a> {
-    pub fn new(accessor: Arc<Mutex<NullableWorldAccess>>, world: &'a mut World) -> Self {
+    pub(crate) fn new(accessor: Arc<Mutex<NullableWorldAccess>>, world: &'a mut World) -> Self {
         // unsafely changing lifetime `&'a` to `&'static`.
         let ptr: *mut World = world;
         let prolonged_ref: &'static mut World = unsafe{ ptr.as_mut().unwrap() };

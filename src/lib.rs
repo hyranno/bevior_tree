@@ -12,7 +12,7 @@ pub mod parallel;
 pub mod conditional;
 pub mod converter;
 
-mod nullable_access;
+pub mod nullable_access;
 
 #[cfg(test)]
 mod tester_util;
@@ -30,7 +30,7 @@ pub mod prelude {
 }
 
 
-/// Add to your app to use this crate
+/// Add to your app to use this crate.
 pub struct BehaviorTreePlugin;
 impl Plugin for BehaviorTreePlugin {
     fn build(&self, app: &mut App) {
@@ -63,7 +63,7 @@ impl BehaviorTree {
             root,
             runner: None,
             result: None,
-            world: Arc::<Mutex::<NullableWorldAccess>>::default(),
+            world: Arc::new(Mutex::new(NullableWorldAccess::new())),
         }
     }
     pub fn result(&self) -> Option<NodeResult> {
@@ -74,7 +74,7 @@ impl BehaviorTree {
             root: Arc::<StubNode>::default(),
             runner: None,
             result: None,
-            world: Arc::default(),
+            world: Arc::new(Mutex::new(NullableWorldAccess::new())),
         }
     }
 }
