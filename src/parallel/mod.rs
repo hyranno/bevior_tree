@@ -1,3 +1,5 @@
+//! Composite nodes that run children parallelly.
+
 use std::sync::{Arc, Mutex};
 use genawaiter::sync::{Gen, Co};
 
