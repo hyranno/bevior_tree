@@ -34,7 +34,7 @@ For example:
 
 | Bevy | `bevior_tree` | 
 | ---- | ------------- |
-| 0.11 | 0.1           |
+| 0.11 | 0.1 - 0.2     |
 
 
 ## License
