@@ -215,7 +215,7 @@ mod tests {
     #[test]
     fn test_conditional_false() {
         let mut app = App::new();
-        app.add_plugins((BehaviorTreePlugin, TesterPlugin));
+        app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let task = TesterTask::<0>::new(1, TaskState::Success);
         let conditional = Conditional::new(task, TestMarkerExists);
         let tree = BehaviorTree::new(conditional);
@@ -233,7 +233,7 @@ mod tests {
     #[test]
     fn test_conditional_true() {
         let mut app = App::new();
-        app.add_plugins((BehaviorTreePlugin, TesterPlugin));
+        app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let task = TesterTask::<0>::new(1, TaskState::Success);
         let conditional = Conditional::new(task, TestMarkerExists);
         let tree = BehaviorTree::new(conditional);
@@ -253,7 +253,7 @@ mod tests {
     #[test]
     fn test_check_if_false() {
         let mut app = App::new();
-        app.add_plugins((BehaviorTreePlugin, TesterPlugin));
+        app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let task = CheckIf::new(TestMarkerExists);
         let tree = BehaviorTree::new(task);
         let entity = app.world.spawn(tree).id();
@@ -269,7 +269,7 @@ mod tests {
     #[test]
     fn test_check_if_true() {
         let mut app = App::new();
-        app.add_plugins((BehaviorTreePlugin, TesterPlugin));
+        app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let task = CheckIf::new(TestMarkerExists);
         let tree = BehaviorTree::new(task);
         let entity = app.world.spawn((tree, TestMarker)).id();
@@ -285,7 +285,7 @@ mod tests {
     #[test]
     fn test_repeat_count() {
         let mut app = App::new();
-        app.add_plugins((BehaviorTreePlugin, TesterPlugin));
+        app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let task = TesterTask::<0>::new(1, TaskState::Success);
         let repeater = ConditionalLoop::new(task, RepeatCount {count: 3});
         let tree = BehaviorTree::new(repeater);

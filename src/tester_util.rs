@@ -98,7 +98,7 @@ fn update<const ID: i32>(
 #[test]
 fn test_enter_tester_task() {
     let mut app = App::new();
-    app.add_plugins((BehaviorTreePlugin, TesterPlugin));
+    app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
     let task = TesterTask::<0>::new(1, TaskState::Success);
     let tree = BehaviorTree::new(task);
     let entity = app.world.spawn(tree).id();
@@ -114,7 +114,7 @@ fn test_enter_tester_task() {
 #[test]
 fn test_exit_tester_task() {
     let mut app = App::new();
-    app.add_plugins((BehaviorTreePlugin, TesterPlugin));
+    app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
     let task = TesterTask::<0>::new(1, TaskState::Success);
     let tree = BehaviorTree::new(task);
     let entity = app.world.spawn(tree).id();
@@ -129,7 +129,7 @@ fn test_exit_tester_task() {
 #[test]
 fn test_log_test_task() {
     let mut app = App::new();
-    app.add_plugins((BehaviorTreePlugin, TesterPlugin));
+    app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
     let task = TesterTask::<0>::new(1, TaskState::Success);
     let tree = BehaviorTree::new(task);
     let _entity = app.world.spawn(tree).id();

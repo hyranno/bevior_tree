@@ -48,7 +48,7 @@ mod tests {
     #[test]
     fn test_invert() {
         let mut app = App::new();
-        app.add_plugins((BehaviorTreePlugin, TesterPlugin));
+        app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let task = TesterTask::<0>::new(1, TaskState::Success);
         let converter = Invert::new(task);
         let tree = BehaviorTree::new(converter);
@@ -65,7 +65,7 @@ mod tests {
     #[test]
     fn test_force_result() {
         let mut app = App::new();
-        app.add_plugins((BehaviorTreePlugin, TesterPlugin));
+        app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let task = TesterTask::<0>::new(1, TaskState::Success);
         let converter = ForceResult::new(task, NodeResult::Failure);
         let tree = BehaviorTree::new(converter);

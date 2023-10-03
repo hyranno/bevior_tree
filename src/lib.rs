@@ -1,7 +1,7 @@
 //! Behavior tree plugin for Bevy.
 
 use std::{sync::{Arc, Mutex}, future::Future};
-use bevy::prelude::*;
+use bevy::{prelude::*, ecs::schedule::ScheduleLabel};
 use genawaiter::{sync::{Co, Gen}, GeneratorState};
 
 use self::nullable_access::{NullableWorldAccess, TemporalWorldSharing};
@@ -31,13 +31,33 @@ pub mod prelude {
 
 
 /// Add to your app to use this crate.
-pub struct BehaviorTreePlugin;
+pub struct BehaviorTreePlugin {
+    schedule: Box<dyn ScheduleLabel>,
+}
+impl BehaviorTreePlugin {
+    /// Adds the systems to the given schedule rather than default `PostUpdate`.
+    pub fn in_schedule(mut self, schedule: impl ScheduleLabel) -> Self {
+        self.schedule = Box::new(schedule);
+        self
+    }
+}
+impl Default for BehaviorTreePlugin {
+    fn default() -> Self {
+        Self { schedule: Box::new(PostUpdate) }
+    }
+}
 impl Plugin for BehaviorTreePlugin {
     fn build(&self, app: &mut App) {
         app
-            .add_systems(PostUpdate, update)
+            .add_systems(PostUpdate, (update).in_set(BehaviorTreeSystemSet::Update))
         ;
     }
+}
+
+/// SystemSet that the plugin use.
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, SystemSet)]
+pub enum BehaviorTreeSystemSet {
+    Update,
 }
 
 /// Behavior tree component.
@@ -258,7 +278,7 @@ mod tests {
     #[test]
     fn test_tree_end_with_result() {
         let mut app = App::new();
-        app.add_plugins((BehaviorTreePlugin, TesterPlugin));
+        app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let task = TesterTask::<0>::new(1, TaskState::Success);
         let tree = BehaviorTree::new(task);
         let entity = app.world.spawn(tree).id();
@@ -282,7 +302,7 @@ mod tests {
     #[test]
     fn test_freeze() {
         let mut app = App::new();
-        app.add_plugins((BehaviorTreePlugin, TesterPlugin));
+        app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let task = TesterTask::<0>::new(2, TaskState::Success);
         let tree = BehaviorTree::new(task);
         let entity = app.world.spawn(tree).id();
@@ -308,7 +328,7 @@ mod tests {
     #[test]
     fn test_abort() {
         let mut app = App::new();
-        app.add_plugins((BehaviorTreePlugin, TesterPlugin));
+        app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let task = TesterTask::<0>::new(4, TaskState::Success);
         let tree = BehaviorTree::new(task);
         let entity = app.world.spawn(tree).id();
@@ -330,7 +350,7 @@ mod tests {
     #[test]
     fn test_drop() {
         let mut app = App::new();
-        app.add_plugins((BehaviorTreePlugin, TesterPlugin));
+        app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let task = TesterTask::<0>::new(4, TaskState::Success);
         let tree = BehaviorTree::new(task);
         let entity = app.world.spawn(tree).id();
