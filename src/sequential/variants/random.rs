@@ -145,7 +145,7 @@ mod tests {
     #[test]
     fn test_random_ordered_sequential_and() {
         let mut app = App::new();
-        app.add_plugins((BehaviorTreePlugin, TesterPlugin));
+        app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let sequence = RandomOrderedSequentialAnd::new(
             vec![
                 Box::new(NodeScorerImpl::new(
@@ -189,7 +189,7 @@ mod tests {
     #[test]
     fn test_random_ordered_sequential_or() {
         let mut app = App::new();
-        app.add_plugins((BehaviorTreePlugin, TesterPlugin));
+        app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let sequence = RandomOrderedSequentialOr::new(
             vec![
                 Box::new(NodeScorerImpl::new(
@@ -233,7 +233,7 @@ mod tests {
     #[test]
     fn test_random_ordered_forced_sequence() {
         let mut app = App::new();
-        app.add_plugins((BehaviorTreePlugin, TesterPlugin));
+        app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let sequence = RandomOrderedForcedSequence::new(
             vec![
                 Box::new(NodeScorerImpl::new(
@@ -279,7 +279,7 @@ mod tests {
     #[test]
     fn test_random_forced_selector() {
         let mut app = App::new();
-        app.add_plugins((BehaviorTreePlugin, TesterPlugin));
+        app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let sequence = RandomForcedSelector::new(
             vec![
                 Box::new(NodeScorerImpl::new(

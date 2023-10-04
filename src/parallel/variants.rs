@@ -101,7 +101,7 @@ mod tests {
     #[test]
     fn test_abort() {
         let mut app = App::new();
-        app.add_plugins((BehaviorTreePlugin, TesterPlugin));
+        app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let parallel = Join::new(vec![
             TesterTask::<0>::new(1, TaskState::Success),
             TesterTask::<1>::new(2, TaskState::Success),
@@ -135,7 +135,7 @@ mod tests {
     #[test]
     fn test_and() {
         let mut app = App::new();
-        app.add_plugins((BehaviorTreePlugin, TesterPlugin));
+        app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let parallel = ParallelAnd::new(vec![
             TesterTask::<0>::new(1, TaskState::Success),
             TesterTask::<1>::new(2, TaskState::Success),
@@ -171,7 +171,7 @@ mod tests {
     #[test]
     fn test_or() {
         let mut app = App::new();
-        app.add_plugins((BehaviorTreePlugin, TesterPlugin));
+        app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let parallel = ParallelOr::new(vec![
             TesterTask::<0>::new(1, TaskState::Failure),
             TesterTask::<1>::new(2, TaskState::Failure),
@@ -207,7 +207,7 @@ mod tests {
     #[test]
     fn test_join() {
         let mut app = App::new();
-        app.add_plugins((BehaviorTreePlugin, TesterPlugin));
+        app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let parallel = Join::new(vec![
             TesterTask::<0>::new(1, TaskState::Success),
             TesterTask::<1>::new(2, TaskState::Success),

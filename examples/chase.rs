@@ -7,7 +7,7 @@ use bevior_tree::prelude::*;
 
 fn main() {
     App::new()
-        .add_plugins((DefaultPlugins, BehaviorTreePlugin))
+        .add_plugins((DefaultPlugins, BehaviorTreePlugin::default()))
         // This plugin is required for `bevior_tree`
         .add_systems(Startup, init)
         .add_systems(Update, (follow, move_player))

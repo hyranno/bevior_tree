@@ -116,7 +116,7 @@ mod tests {
     #[test]
     fn test_score_ordered_sequential_and() {
         let mut app = App::new();
-        app.add_plugins((BehaviorTreePlugin, TesterPlugin));
+        app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let sequence = ScoreOrderedSequentialAnd::new(vec![
             Box::new(NodeScorerImpl::new(
                 ConstantScorer {score: 0.1},
@@ -156,7 +156,7 @@ mod tests {
     #[test]
     fn test_score_ordered_sequential_or() {
         let mut app = App::new();
-        app.add_plugins((BehaviorTreePlugin, TesterPlugin));
+        app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let sequence = ScoreOrderedSequentialOr::new(vec![
             Box::new(NodeScorerImpl::new(
                 ConstantScorer {score: 0.1},
@@ -196,7 +196,7 @@ mod tests {
     #[test]
     fn test_score_ordered_forced_sequence() {
         let mut app = App::new();
-        app.add_plugins((BehaviorTreePlugin, TesterPlugin));
+        app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let sequence = ScoreOrderedForcedSequence::new(vec![
             Box::new(NodeScorerImpl::new(
                 ConstantScorer {score: 0.1},
@@ -238,7 +238,7 @@ mod tests {
     #[test]
     fn test_score_ordered_forced_selector() {
         let mut app = App::new();
-        app.add_plugins((BehaviorTreePlugin, TesterPlugin));
+        app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let sequence = ScoredForcedSelector::new(vec![
             Box::new(NodeScorerImpl::new(
                 ConstantScorer {score: 0.1},
