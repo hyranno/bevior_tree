@@ -70,6 +70,7 @@ pub struct BehaviorTree {
     world: Arc<Mutex<NullableWorldAccess>>,
 }
 /// Add to the same entity with the BehaviorTree to temporarily freeze the update.
+/// You may prefer `ElseFreeze` node in `conditional`.
 #[derive(Component)]
 pub struct Freeze;
 /// Add to the same entity with the BehaviorTree to abort the process.

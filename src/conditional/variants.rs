@@ -1,9 +1,9 @@
 use std::sync::{Arc, Mutex};
 
-use bevy::ecs::{entity::Entity, system::{ReadOnlySystemParam, SystemParam, SystemState,}};
-use genawaiter::sync::Gen;
+use bevy::ecs::{entity::Entity, system::{ReadOnlySystemParam, SystemParam, SystemState, Res}, schedule::{State, States}};
+use genawaiter::sync::{Gen, Co};
 
-use crate::{Node, NodeGen, NodeResult, nullable_access::NullableWorldAccess};
+use crate::{Node, NodeGen, NodeResult, nullable_access::NullableWorldAccess, NodeRunner, NodeGenState, ResumeSignal};
 use super::{ConditionChecker, ConditionalLoop};
 
 
@@ -51,6 +51,47 @@ impl<Checker: EcsConditionChecker> Node for CheckIf<Checker> {
         Box::new(Gen::new(producer))
     }
 }
+
+
+/// Run the child while condition matched, else freeze.
+/// Supposing to be used as a root.
+pub struct ElseFreeze<Checker: EcsConditionChecker> {
+    child: Arc<dyn Node>,
+    checker: SeparableConditionChecker<Checker, Always>,
+    system_state: Mutex<Option<SystemState<Checker::Param<'static, 'static>>>>,
+}
+impl<Checker: EcsConditionChecker> ElseFreeze<Checker> {
+    pub fn new(child: Arc<dyn Node>, checker: Checker) -> Arc<Self> {
+        Arc::new(Self {
+            child,
+            checker: SeparableConditionChecker::new(checker, Always),
+            system_state: Mutex::new(None),
+        })
+    }
+}
+impl<Checker: EcsConditionChecker> Node for ElseFreeze<Checker> {
+    fn run(self: Arc<Self>, world: Arc<Mutex<NullableWorldAccess>>, entity: Entity) -> Box<dyn NodeGen> {
+        let producer = |co: Co<(), ResumeSignal>| async move {
+            let check = || world.lock().unwrap().check_condition(
+                entity, &self.checker, &mut self.system_state.lock().unwrap(),
+                0, None
+            ).unwrap();
+            while !check() {
+                co.yield_(()).await;
+            }
+            let mut runner = NodeRunner::new(self.child.clone(), world.clone(), entity);
+            while *runner.state() == NodeGenState::Yielded(()) {
+                co.yield_(()).await;
+                if check() {
+                    runner.resume_if_incomplete();
+                }
+            }
+            runner.result().unwrap()
+        };
+        Box::new(Gen::new(producer))
+    }
+}
+
 
 
 /// `ConditionChecker` consists of `EcsConditionChecker` and `LoopVarsConditionChecker`.
@@ -191,6 +232,27 @@ impl ConditionChecker for UntilResult {
 }
 
 
+/// Returns true while in the given state.
+/// Good to use with `ElseFreeze`.
+pub struct InState<S: States> {
+    state: S,
+}
+impl<S: States> InState<S> {
+    pub fn new(state: S) -> Self {
+        Self { state }
+    }
+}
+impl<S: States> EcsConditionChecker for InState<S> {
+    type Param<'w, 's> = Res<'w, State<S>>;
+    fn check_params(
+        &self,
+        _entity: Entity,
+        state: Self::Param<'_, '_>,
+    ) -> bool {
+        *state.get() == self.state
+    }
+}
+
 
 
 #[cfg(test)]
@@ -211,6 +273,14 @@ mod tests {
             param.get(entity).is_ok()
         }
     }
+
+    #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, Default, States)]
+    enum TestStates {
+        #[default]
+        MainState,
+        FreezeState,
+    }
+
 
     #[test]
     fn test_conditional_false() {
@@ -306,4 +376,34 @@ mod tests {
         );
     }
 
+    #[test]
+    fn test_conditional_freeze() {
+        let mut app = App::new();
+        app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
+        let task = TesterTask::<0>::new(2, TaskState::Success);
+        let root = ElseFreeze::new(
+            task,
+            SeparableConditionChecker::new(InState::new(TestStates::MainState), Always)
+        );
+        let tree = BehaviorTree::new(root);
+        let _entity = app.world.spawn(tree).id();
+        app.add_state::<TestStates>();
+        app.update();
+        app.update();  // 0
+        app.world.get_resource_mut::<NextState<TestStates>>().unwrap().set(TestStates::FreezeState);
+        app.update();  // 1
+        app.update();  // 2
+        app.world.get_resource_mut::<NextState<TestStates>>().unwrap().set(TestStates::MainState);
+        app.update();  // 3, repeater complete
+        let expected = TestLog {log: vec![
+            TestLogEntry {task_id: 0, updated_count: 0, frame: 1},
+            TestLogEntry {task_id: 0, updated_count: 1, frame: 2},
+            TestLogEntry {task_id: 0, updated_count: 2, frame: 3},
+            TestLogEntry {task_id: 0, updated_count: 3, frame: 4},
+        ]};
+        let found = app.world.get_resource::<TestLog>().unwrap();
+        assert!(
+            found == &expected,
+            "ElseFreeze should match the result. found: {:?}", found
+        );    }
 }
