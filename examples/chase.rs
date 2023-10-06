@@ -41,8 +41,8 @@ fn init(mut commands: Commands, asset_server: Res<AssetServer>) {
         BehaviorTree::new(
             ConditionalLoop::new(
                 Sequence::new(vec![
-                    // TaskImpl can be used as DoNothingTask.
-                    Arc::new(TaskImpl::new(NearTaskChecker {target: player, range: 300.})),
+                    // Task to wait until player get near.
+                    NearTask::new(player, 300.),
                     // Task to follow the player.
                     FollowTask::new(player, 300., 100.),
                 ]),
@@ -52,70 +52,44 @@ fn init(mut commands: Commands, asset_server: Res<AssetServer>) {
     ));
 }
 
-
-// This task checker runs until the entity gets within the the given range of the target.
-struct NearTaskChecker {
-    target: Entity,
-    range: f32,
+struct NearTask {
+    task: Arc<TaskImpl>,
 }
-impl TaskChecker for NearTaskChecker {
-    // Put the parameters that your checker needs here. `Param` is read-only; you may not access
-    // system params that write to the `World`. `Time` is included here to demonstrate how to get
-    // multiple system params.
-    type Param<'w, 's> = (Query<'w, 's, &'static Transform>, Res<'w, Time>);
-    fn check (
-        &self,
-        entity: Entity,
-        (transforms, _time): Self::Param<'_, '_>,
-    ) -> TaskState {
-        // Find the distance between the target and this entity
-        let distance = transforms
-            .get(self.target)
-            .unwrap()
-            .translation
-            .truncate()
-            .distance(transforms.get(entity).unwrap().translation.truncate());
-
-        // Check whether the target is within range. If it is, return `Success`.
-        match distance <= self.range {
-            true => TaskState::Success,
-            false => TaskState::Running,
-        } 
+impl NearTask {
+    pub fn new(
+        target: Entity,
+        range: f32,
+    ) -> Arc<Self> {
+        let checker = move |In(entity): In<Entity>, param: Query<&Transform>| {
+            // Find the distance between the target and this entity
+            let distance = param
+                .get(target)
+                .unwrap()
+                .translation
+                .truncate()
+                .distance(param.get(entity).unwrap().translation.truncate());
+            // Check whether the target is within range. If it is, return `Success`.
+            match distance <= range {
+                true => TaskState::Success,
+                false => TaskState::Running,
+            } 
+        };
+        Arc::new(Self {
+            task: Arc::new(TaskImpl::new(checker)),
+        })
     }
 }
-
-
-// This task checker will fail when the target is out of range.
-struct FollowTaskChecker {
-    target: Entity,
-    range: f32,
-}
-impl TaskChecker for FollowTaskChecker {
-    type Param<'w, 's> = Query<'w, 's, &'static Transform>;
-    fn check (
-        &self,
-        entity: Entity,
-        transforms: Self::Param<'_, '_>,
-    ) -> TaskState {
-        let distance = transforms
-            .get(self.target)
-            .unwrap()
-            .translation
-            .truncate()
-            .distance(transforms.get(entity).unwrap().translation.truncate());
-
-        // Return `Failure` if it is out of range.
-        match distance <= self.range {
-            true => TaskState::Running,
-            false => TaskState::Failure,
-        } 
+impl Task for NearTask {
+    // Specify what checker you use with this task.
+    fn task_impl(&self) -> Arc<TaskImpl> {
+        self.task.clone()
     }
 }
 
 // Task node to follow the target.
 // Task trait is available for making your task, delegating core methods to TaskImpl.
 struct FollowTask {
-    task: Arc<TaskImpl<<Self as Task>::Checker>>,
+    task: Arc<TaskImpl>,
 }
 impl FollowTask {
     pub fn new(
@@ -123,7 +97,20 @@ impl FollowTask {
         range: f32,
         speed: f32,
     ) -> Arc<Self> {
-        let task = TaskImpl::new(FollowTaskChecker {target, range})
+        let checker = move |In(entity): In<Entity>, param: Query<&Transform>| {
+            let distance = param
+            .get(target)
+            .unwrap()
+            .translation
+            .truncate()
+            .distance(param.get(entity).unwrap().translation.truncate());
+            // Return `Failure` if target is out of range.
+            match distance <= range {
+                true => TaskState::Running,
+                false => TaskState::Failure,
+            } 
+        };
+        let task = TaskImpl::new(checker)
             // Task inserts some components to the entity while running.
             .insert_while_running(Follow {target, speed})
             // Or run some commands on enter/exit.
@@ -136,8 +123,7 @@ impl FollowTask {
 }
 impl Task for FollowTask {
     // Specify what checker you use with this task.
-    type Checker = FollowTaskChecker;
-    fn task_impl(&self) -> Arc<TaskImpl<Self::Checker>> {
+    fn task_impl(&self) -> Arc<TaskImpl> {
         self.task.clone()
     }
 }

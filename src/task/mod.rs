@@ -6,7 +6,7 @@
 //! You need some system to update according to the components.
 
 use std::sync::{Arc, Mutex};
-use bevy::{prelude::*, ecs::system::{ReadOnlySystemParam, SystemParam, SystemState}};
+use bevy::prelude::*;
 use genawaiter::sync::{Gen, Co};
 
 use super::{Node, NodeGen, NodeResult, ResumeSignal, nullable_access::NullableWorldAccess};
@@ -24,8 +24,7 @@ pub enum TaskState {
 
 /// Implement this for your task node.
 pub trait Task: Send + Sync {
-    type Checker: TaskChecker;
-    fn task_impl(&self) -> Arc<TaskImpl<Self::Checker>>;
+    fn task_impl(&self) -> Arc<TaskImpl>;
 }
 impl<T> Node for T
 where
@@ -39,25 +38,20 @@ where
 
 /// Core implementation of task node.
 /// You can directly use this as a task node for simple task.
-pub struct TaskImpl<Checker>
-where
-    Checker: TaskChecker,
-{
-    checker: Checker,
-    system_state: Mutex<Option<SystemState<Checker::Param<'static, 'static>>>>,
+pub struct TaskImpl {
+    checker: Mutex<Box<dyn ReadOnlySystem<In=Entity, Out=TaskState>>>,
     on_enter: Vec<Box<dyn Fn(Entity, Commands) + Send + Sync>>,
     on_exit: Vec<Box<dyn Fn(Entity, Commands) + Send + Sync>>,
 }
-impl<Checker> TaskImpl<Checker>
-where
-    Checker: TaskChecker,
-{
-    pub fn new(
-        checker: Checker,
-    ) -> Self {
-        Self {
-            checker,
-            system_state: Mutex::new(None),
+impl TaskImpl {
+    pub fn new<F, Marker, SysMarker>(checker: F) -> TaskImpl
+    where
+        F: SystemParamFunction<Marker> + IntoSystem<Entity, TaskState, SysMarker>,
+        <F as IntoSystem<Entity, TaskState, SysMarker>>::System : ReadOnlySystem,
+        Marker: 'static,
+    {
+        TaskImpl {
+            checker: Mutex::new(Box::new(IntoSystem::into_system(checker))),
             on_enter: vec![],
             on_exit: vec![],
         }
@@ -89,24 +83,33 @@ where
                 commands.entity(entity).remove::<T>();
             }))
     }
+    /// Check current `TaskState`.
+    fn check(&self, world: Arc<Mutex<NullableWorldAccess>>, entity: Entity) -> TaskState {
+        world.lock().unwrap().check_task(
+            entity,
+            self.checker.lock().as_deref_mut().unwrap(),
+        ).unwrap()
+    }
+    fn trigger_enter(&self, world: Arc<Mutex<NullableWorldAccess>>, entity: Entity) {
+        for event in self.on_enter.iter() {
+            world.lock().unwrap().entity_command_call(entity, &event).unwrap();
+        }
+    }
+    fn trigger_exit(&self, world: Arc<Mutex<NullableWorldAccess>>, entity: Entity) {
+        // If aborted with dropping BehaviorTree, world will not be accessible.
+        #[allow(unused_must_use)]
+        for event in self.on_exit.iter() {
+            world.lock().unwrap().entity_command_call(entity, &event);
+        }
+    }
 }
-impl<Checker> Node for TaskImpl<Checker>
-where
-    Checker: TaskChecker,
-{
+impl Node for TaskImpl {
     fn run(self: Arc<Self>, world: Arc<Mutex<NullableWorldAccess>>, entity: Entity) -> Box<dyn NodeGen> {
         let producer = |co: Co<(), ResumeSignal>| async move {
-            for event in self.on_enter.iter() {
-                world.lock().unwrap().entity_command_call(entity, &event).unwrap();
-            }
+            self.trigger_enter(world.clone(), entity);
             let mut result: Option<NodeResult> = None;
             while result.is_none() {
-                let task_state = world.lock().unwrap().check_task(
-                    entity,
-                    &self.checker,
-                    self.system_state.lock().as_mut().unwrap()
-                ).unwrap();
-                match task_state {
+                match self.check(world.clone(), entity) {
                     TaskState::Running => {
                         let signal = co.yield_(()).await;
                         if signal == ResumeSignal::Abort {
@@ -123,11 +126,7 @@ where
                     },
                 }
             }
-            // If aborted with dropping BehaviorTree, world will not be accessible.
-            #[allow(unused_must_use)]
-            for event in self.on_exit.iter() {
-                world.lock().unwrap().entity_command_call(entity, &event);
-            }
+            self.trigger_exit(world.clone(), entity);
             result.unwrap()
         };
         Box::new(Gen::new(producer))
@@ -135,13 +134,3 @@ where
 }
 
 
-/// Check the status of the task.
-/// Will be called every frame while the task is running, on `PostUpdate` stage.
-pub trait TaskChecker: 'static + Sized + Send + Sync {
-    type Param<'w, 's>: ReadOnlySystemParam;
-    fn check (
-        &self,
-        entity: Entity,
-        param: <<Self as TaskChecker>::Param<'_, '_> as SystemParam>::Item<'_, '_>,
-    ) -> TaskState;
-}

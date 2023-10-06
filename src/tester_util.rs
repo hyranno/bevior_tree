@@ -23,44 +23,30 @@ impl Plugin for TesterPlugin {
 
 /// Returns result after count.
 pub struct TesterTask<const ID: i32> {
-    task: Arc<TaskImpl<<Self as Task>::Checker>>,
+    task: Arc<TaskImpl>,
 }
 impl<const ID: i32> Task for TesterTask<ID> {
-    type Checker = TesterTaskChecker::<ID>;
-    fn task_impl(&self) -> Arc<TaskImpl<Self::Checker>> {
+    fn task_impl(&self) -> Arc<TaskImpl> {
         self.task.clone()
     }
 }
 impl<const ID: i32> TesterTask<ID> {
     pub fn new(count: u32, result: TaskState) -> Arc<Self> {
-        let task = Arc::new(TaskImpl::new(TesterTaskChecker::<ID> {count, result})
+        let checker = move |In(entity): In<Entity>, param: Query<&TesterComponent<ID>>| {
+            let comp = param.get(entity).expect("TesterComponent not found!");
+            if comp.updated_count < count {
+                TaskState::Running
+            } else {
+                result
+            }
+        };
+        let task = Arc::new(TaskImpl::new(checker)
             .insert_while_running(TesterComponent::<ID> { updated_count: 0 })
         );
         Arc::new(Self {task})
     }
 }
 
-pub struct TesterTaskChecker<const ID: i32> {
-    pub count: u32,
-    pub result: TaskState,
-}
-impl<const ID: i32> TaskChecker for TesterTaskChecker<ID> {
-    type Param<'w, 's> = Query<'w, 's, &'static TesterComponent<ID>>;
-    fn check (
-        &self,
-        entity: Entity,
-        comps: Self::Param<'_, '_>,
-    ) -> TaskState {
-        let Ok(comp) = comps.get(entity) else {
-            panic!("TesterComponent not found!");
-        };
-        if comp.updated_count < self.count {
-            TaskState::Running
-        } else {
-            self.result
-        }
-    }
-}
 
 #[derive(Debug, Component, Clone, Copy)]
 pub struct TesterComponent<const ID: i32> {

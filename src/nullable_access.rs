@@ -5,9 +5,9 @@
 
 use std::sync::{Arc, Mutex};
 
-use bevy::{prelude::*, ecs::system::{SystemState, ReadOnlySystemParam}};
+use bevy::{prelude::*, ecs::{system::{SystemState, ReadOnlySystemParam}, component::Tick}};
 
-use crate::{conditional::ConditionChecker, NodeResult, sequential::Scorer, task::{TaskState, TaskChecker}};
+use crate::{conditional::ConditionChecker, NodeResult, sequential::Scorer, task::TaskState};
 
 
 /// Provides access to `World` if available.
@@ -29,6 +29,36 @@ impl NullableWorldAccess {
     /// Must not leak out the `ptr`.
     /// Maybe there are ways to leak out via `R`, so this method is kept private.
     /// Call this from outside the module via specialized methods.
+    fn call_read_only_sys<Out: 'static>(
+        &mut self,
+        entity: Entity,
+        sys: &mut Box<dyn ReadOnlySystem<In=Entity, Out=Out>>
+    ) -> Result<Out, NullableAccessError> {
+        match self.ptr.as_deref_mut() {
+            Some(world) => {
+                // While `System` does not have `is_initialized` thing, use `last_run` to check if it is initialized.
+                if sys.get_last_run() == Tick::new(0) {
+                    sys.initialize(world)
+                }
+                Ok(sys.run_readonly(entity, world))
+            },
+            None => Err(NullableAccessError::NotAvailableNow),
+        }
+    }
+
+    pub fn check_task(
+        &mut self,
+        entity: Entity,
+        checker: &mut Box<dyn ReadOnlySystem<In=Entity, Out=TaskState>>
+    ) -> Result<TaskState, NullableAccessError> {
+        self.call_read_only_sys(entity, checker)
+    }
+
+
+    /// Read only access to the world.
+    /// Must not leak out the `ptr`.
+    /// Maybe there are ways to leak out via `R`, so this method is kept private.
+    /// Call this from outside the module via specialized methods.
     fn call_read_only<Param, F, R>(&mut self, entity: Entity, system_state: &mut Option<SystemState<Param>>, f: F)
         -> Result<R, NullableAccessError>
     where
@@ -43,17 +73,6 @@ impl NullableWorldAccess {
         }
         let param = system_state.as_mut().unwrap().get(world);
         Ok(f(entity, param))
-    }
-
-    /// Call `TaskChecker::check` using `&mut World`.
-    pub fn check_task<Checker>(&mut self, entity: Entity, checker: &Checker, system_state: &mut Option<SystemState<Checker::Param<'static, 'static>>>)
-        -> Result<TaskState, NullableAccessError>
-    where
-        Checker: TaskChecker,
-    {
-        self.call_read_only(entity, system_state, |e, p|
-            checker.check(e, p)
-        )
     }
 
     /// Call `ConditionChecker::check` using `&mut World`.
