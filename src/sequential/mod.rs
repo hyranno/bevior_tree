@@ -3,7 +3,7 @@
 use std::sync::{Arc, Mutex};
 use genawaiter::sync::Gen;
 
-use bevy::ecs::{entity::Entity, system::{ReadOnlySystemParam, SystemParam, SystemState}};
+use bevy::{ecs::entity::Entity, prelude::{ReadOnlySystem, SystemParamFunction, IntoSystem}};
 
 use crate::{Node, NodeGen, NodeResult, complete_or_yield, nullable_access::NullableWorldAccess};
 
@@ -65,39 +65,26 @@ pub trait NodeScorer: 'static + Send + Sync {
 
 
 /// Pairs `Node` and `Scorer`, implementing `NodeScorer`.
-pub struct NodeScorerImpl<S>
-where
-    S: Scorer + 'static,
-{
-    scorer: S,
+pub struct NodeScorerImpl {
+    scorer: Box<dyn ReadOnlySystem<In=Entity, Out=f32>>,
     node: Arc<dyn Node>,
-    system_state: Option<SystemState<S::Param<'static, 'static>>>,
 }
-impl<S> NodeScorerImpl<S>
-where
-    S: Scorer + 'static,
-{
-    pub fn new(scorer: S, node: Arc<dyn Node>) -> Self {
-        Self { scorer, node, system_state: None }
+impl NodeScorerImpl {
+    pub fn new<F, Marker, SysMarker>(scorer: F, node: Arc<dyn Node>) -> Self
+    where
+        F: SystemParamFunction<Marker> + IntoSystem<Entity, f32, SysMarker>,
+        <F as IntoSystem<Entity, f32, SysMarker>>::System : ReadOnlySystem,
+        Marker: 'static,
+    {
+        Self {
+            scorer: Box::new(IntoSystem::into_system(scorer)),
+            node,
+        }
     }
 }
-impl<S> NodeScorer for NodeScorerImpl<S>
-where
-    S: Scorer + 'static,
-{
+impl NodeScorer for NodeScorerImpl {
     fn score(&mut self, world: Arc<Mutex<NullableWorldAccess>>, entity: Entity,) -> (f32, Arc<dyn Node>) {
-        let score = world.lock().unwrap().score_node(entity, &self.scorer, &mut self.system_state).unwrap();
+        let score = world.lock().unwrap().score_node(entity, &mut self.scorer).unwrap();
         ( score, self.node.clone() )
     }
 }
-
-
-pub trait Scorer: Send + Sync {
-    type Param<'w, 's>: ReadOnlySystemParam;
-    fn score(
-        &self,
-        entity: Entity,
-        param: <<Self as Scorer>::Param<'_, '_> as SystemParam>::Item<'_, '_>,
-    ) -> f32;
-}
-

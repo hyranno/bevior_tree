@@ -5,9 +5,9 @@
 
 use std::sync::{Arc, Mutex};
 
-use bevy::{prelude::*, ecs::{system::{SystemState, ReadOnlySystemParam}, component::Tick}};
+use bevy::{prelude::*, ecs::{system::SystemState, component::Tick}};
 
-use crate::{NodeResult, sequential::Scorer, task::TaskState};
+use crate::{NodeResult, task::TaskState};
 
 
 /// Provides access to `World` if available.
@@ -72,40 +72,12 @@ impl NullableWorldAccess {
         self.call_read_only_sys((entity, loop_count, last_result), checker)
     }
 
-    /// Read only access to the world.
-    /// Must not leak out the `ptr`.
-    /// Maybe there are ways to leak out via `R`, so this method is kept private.
-    /// Call this from outside the module via specialized methods.
-    fn call_read_only<Param, F, R>(&mut self, entity: Entity, system_state: &mut Option<SystemState<Param>>, f: F)
-        -> Result<R, NullableAccessError>
-    where
-        Param: ReadOnlySystemParam,
-        F: Fn(Entity, Param::Item<'_, '_>) -> R
-    {
-        let Some(world) = self.ptr.as_deref_mut() else {
-            return Err(NullableAccessError::NotAvailableNow);
-        };
-        if system_state.is_none() {
-            *system_state = Some(SystemState::new(world));
-        }
-        let param = system_state.as_mut().unwrap().get(world);
-        Ok(f(entity, param))
-    }
-
-
-    /// Call `Scorer::score` using `&mut World`.
-    pub fn score_node<S>(
+    pub fn score_node(
         &mut self,
         entity: Entity,
-        scorer: &S,
-        system_state: &mut Option<SystemState<S::Param<'static, 'static>>>,
-    ) -> Result<f32, NullableAccessError>
-    where
-        S: Scorer,
-    {
-        self.call_read_only(entity, system_state, |e, p|
-            scorer.score(e, p)
-        )
+        scorer: &mut Box<dyn ReadOnlySystem<In=Entity, Out=f32>>,
+    ) -> Result<f32, NullableAccessError> {
+        self.call_read_only_sys(entity, scorer)
     }
 
     /// Call `Fn(Entity, Commands)` using `&mut World`.
