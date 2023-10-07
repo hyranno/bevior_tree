@@ -46,7 +46,7 @@ fn init(mut commands: Commands, asset_server: Res<AssetServer>) {
                     // Task to follow the player.
                     FollowTask::new(player, 300., 100.),
                 ]),
-                Always
+                |In(_)| true
             )
         ),
     ));

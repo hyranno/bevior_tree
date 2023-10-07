@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex};
 
 use bevy::{prelude::*, ecs::{system::{SystemState, ReadOnlySystemParam}, component::Tick}};
 
-use crate::{conditional::ConditionChecker, NodeResult, sequential::Scorer, task::TaskState};
+use crate::{NodeResult, sequential::Scorer, task::TaskState};
 
 
 /// Provides access to `World` if available.
@@ -29,10 +29,10 @@ impl NullableWorldAccess {
     /// Must not leak out the `ptr`.
     /// Maybe there are ways to leak out via `R`, so this method is kept private.
     /// Call this from outside the module via specialized methods.
-    fn call_read_only_sys<Out: 'static>(
+    fn call_read_only_sys<In: 'static, Out: 'static>(
         &mut self,
-        entity: Entity,
-        sys: &mut Box<dyn ReadOnlySystem<In=Entity, Out=Out>>
+        input: In,
+        sys: &mut Box<dyn ReadOnlySystem<In=In, Out=Out>>
     ) -> Result<Out, NullableAccessError> {
         match self.ptr.as_deref_mut() {
             Some(world) => {
@@ -40,7 +40,7 @@ impl NullableWorldAccess {
                 if sys.get_last_run() == Tick::new(0) {
                     sys.initialize(world)
                 }
-                Ok(sys.run_readonly(entity, world))
+                Ok(sys.run_readonly(input, world))
             },
             None => Err(NullableAccessError::NotAvailableNow),
         }
@@ -54,6 +54,23 @@ impl NullableWorldAccess {
         self.call_read_only_sys(entity, checker)
     }
 
+    pub fn check_condition(
+        &mut self,
+        entity: Entity,
+        checker: &mut Box<dyn ReadOnlySystem<In=Entity, Out=bool>>,
+    ) -> Result<bool, NullableAccessError> {
+        self.call_read_only_sys(entity, checker)
+    }
+
+    pub fn check_loop_condition(
+        &mut self,
+        entity: Entity,
+        checker: &mut Box<dyn ReadOnlySystem<In=(Entity, u32, Option<NodeResult>), Out=bool>>,
+        loop_count: u32,
+        last_result: Option<NodeResult>,
+    ) -> Result<bool, NullableAccessError> {
+        self.call_read_only_sys((entity, loop_count, last_result), checker)
+    }
 
     /// Read only access to the world.
     /// Must not leak out the `ptr`.
@@ -75,22 +92,6 @@ impl NullableWorldAccess {
         Ok(f(entity, param))
     }
 
-    /// Call `ConditionChecker::check` using `&mut World`.
-    pub fn check_condition<Checker>(
-        &mut self,
-        entity: Entity,
-        checker: &Checker,
-        system_state: &mut Option<SystemState<Checker::Param<'static, 'static>>>,
-        loop_count: u32,
-        last_result: Option<NodeResult>,
-    ) -> Result<bool, NullableAccessError>
-    where
-        Checker: ConditionChecker,
-    {
-        self.call_read_only(entity, system_state, |e, p|
-            checker.check(e, p, loop_count, last_result)
-        )
-    }
 
     /// Call `Scorer::score` using `&mut World`.
     pub fn score_node<S>(
