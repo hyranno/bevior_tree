@@ -3,7 +3,7 @@
 use std::sync::{Arc, Mutex};
 use genawaiter::sync::Gen;
 
-use bevy::{ecs::entity::Entity, prelude::{ReadOnlySystem, SystemParamFunction, IntoSystem}};
+use bevy::{ecs::entity::Entity, prelude::{ReadOnlySystem, IntoSystem}};
 
 use crate::{Node, NodeGen, NodeResult, complete_or_yield, nullable_access::NullableWorldAccess};
 
@@ -70,11 +70,10 @@ pub struct NodeScorerImpl {
     node: Arc<dyn Node>,
 }
 impl NodeScorerImpl {
-    pub fn new<F, Marker, SysMarker>(scorer: F, node: Arc<dyn Node>) -> Self
+    pub fn new<F, Marker>(scorer: F, node: Arc<dyn Node>) -> Self
     where
-        F: SystemParamFunction<Marker> + IntoSystem<Entity, f32, SysMarker>,
-        <F as IntoSystem<Entity, f32, SysMarker>>::System : ReadOnlySystem,
-        Marker: 'static,
+        F: IntoSystem<Entity, f32, Marker>,
+        <F as IntoSystem<Entity, f32, Marker>>::System : ReadOnlySystem,
     {
         Self {
             scorer: Box::new(IntoSystem::into_system(scorer)),

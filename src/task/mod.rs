@@ -44,11 +44,10 @@ pub struct TaskImpl {
     on_exit: Vec<Box<dyn Fn(Entity, Commands) + Send + Sync>>,
 }
 impl TaskImpl {
-    pub fn new<F, Marker, SysMarker>(checker: F) -> TaskImpl
+    pub fn new<F, Marker>(checker: F) -> TaskImpl
     where
-        F: SystemParamFunction<Marker> + IntoSystem<Entity, TaskState, SysMarker>,
-        <F as IntoSystem<Entity, TaskState, SysMarker>>::System : ReadOnlySystem,
-        Marker: 'static,
+        F: IntoSystem<Entity, TaskState, Marker>,
+        <F as IntoSystem<Entity, TaskState, Marker>>::System : ReadOnlySystem,
     {
         TaskImpl {
             checker: Mutex::new(Box::new(IntoSystem::into_system(checker))),
