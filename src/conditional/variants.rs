@@ -1,52 +1,68 @@
-use std::sync::{Arc, Mutex};
+use std::{sync::{Arc, Mutex}, borrow::Cow};
 
-use bevy::ecs::{entity::Entity, system::{ReadOnlySystemParam, SystemParam, SystemState, Res}, schedule::{State, States}};
+use bevy::{prelude::*, ecs::system::{CombinatorSystem, Combine}};
 use genawaiter::sync::{Gen, Co};
 
 use crate::{Node, NodeGen, NodeResult, nullable_access::NullableWorldAccess, NodeRunner, NodeGenState, ResumeSignal};
-use super::{ConditionChecker, ConditionalLoop};
+use super::ConditionalLoop;
 
 
 /// Node that runs the child if condition is matched.
-pub struct Conditional<Checker: EcsConditionChecker> {
-    delegate: Arc<ConditionalLoop<SeparableConditionChecker<Checker, RepeatCount>>>,
+pub struct Conditional {
+    delegate: Arc<ConditionalLoop>,
 }
-impl<Checker: EcsConditionChecker> Conditional<Checker> {
-    pub fn new(child: Arc<dyn Node>, checker: Checker) -> Arc<Self> {
+impl Conditional {
+    pub fn new<F, Marker>(child: Arc<dyn Node>, checker: F) -> Arc<Self>
+    where
+        F: IntoSystem<Entity, bool, Marker>,
+        <F as IntoSystem<Entity, bool, Marker>>::System : ReadOnlySystem,
+    {
         Arc::new(Self { delegate: ConditionalLoop::new(
             child,
-            SeparableConditionChecker::new(checker, RepeatCount { count: 1 })
+            SeparableConditionChecker::new(
+                IntoSystem::into_system(checker),
+                IntoSystem::into_system(|In((loop_count, last_result)): In<(u32, Option<NodeResult>)>|
+                    loop_count < 1 && last_result.is_none() // only once
+                ),
+                Cow::Borrowed("check cond")
+            )
         ) })
     }
 }
-impl<Checker: EcsConditionChecker> Node for Conditional<Checker> {
+impl Node for Conditional {
     fn run(self: Arc<Self>, world: Arc<Mutex<NullableWorldAccess>>, entity: Entity) -> Box<dyn NodeGen> {
         self.delegate.clone().run(world, entity)
     }
 }
 
 /// Node that check the condition, then return it as `NodeResult`.
-pub struct CheckIf<Checker: EcsConditionChecker> {
-    checker: SeparableConditionChecker<Checker, Always>,
-    system_state: Mutex<Option<SystemState<Checker::Param<'static, 'static>>>>,
+pub struct CheckIf {
+    checker: Mutex<Box<dyn ReadOnlySystem<In=Entity, Out=bool>>>,
 }
-impl<Checker: EcsConditionChecker> CheckIf<Checker> {
-    pub fn new(checker: Checker) -> Arc<Self> {
+impl CheckIf {
+    pub fn new<F, Marker>(checker: F) -> Arc<Self>
+    where
+        F: IntoSystem<Entity, bool, Marker>,
+        <F as IntoSystem<Entity, bool, Marker>>::System : ReadOnlySystem,
+    {
         Arc::new(Self {
-            checker: SeparableConditionChecker::new(checker, Always),
-            system_state: Mutex::new(None),
+            checker: Mutex::new(Box::new(
+                IntoSystem::into_system(checker),
+            )),
         })
     }
+
+    fn check(&self, world: Arc<Mutex<NullableWorldAccess>>, entity: Entity) -> bool {
+        world.lock().unwrap().check_condition(
+            entity,
+            self.checker.lock().as_deref_mut().unwrap(),
+        ).unwrap()
+    }
 }
-impl<Checker: EcsConditionChecker> Node for CheckIf<Checker> {
+impl Node for CheckIf {
     fn run(self: Arc<Self>, world: Arc<Mutex<NullableWorldAccess>>, entity: Entity) -> Box<dyn NodeGen> {
         let producer = |_| async move {
-            world.lock().unwrap().check_condition(
-                entity,
-                &self.checker,
-                &mut self.system_state.lock().unwrap(),
-                0, None
-            ).unwrap().into()
+            self.check(world, entity).into()
         };
         Box::new(Gen::new(producer))
     }
@@ -55,34 +71,41 @@ impl<Checker: EcsConditionChecker> Node for CheckIf<Checker> {
 
 /// Run the child while condition matched, else freeze.
 /// Supposing to be used as a root.
-pub struct ElseFreeze<Checker: EcsConditionChecker> {
+pub struct ElseFreeze {
     child: Arc<dyn Node>,
-    checker: SeparableConditionChecker<Checker, Always>,
-    system_state: Mutex<Option<SystemState<Checker::Param<'static, 'static>>>>,
+    checker: Mutex<Box<dyn ReadOnlySystem<In=Entity, Out=bool>>>,
 }
-impl<Checker: EcsConditionChecker> ElseFreeze<Checker> {
-    pub fn new(child: Arc<dyn Node>, checker: Checker) -> Arc<Self> {
+impl ElseFreeze {
+    pub fn new<F, Marker>(child: Arc<dyn Node>, checker: F) -> Arc<Self>
+    where
+        F: IntoSystem<Entity, bool, Marker>,
+        <F as IntoSystem<Entity, bool, Marker>>::System : ReadOnlySystem,
+    {
         Arc::new(Self {
             child,
-            checker: SeparableConditionChecker::new(checker, Always),
-            system_state: Mutex::new(None),
+            checker: Mutex::new(Box::new(
+                IntoSystem::into_system(checker),
+            )),
         })
     }
+
+    fn check(&self, world: Arc<Mutex<NullableWorldAccess>>, entity: Entity) -> bool {
+        world.lock().unwrap().check_condition(
+            entity,
+            self.checker.lock().as_deref_mut().unwrap(),
+        ).unwrap()
+    }
 }
-impl<Checker: EcsConditionChecker> Node for ElseFreeze<Checker> {
+impl Node for ElseFreeze {
     fn run(self: Arc<Self>, world: Arc<Mutex<NullableWorldAccess>>, entity: Entity) -> Box<dyn NodeGen> {
         let producer = |co: Co<(), ResumeSignal>| async move {
-            let check = || world.lock().unwrap().check_condition(
-                entity, &self.checker, &mut self.system_state.lock().unwrap(),
-                0, None
-            ).unwrap();
-            while !check() {
+            while !self.check(world.clone(), entity) {
                 co.yield_(()).await;
             }
             let mut runner = NodeRunner::new(self.child.clone(), world.clone(), entity);
             while *runner.state() == NodeGenState::Yielded(()) {
                 co.yield_(()).await;
-                if check() {
+                if self.check(world.clone(), entity) {
                     runner.resume_if_incomplete();
                 }
             }
@@ -93,166 +116,23 @@ impl<Checker: EcsConditionChecker> Node for ElseFreeze<Checker> {
 }
 
 
-
-/// `ConditionChecker` consists of `EcsConditionChecker` and `LoopVarsConditionChecker`.
-pub struct SeparableConditionChecker<EcsChecker, LoopVarsChecker>
+pub type SeparableConditionChecker<A, B> = CombinatorSystem<SeparableConditionCheckerMarker, A, B>;
+pub struct SeparableConditionCheckerMarker;
+impl<A, B> Combine<A,B> for SeparableConditionCheckerMarker
 where
-    EcsChecker: EcsConditionChecker,
-    LoopVarsChecker: LoopVarsConditionChecker
+    A: System<In=Entity, Out=bool>,
+    B: System<In=(u32, Option<NodeResult>), Out=bool>,
 {
-    ecs_checker: EcsChecker,
-    loop_var_checker: LoopVarsChecker,
-}
-impl<E, L> SeparableConditionChecker<E, L>
-where
-    E: EcsConditionChecker,
-    L: LoopVarsConditionChecker,
-{
-    pub fn new(ecs_checker: E, loop_var_checker: L) -> Self {
-        Self { ecs_checker, loop_var_checker }
+    type In = (Entity, u32, Option<NodeResult>);
+    type Out = bool;
+    fn combine(
+        (entity, loop_count, last_result): Self::In,
+        a: impl FnOnce(<A as System>::In) -> <A as System>::Out,
+        b: impl FnOnce(<B as System>::In) -> <B as System>::Out,
+    ) -> Self::Out {
+        a(entity) && b((loop_count, last_result))
     }
 }
-impl<E, L> EcsConditionChecker for SeparableConditionChecker<E, L>
-where
-    E: EcsConditionChecker,
-    L: LoopVarsConditionChecker,
-{
-    type Param<'w, 's> = E::Param<'w, 's>;
-    fn check_params(
-        &self,
-        entity: Entity,
-        param: <<Self as EcsConditionChecker>::Param<'_, '_> as SystemParam>::Item<'_, '_>,
-    ) -> bool {
-        self.ecs_checker.check_params(entity, param)
-    }
-}
-impl<E, L> LoopVarsConditionChecker for SeparableConditionChecker<E, L>
-where
-    E: EcsConditionChecker,
-    L: LoopVarsConditionChecker,
-{
-    fn check_loop_vars(&self, loop_count: u32, last_result: Option<NodeResult>) -> bool {
-        self.loop_var_checker.check_loop_vars(loop_count, last_result)
-    }
-}
-
-/// Check condition with ecs world.
-pub trait EcsConditionChecker: 'static + Sized + Send + Sync {
-    type Param<'w, 's>: ReadOnlySystemParam;
-    fn check_params(
-        &self,
-        entity: Entity,
-        param: <<Self as EcsConditionChecker>::Param<'_, '_> as SystemParam>::Item<'_, '_>,
-    ) -> bool;
-}
-/// Check condition with the loop count and the last result.
-pub trait LoopVarsConditionChecker: 'static + Sized + Send + Sync {
-    fn check_loop_vars(&self, loop_count: u32, last_result: Option<NodeResult>) -> bool;
-}
-impl<Checker> ConditionChecker for Checker
-where
-    Checker: EcsConditionChecker + LoopVarsConditionChecker
-{
-    type Param<'w, 's> = <Checker as EcsConditionChecker>::Param<'w, 's>;
-    fn check (
-        &self,
-        entity: Entity,
-        param: <<Self as ConditionChecker>::Param<'_, '_> as SystemParam>::Item<'_, '_>,
-        loop_count: u32,
-        last_result: Option<NodeResult>,
-    ) -> bool {
-        self.check_loop_vars(loop_count, last_result) && self.check_params(entity, param)
-    }
-}
-
-
-pub struct Always;
-impl EcsConditionChecker for Always {
-    type Param<'w, 's> = ();
-    fn check_params(
-        &self,
-        _entity: Entity,
-        _param: <<Self as EcsConditionChecker>::Param<'_, '_> as SystemParam>::Item<'_, '_>,
-    ) -> bool {
-        true
-    }
-}
-impl LoopVarsConditionChecker for Always {
-    fn check_loop_vars(&self, _loop_count: u32, _last_result: Option<NodeResult>) -> bool {
-        true
-    }
-}
-
-
-/// Returns true until given count.
-pub struct RepeatCount {
-    pub count: u32,
-}
-impl LoopVarsConditionChecker for RepeatCount {
-    fn check_loop_vars(&self, loop_count: u32, _last_result: Option<NodeResult>) -> bool {
-        loop_count < self.count
-    }
-}
-impl ConditionChecker for RepeatCount {
-    type Param<'w, 's> = ();
-    fn check (
-        &self,
-        _entity: Entity,
-        _param: <<Self as ConditionChecker>::Param<'_, '_> as SystemParam>::Item<'_, '_>,
-        loop_count: u32,
-        last_result: Option<NodeResult>,
-    ) -> bool {
-        self.check_loop_vars(loop_count, last_result)
-    }
-}
-
-/// Returns true until the child return the given result.
-pub struct UntilResult {
-    pub until: NodeResult,
-}
-impl LoopVarsConditionChecker for UntilResult {
-    fn check_loop_vars(&self, _loop_count: u32, last_result: Option<NodeResult>) -> bool {
-        match last_result {
-            None => true,
-            Some(result) => result != self.until,
-        }
-    }
-}
-impl ConditionChecker for UntilResult {
-    type Param<'w, 's> = ();
-    fn check (
-        &self,
-        _entity: Entity,
-        _param: <<Self as ConditionChecker>::Param<'_, '_> as SystemParam>::Item<'_, '_>,
-        loop_count: u32,
-        last_result: Option<NodeResult>,
-    ) -> bool {
-        self.check_loop_vars(loop_count, last_result)
-    }
-}
-
-
-/// Returns true while in the given state.
-/// Good to use with `ElseFreeze`.
-pub struct InState<S: States> {
-    state: S,
-}
-impl<S: States> InState<S> {
-    pub fn new(state: S) -> Self {
-        Self { state }
-    }
-}
-impl<S: States> EcsConditionChecker for InState<S> {
-    type Param<'w, 's> = Res<'w, State<S>>;
-    fn check_params(
-        &self,
-        _entity: Entity,
-        state: Self::Param<'_, '_>,
-    ) -> bool {
-        *state.get() == self.state
-    }
-}
-
 
 
 #[cfg(test)]
@@ -262,18 +142,6 @@ mod tests {
     #[derive(Component)]
     struct TestMarker;
 
-    struct TestMarkerExists;
-    impl EcsConditionChecker for TestMarkerExists {
-        type Param<'w, 's> = Query<'w, 's, &'static TestMarker>;
-        fn check_params(
-            &self,
-            entity: Entity,
-            param: <<Self as EcsConditionChecker>::Param<'_, '_> as bevy::ecs::system::SystemParam>::Item<'_, '_>,
-        ) -> bool {
-            param.get(entity).is_ok()
-        }
-    }
-
     #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, Default, States)]
     enum TestStates {
         #[default]
@@ -281,22 +149,26 @@ mod tests {
         FreezeState,
     }
 
+    fn test_marker_exists(In(entity): In<Entity>, params: Query<&TestMarker>) -> bool {
+        params.get(entity).is_ok()
+    }
 
     #[test]
     fn test_conditional_false() {
         let mut app = App::new();
         app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let task = TesterTask::<0>::new(1, TaskState::Success);
-        let conditional = Conditional::new(task, TestMarkerExists);
+        let conditional = Conditional::new(task, test_marker_exists);
         let tree = BehaviorTree::new(conditional);
         let _entity = app.world.spawn(tree).id();
         app.update();
         app.update();  // nop
         let expected = TestLog {log: vec![
         ]};
+        let found = app.world.get_resource::<TestLog>().unwrap();
         assert!(
-            app.world.get_resource::<TestLog>().unwrap() == &expected,
-            "Conditional should not do the task."
+            found == &expected,
+            "Conditional should not do the task. Found {:?}", found
         );
     }
 
@@ -305,7 +177,7 @@ mod tests {
         let mut app = App::new();
         app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let task = TesterTask::<0>::new(1, TaskState::Success);
-        let conditional = Conditional::new(task, TestMarkerExists);
+        let conditional = Conditional::new(task, test_marker_exists);
         let tree = BehaviorTree::new(conditional);
         let _entity = app.world.spawn((tree, TestMarker)).id();
         app.update();
@@ -314,9 +186,10 @@ mod tests {
         let expected = TestLog {log: vec![
             TestLogEntry {task_id: 0, updated_count: 0, frame: 1},
         ]};
+        let found = app.world.get_resource::<TestLog>().unwrap();
         assert!(
-            app.world.get_resource::<TestLog>().unwrap() == &expected,
-            "Conditional should do the task."
+            found == &expected,
+            "Conditional should do the task. Found {:?}", found
         );
     }
 
@@ -324,7 +197,7 @@ mod tests {
     fn test_check_if_false() {
         let mut app = App::new();
         app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
-        let task = CheckIf::new(TestMarkerExists);
+        let task = CheckIf::new(test_marker_exists);
         let tree = BehaviorTree::new(task);
         let entity = app.world.spawn(tree).id();
         app.update();
@@ -340,7 +213,7 @@ mod tests {
     fn test_check_if_true() {
         let mut app = App::new();
         app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
-        let task = CheckIf::new(TestMarkerExists);
+        let task = CheckIf::new(test_marker_exists);
         let tree = BehaviorTree::new(task);
         let entity = app.world.spawn((tree, TestMarker)).id();
         app.update();
@@ -357,7 +230,7 @@ mod tests {
         let mut app = App::new();
         app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let task = TesterTask::<0>::new(1, TaskState::Success);
-        let repeater = ConditionalLoop::new(task, RepeatCount {count: 3});
+        let repeater = ConditionalLoop::new(task, |In((_, loop_count, _))| loop_count < 3);
         let tree = BehaviorTree::new(repeater);
         let _entity = app.world.spawn(tree).id();
         app.update();
@@ -383,7 +256,7 @@ mod tests {
         let task = TesterTask::<0>::new(2, TaskState::Success);
         let root = ElseFreeze::new(
             task,
-            SeparableConditionChecker::new(InState::new(TestStates::MainState), Always)
+            |In(_), state: Res<State<TestStates>>| *state.get() == TestStates::MainState,
         );
         let tree = BehaviorTree::new(root);
         let _entity = app.world.spawn(tree).id();

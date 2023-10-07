@@ -137,7 +137,7 @@ mod tests {
     use crate::*;
     use crate::task::*;
     use crate::tester_util::{TesterPlugin, TesterTask, TestLog, TestLogEntry};
-    use crate::sequential::{NodeScorerImpl, variants::ConstantScorer};
+    use crate::sequential::NodeScorerImpl;
     use super::*;
 
     use rand::SeedableRng;
@@ -149,19 +149,19 @@ mod tests {
         let sequence = RandomOrderedSequentialAnd::new(
             vec![
                 Box::new(NodeScorerImpl::new(
-                    ConstantScorer {score: 0.1},
+                    |In(_)| 0.1,
                     TesterTask::<0>::new(1, TaskState::Failure)
                 )),
                 Box::new(NodeScorerImpl::new(
-                    ConstantScorer {score: 0.3},
+                    |In(_)| 0.3,
                     TesterTask::<1>::new(1, TaskState::Success)
                 )),
                 Box::new(NodeScorerImpl::new(
-                    ConstantScorer {score: 0.2},
+                    |In(_)| 0.2,
                     TesterTask::<2>::new(1, TaskState::Success)
                 )),
                 Box::new(NodeScorerImpl::new(
-                    ConstantScorer {score: 0.4},
+                    |In(_)| 0.4,
                     TesterTask::<3>::new(1, TaskState::Success)
                 )),
             ],
@@ -193,19 +193,19 @@ mod tests {
         let sequence = RandomOrderedSequentialOr::new(
             vec![
                 Box::new(NodeScorerImpl::new(
-                    ConstantScorer {score: 0.1},
+                    |In(_)| 0.1,
                     TesterTask::<0>::new(1, TaskState::Success)
                 )),
                 Box::new(NodeScorerImpl::new(
-                    ConstantScorer {score: 0.3},
+                    |In(_)| 0.3,
                     TesterTask::<1>::new(1, TaskState::Failure)
                 )),
                 Box::new(NodeScorerImpl::new(
-                    ConstantScorer {score: 0.2},
+                    |In(_)| 0.2,
                     TesterTask::<2>::new(1, TaskState::Failure)
                 )),
                 Box::new(NodeScorerImpl::new(
-                    ConstantScorer {score: 0.4},
+                    |In(_)| 0.4,
                     TesterTask::<3>::new(1, TaskState::Failure)
                 )),
             ],
@@ -237,19 +237,19 @@ mod tests {
         let sequence = RandomOrderedForcedSequence::new(
             vec![
                 Box::new(NodeScorerImpl::new(
-                    ConstantScorer {score: 0.1},
+                    |In(_)| 0.1,
                     TesterTask::<0>::new(1, TaskState::Failure)
                 )),
                 Box::new(NodeScorerImpl::new(
-                    ConstantScorer {score: 0.3},
+                    |In(_)| 0.3,
                     TesterTask::<1>::new(1, TaskState::Failure)
                 )),
                 Box::new(NodeScorerImpl::new(
-                    ConstantScorer {score: 0.2},
+                    |In(_)| 0.2,
                     TesterTask::<2>::new(1, TaskState::Success)
                 )),
                 Box::new(NodeScorerImpl::new(
-                    ConstantScorer {score: 0.4},
+                    |In(_)| 0.4,
                     TesterTask::<3>::new(1, TaskState::Failure)
                 )),
             ],
@@ -283,19 +283,19 @@ mod tests {
         let sequence = RandomForcedSelector::new(
             vec![
                 Box::new(NodeScorerImpl::new(
-                    ConstantScorer {score: 0.1},
+                    |In(_)| 0.1,
                     TesterTask::<0>::new(1, TaskState::Failure)
                 )),
                 Box::new(NodeScorerImpl::new(
-                    ConstantScorer {score: 0.3},
+                    |In(_)| 0.3,
                     TesterTask::<1>::new(1, TaskState::Failure)
                 )),
                 Box::new(NodeScorerImpl::new(
-                    ConstantScorer {score: 0.2},
+                    |In(_)| 0.2,
                     TesterTask::<2>::new(1, TaskState::Success)
                 )),
                 Box::new(NodeScorerImpl::new(
-                    ConstantScorer {score: 10.4},
+                    |In(_)| 10.4,
                     TesterTask::<3>::new(1, TaskState::Failure)
                 )),
             ],

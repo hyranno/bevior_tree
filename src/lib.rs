@@ -24,7 +24,7 @@ pub mod prelude {
         *,
         task::*,
         sequential::variants::*,
-        conditional::{ConditionalLoop, ConditionChecker, variants::*},
+        conditional::{ConditionalLoop, variants::*},
         converter::{ResultConverter, variants::*},
     };
 }

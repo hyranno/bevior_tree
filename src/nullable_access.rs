@@ -5,9 +5,9 @@
 
 use std::sync::{Arc, Mutex};
 
-use bevy::{prelude::*, ecs::system::{SystemState, ReadOnlySystemParam}};
+use bevy::{prelude::*, ecs::{system::SystemState, component::Tick}};
 
-use crate::{conditional::ConditionChecker, NodeResult, sequential::Scorer, task::{TaskState, TaskChecker}};
+use crate::{NodeResult, task::TaskState};
 
 
 /// Provides access to `World` if available.
@@ -29,63 +29,55 @@ impl NullableWorldAccess {
     /// Must not leak out the `ptr`.
     /// Maybe there are ways to leak out via `R`, so this method is kept private.
     /// Call this from outside the module via specialized methods.
-    fn call_read_only<Param, F, R>(&mut self, entity: Entity, system_state: &mut Option<SystemState<Param>>, f: F)
-        -> Result<R, NullableAccessError>
-    where
-        Param: ReadOnlySystemParam,
-        F: Fn(Entity, Param::Item<'_, '_>) -> R
-    {
-        let Some(world) = self.ptr.as_deref_mut() else {
-            return Err(NullableAccessError::NotAvailableNow);
-        };
-        if system_state.is_none() {
-            *system_state = Some(SystemState::new(world));
+    fn call_read_only_sys<In: 'static, Out: 'static>(
+        &mut self,
+        input: In,
+        sys: &mut Box<dyn ReadOnlySystem<In=In, Out=Out>>
+    ) -> Result<Out, NullableAccessError> {
+        match self.ptr.as_deref_mut() {
+            Some(world) => {
+                // While `System` does not have `is_initialized` thing, use `last_run` to check if it is initialized.
+                if sys.get_last_run() == Tick::new(0) {
+                    sys.initialize(world)
+                }
+                Ok(sys.run_readonly(input, world))
+            },
+            None => Err(NullableAccessError::NotAvailableNow),
         }
-        let param = system_state.as_mut().unwrap().get(world);
-        Ok(f(entity, param))
     }
 
-    /// Call `TaskChecker::check` using `&mut World`.
-    pub fn check_task<Checker>(&mut self, entity: Entity, checker: &Checker, system_state: &mut Option<SystemState<Checker::Param<'static, 'static>>>)
-        -> Result<TaskState, NullableAccessError>
-    where
-        Checker: TaskChecker,
-    {
-        self.call_read_only(entity, system_state, |e, p|
-            checker.check(e, p)
-        )
-    }
-
-    /// Call `ConditionChecker::check` using `&mut World`.
-    pub fn check_condition<Checker>(
+    pub fn check_task(
         &mut self,
         entity: Entity,
-        checker: &Checker,
-        system_state: &mut Option<SystemState<Checker::Param<'static, 'static>>>,
+        checker: &mut Box<dyn ReadOnlySystem<In=Entity, Out=TaskState>>
+    ) -> Result<TaskState, NullableAccessError> {
+        self.call_read_only_sys(entity, checker)
+    }
+
+    pub fn check_condition(
+        &mut self,
+        entity: Entity,
+        checker: &mut Box<dyn ReadOnlySystem<In=Entity, Out=bool>>,
+    ) -> Result<bool, NullableAccessError> {
+        self.call_read_only_sys(entity, checker)
+    }
+
+    pub fn check_loop_condition(
+        &mut self,
+        entity: Entity,
+        checker: &mut Box<dyn ReadOnlySystem<In=(Entity, u32, Option<NodeResult>), Out=bool>>,
         loop_count: u32,
         last_result: Option<NodeResult>,
-    ) -> Result<bool, NullableAccessError>
-    where
-        Checker: ConditionChecker,
-    {
-        self.call_read_only(entity, system_state, |e, p|
-            checker.check(e, p, loop_count, last_result)
-        )
+    ) -> Result<bool, NullableAccessError> {
+        self.call_read_only_sys((entity, loop_count, last_result), checker)
     }
 
-    /// Call `Scorer::score` using `&mut World`.
-    pub fn score_node<S>(
+    pub fn score_node(
         &mut self,
         entity: Entity,
-        scorer: &S,
-        system_state: &mut Option<SystemState<S::Param<'static, 'static>>>,
-    ) -> Result<f32, NullableAccessError>
-    where
-        S: Scorer,
-    {
-        self.call_read_only(entity, system_state, |e, p|
-            scorer.score(e, p)
-        )
+        scorer: &mut Box<dyn ReadOnlySystem<In=Entity, Out=f32>>,
+    ) -> Result<f32, NullableAccessError> {
+        self.call_read_only_sys(entity, scorer)
     }
 
     /// Call `Fn(Entity, Commands)` using `&mut World`.

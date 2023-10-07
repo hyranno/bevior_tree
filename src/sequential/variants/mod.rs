@@ -3,30 +3,17 @@ use bevy::prelude::*;
 
 use crate::{Node, NodeGen, NodeResult};
 use crate::nullable_access::NullableWorldAccess;
-use super::{ScoredSequence, NodeScorer, Scorer, NodeScorerImpl};
+use super::{ScoredSequence, NodeScorer, NodeScorerImpl};
 
 pub mod sorted;
 
 #[cfg(feature = "random")]
 pub mod random;
 
-pub struct ConstantScorer {
-    score: f32,
-}
-impl Scorer for ConstantScorer {
-    type Param<'w, 's> = ();
-    fn score(
-        &self,
-        _entity: Entity,
-        _param: Self::Param<'_, '_>,
-    ) -> f32 {
-        self.score
-    }
-}
 
 pub fn score_uniform(nodes: Vec<Arc<dyn Node>>) -> Vec<Box<dyn NodeScorer>> {
     nodes.iter().map(|node| Box::new(
-        NodeScorerImpl::new(ConstantScorer {score: 1.0}, node.clone())
+        NodeScorerImpl::new(|In(_)| 1.0, node.clone())
     ) as Box<dyn NodeScorer>).collect()
 }
 
