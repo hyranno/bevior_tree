@@ -52,6 +52,13 @@ fn init(mut commands: Commands, asset_server: Res<AssetServer>) {
     ));
 }
 
+fn get_distance(entity0: Entity, entity1: Entity, param: Query<&Transform>) -> f32 {
+    param.get(entity0).unwrap().translation.truncate()
+        .distance(param.get(entity1).unwrap().translation.truncate())
+}
+
+// Task to wait until player get near.
+// Task trait is available for making your task, delegating core methods to TaskImpl.
 struct NearTask {
     task: Arc<TaskImpl>,
 }
@@ -61,13 +68,7 @@ impl NearTask {
         range: f32,
     ) -> Arc<Self> {
         let checker = move |In(entity): In<Entity>, param: Query<&Transform>| {
-            // Find the distance between the target and this entity
-            let distance = param
-                .get(target)
-                .unwrap()
-                .translation
-                .truncate()
-                .distance(param.get(entity).unwrap().translation.truncate());
+            let distance = get_distance(entity, target, param);
             // Check whether the target is within range. If it is, return `Success`.
             match distance <= range {
                 true => TaskState::Success,
@@ -87,7 +88,6 @@ impl Task for NearTask {
 }
 
 // Task node to follow the target.
-// Task trait is available for making your task, delegating core methods to TaskImpl.
 struct FollowTask {
     task: Arc<TaskImpl>,
 }
@@ -98,12 +98,7 @@ impl FollowTask {
         speed: f32,
     ) -> Arc<Self> {
         let checker = move |In(entity): In<Entity>, param: Query<&Transform>| {
-            let distance = param
-            .get(target)
-            .unwrap()
-            .translation
-            .truncate()
-            .distance(param.get(entity).unwrap().translation.truncate());
+            let distance = get_distance(entity, target, param);
             // Return `Failure` if target is out of range.
             match distance <= range {
                 true => TaskState::Running,
