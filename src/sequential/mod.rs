@@ -58,13 +58,13 @@ impl Node for ScoredSequence {
 
 
 /// Returns a scored node.
-/// Can be too versatile to implement by yourself, consider using `NodeScorerImpl` instead.
+/// Can be too versatile to implement by yourself, consider using [`NodeScorerImpl`] instead.
 pub trait NodeScorer: 'static + Send + Sync {
     fn score(&mut self, world: Arc<Mutex<NullableWorldAccess>>, entity: Entity,) -> (f32, Arc<dyn Node>);
 }
 
 
-/// Pairs `Node` and `Scorer`, implementing `NodeScorer`.
+/// Pairs [`Node`] and scorer, implementing [`NodeScorer`].
 pub struct NodeScorerImpl {
     scorer: Box<dyn ReadOnlySystem<In=Entity, Out=f32>>,
     node: Arc<dyn Node>,

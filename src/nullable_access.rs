@@ -10,7 +10,7 @@ use bevy::{prelude::*, ecs::{system::SystemState, component::Tick}};
 use crate::{NodeResult, task::TaskState};
 
 
-/// Provides access to `World` if available.
+/// Provides access to [`World`] if available.
 /// 
 /// Async closures used for `NodeGen` may live longer than `&World`, so they cannot have that reference.
 /// This class provides the access to the world with runtime check rather than lifetime restriction.
@@ -81,7 +81,7 @@ impl NullableWorldAccess {
     }
 
     /// Call `Fn(Entity, Commands)` using `&mut World`.
-    /// Mainly for events on `TaskImpl`.
+    /// Mainly for events on [`crate::task::TaskImpl`].
     pub fn entity_command_call(&mut self, entity: Entity, system: &(impl Fn(Entity, Commands) + Send + Sync))
         -> Result<(), NullableAccessError>
     {
@@ -103,7 +103,7 @@ pub enum NullableAccessError {
 }
 
 
-/// `NullableWorldAccess` can access to the world while this struct is alive.
+/// [`NullableWorldAccess`] can access to the world while this struct is alive.
 pub(crate) struct TemporalWorldSharing<'a> {
     accessor: Arc<Mutex<NullableWorldAccess>>,
     _world: &'a World,  // To ensure this struct does not live longer than the reference.
