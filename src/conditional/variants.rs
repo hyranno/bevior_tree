@@ -35,7 +35,7 @@ impl Node for Conditional {
     }
 }
 
-/// Node that check the condition, then return it as `NodeResult`.
+/// Node that check the condition, then return it as [`NodeResult`].
 pub struct CheckIf {
     checker: Mutex<Box<dyn ReadOnlySystem<In=Entity, Out=bool>>>,
 }

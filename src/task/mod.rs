@@ -82,7 +82,7 @@ impl TaskImpl {
                 commands.entity(entity).remove::<T>();
             }))
     }
-    /// Check current `TaskState`.
+    /// Check current [`TaskState`].
     fn check(&self, world: Arc<Mutex<NullableWorldAccess>>, entity: Entity) -> TaskState {
         world.lock().unwrap().check_task(
             entity,

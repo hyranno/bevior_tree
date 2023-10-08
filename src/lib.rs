@@ -35,7 +35,7 @@ pub struct BehaviorTreePlugin {
     schedule: Box<dyn ScheduleLabel>,
 }
 impl BehaviorTreePlugin {
-    /// Adds the systems to the given schedule rather than default `PostUpdate`.
+    /// Adds the systems to the given schedule rather than default [`PostUpdate`].
     pub fn in_schedule(mut self, schedule: impl ScheduleLabel) -> Self {
         self.schedule = Box::new(schedule);
         self
@@ -70,7 +70,7 @@ pub struct BehaviorTree {
     world: Arc<Mutex<NullableWorldAccess>>,
 }
 /// Add to the same entity with the BehaviorTree to temporarily freeze the update.
-/// You may prefer `ElseFreeze` node in `conditional`.
+/// You may prefer [`conditional::variants::ElseFreeze`] node.
 #[derive(Component)]
 pub struct Freeze;
 /// Add to the same entity with the BehaviorTree to abort the process.
@@ -221,7 +221,7 @@ impl Node for StubNode {
 }
 
 
-/// Container for `NodeGen` and its result.
+/// Container for [`NodeGen`] and its result.
 pub struct NodeRunner {
     gen: Box<dyn NodeGen>,
     state: NodeGenState,
