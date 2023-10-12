@@ -42,6 +42,8 @@ pub struct TaskImpl {
     checker: Mutex<Box<dyn ReadOnlySystem<In=Entity, Out=TaskState>>>,
     on_enter: Vec<Box<dyn Fn(Entity, Commands) + Send + Sync>>,
     on_exit: Vec<Box<dyn Fn(Entity, Commands) + Send + Sync>>,
+    on_success: Vec<Box<dyn Fn(Entity, Commands) + Send + Sync>>,
+    on_failure: Vec<Box<dyn Fn(Entity, Commands) + Send + Sync>>,
 }
 impl TaskImpl {
     pub fn new<F, Marker>(checker: F) -> TaskImpl
@@ -53,6 +55,8 @@ impl TaskImpl {
             checker: Mutex::new(Box::new(IntoSystem::into_system(checker))),
             on_enter: vec![],
             on_exit: vec![],
+            on_success: vec![],
+            on_failure: vec![],
         }
     }
     pub fn on_enter(
@@ -69,6 +73,20 @@ impl TaskImpl {
         self.on_exit.push(Box::new(callback));
         self
     }
+    pub fn on_success(
+        mut self,
+        callback: impl 'static + Fn(Entity, Commands) + Send + Sync,
+    ) -> Self {
+        self.on_success.push(Box::new(callback));
+        self
+    }
+    pub fn on_failure(
+        mut self,
+        callback: impl 'static + Fn(Entity, Commands) + Send + Sync,
+    ) -> Self {
+        self.on_failure.push(Box::new(callback));
+        self
+    }    
     /// Insert the bundle on enter the task, then remove it on exit.
     pub fn insert_while_running<T: Bundle + 'static + Clone>(
         self,
@@ -101,6 +119,16 @@ impl TaskImpl {
             world.lock().unwrap().entity_command_call(entity, &event);
         }
     }
+    fn trigger_success(&self, world: Arc<Mutex<NullableWorldAccess>>, entity: Entity) {
+        for event in self.on_success.iter() {
+            world.lock().unwrap().entity_command_call(entity, &event).unwrap();
+        }
+    }
+    fn trigger_failure(&self, world: Arc<Mutex<NullableWorldAccess>>, entity: Entity) {
+        for event in self.on_failure.iter() {
+            world.lock().unwrap().entity_command_call(entity, &event).unwrap();
+        }
+    }
 }
 impl Node for TaskImpl {
     fn run(self: Arc<Self>, world: Arc<Mutex<NullableWorldAccess>>, entity: Entity) -> Box<dyn NodeGen> {
@@ -117,11 +145,11 @@ impl Node for TaskImpl {
                     },
                     TaskState::Success => {
                         result = Some(NodeResult::Success);
-                        // TODO on_success
+                        self.trigger_success(world.clone(), entity);
                     },
                     TaskState::Failure => {
                         result = Some(NodeResult::Failure);
-                        // TODO on_failure
+                        self.trigger_failure(world.clone(), entity);
                     },
                 }
             }
