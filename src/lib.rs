@@ -106,6 +106,12 @@ impl Drop for BehaviorTree {
         }
     }
 }
+impl Clone for BehaviorTree {
+    /// Returns new de-initialized tree, with same instance of nodes.
+    fn clone(&self) -> Self {
+        Self::new(Arc::clone(&self.root))
+    }
+}
 
 fn update (
     world: &mut World,
