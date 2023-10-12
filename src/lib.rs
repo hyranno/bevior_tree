@@ -71,11 +71,11 @@ pub struct BehaviorTree {
 }
 /// Add to the same entity with the BehaviorTree to temporarily freeze the update.
 /// You may prefer [`conditional::variants::ElseFreeze`] node.
-#[derive(Component)]
+#[derive(Component, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Freeze;
 /// Add to the same entity with the BehaviorTree to abort the process.
 /// You should abort before remove the BehaviorTree, or on_exit of the running task will not be executed.
-#[derive(Component)]
+#[derive(Component, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Abort;
 
 impl BehaviorTree {
@@ -176,7 +176,7 @@ impl From<bool> for NodeResult {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum ResumeSignal {
     Resume,
     Abort,
