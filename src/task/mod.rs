@@ -15,7 +15,7 @@ use super::{Node, NodeGen, NodeResult, ResumeSignal, nullable_access::NullableWo
 pub mod variants;
 
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TaskState {
     Running,
     Success,
