@@ -15,13 +15,13 @@ default = ["random"]
 random = ["dep:rand"]
 
 [dependencies]
-bevy = { version = "0.11", default-features = false }
+bevy = { version = "0.12", default-features = false }
 genawaiter = { version = "0.99" }
 ordered-float = { version = "4.1" }
 rand = { version = "0.8", optional = true}
 
 [dev-dependencies]
-bevy = "0.11"
+bevy = "0.12"
 
 [package.metadata.docs.rs]
 all-features = true
