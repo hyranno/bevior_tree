@@ -67,10 +67,7 @@ fn init(mut commands: Commands, asset_server: Res<AssetServer>) {
                     // Task to wait until player get near.
                     NearTask::new(300.0, near_task_output.clone()),
                     // Task to follow the player.
-                    FollowTask::new(300., 25., move || {
-                        let output = near_task_output.lock().unwrap();
-                        output.target
-                    }),
+                    FollowTask::new(300., 25., move || near_task_output.lock().unwrap().target),
                 ]),
                 |In(_)| true,
             )),
