@@ -37,6 +37,17 @@ pub mod prelude {
 
 #[macro_export]
 macro_rules! task {
+    (pub $i:ident) => {
+        pub struct $i {
+            task: Arc<TaskImpl>,
+        }
+        impl Task for $i {
+            // Specify what checker you use with this task.
+            fn task_impl(&self) -> Arc<TaskImpl> {
+                self.task.clone()
+            }
+        }
+    };
     ($i:ident) => {
         struct $i {
             task: Arc<TaskImpl>,
