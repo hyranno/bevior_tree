@@ -77,7 +77,7 @@ fn init(mut commands: Commands, asset_server: Res<AssetServer>) {
 
 // Task to wait until player get near.
 // Task trait is available for making your task, delegating core methods to TaskImpl.
-task!(NearTask);
+task!(pub NearTask);
 pub struct NearTaskOutput {
     pub target: Option<Entity>,
 }
