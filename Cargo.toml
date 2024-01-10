@@ -16,7 +16,6 @@ random = ["dep:rand"]
 
 [dependencies]
 bevy = { version = "0.12", default-features = false }
-genawaiter = { version = "0.99" }
 ordered-float = { version = "4.1" }
 rand = { version = "0.8", optional = true}
 
