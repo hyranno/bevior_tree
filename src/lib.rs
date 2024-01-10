@@ -1,8 +1,12 @@
 //! Behavior tree plugin for Bevy.
 
-use std::{sync::{Arc, Mutex}, future::Future};
+use std::sync::Arc;
 use bevy::{prelude::*, ecs::schedule::ScheduleLabel};
 
+
+pub mod node;
+
+use node::{Node, NodeStatus};
 
 /// Module for convenient imports. Use with `use bevior_tree::prelude::*;`.
 pub mod prelude {}
@@ -37,8 +41,31 @@ pub enum BehaviorTreeSystemSet {
     Update,
 }
 
+
+/// Behavior tree component.
+/// Task nodes of the tree affect the entity with this component.
+#[derive(Component)]
+pub struct BehaviorTree {
+    root: Arc<dyn Node>,
+}
+/// Add to the same entity with the BehaviorTree to temporarily freeze the update.
+/// You may prefer [`conditional::variants::ElseFreeze`] node.
+#[derive(Component, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct Freeze;
+
+#[derive(Component)]
+pub struct TreeStatus(NodeStatus);
+
 fn update (
+    mut query: Query<(&BehaviorTree, &mut TreeStatus), Without<Freeze>>,
 ) {
+    for (tree, mut status) in query.iter_mut() {
+        match &status.0 {
+            NodeStatus::Beginning => status.0 = tree.root.begin(),
+            NodeStatus::Pending(state) => status.0 = tree.root.resume(state),
+            NodeStatus::Complete(_) => {},
+        };
+    }
 }
 
 
