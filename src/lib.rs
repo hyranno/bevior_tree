@@ -5,6 +5,7 @@ use bevy::{prelude::*, ecs::schedule::ScheduleLabel};
 
 
 pub mod node;
+pub mod task;
 
 use node::{Node, NodeStatus};
 
@@ -48,6 +49,7 @@ pub enum BehaviorTreeSystemSet {
 pub struct BehaviorTree {
     root: Arc<dyn Node>,
 }
+
 /// Add to the same entity with the BehaviorTree to temporarily freeze the update.
 /// You may prefer [`conditional::variants::ElseFreeze`] node.
 #[derive(Component, Clone, Copy, PartialEq, Eq, Hash)]
@@ -57,15 +59,32 @@ pub struct Freeze;
 pub struct TreeStatus(NodeStatus);
 
 fn update (
-    mut query: Query<(&BehaviorTree, &mut TreeStatus), Without<Freeze>>,
+    world: &mut World,
+    query: &mut QueryState<(Entity, &BehaviorTree, &mut TreeStatus), Without<Freeze>>,
 ) {
-    for (tree, mut status) in query.iter_mut() {
-        match &status.0 {
-            NodeStatus::Beginning => status.0 = tree.root.begin(),
-            NodeStatus::Pending(state) => status.0 = tree.root.resume(state),
-            NodeStatus::Complete(_) => {},
-        };
-    }
+    let trees: Vec<(Entity, Arc<dyn Node>, NodeStatus)> = query.iter_mut(world).map(
+        |(entity, tree, mut status)| {
+            let mut status_swap = TreeStatus(NodeStatus::Beginning);
+            std::mem::swap(status.as_mut(), &mut status_swap);
+            (entity, tree.root.clone(), status_swap.0)
+        }
+    ).collect();
+
+    let statuses_new: Vec<NodeStatus> = trees.into_iter().map(
+        |(entity, root, status)| {
+            match status {
+                NodeStatus::Beginning => root.begin(world, entity),
+                NodeStatus::Pending(state) => root.resume(world, entity, state),
+                NodeStatus::Complete(_) => status
+            }
+        }
+    ).collect();
+
+    query.iter_mut(world).zip(statuses_new).for_each( |((_, _, mut state), state_new)| {
+        let mut state_new_swap = TreeStatus(state_new);
+        std::mem::swap(state.as_mut(), &mut state_new_swap);
+    });
+
 }
 
 
