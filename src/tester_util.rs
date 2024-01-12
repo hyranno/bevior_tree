@@ -1,9 +1,9 @@
 
 use bevy::core::FrameCount;
 use crate::{
-    BehaviorTreePlugin, BehaviorTree,
+    BehaviorTreePlugin,
     node::{Node, NodeStatus, NodeResult},
-    task::{TaskBridge, TaskStatus}, TreeStatus,
+    task::{TaskBridge, TaskStatus}, BehaviorTreeBundle,
 };
 
 pub use bevy::prelude::*;
@@ -99,8 +99,7 @@ fn test_enter_tester_task() {
     let mut app = App::new();
     app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
     let task = TesterTask::<0>::new(1, NodeResult::Success);
-    let tree = BehaviorTree::new(task);
-    let entity = app.world.spawn((tree, TreeStatus(NodeStatus::Beginning))).id();
+    let entity = app.world.spawn(BehaviorTreeBundle::from_root(task)).id();
     app.update();
     assert!(
         app.world.get::<TesterComponent<0>>(entity).is_some(),
@@ -115,8 +114,7 @@ fn test_exit_tester_task() {
     let mut app = App::new();
     app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
     let task = TesterTask::<0>::new(1, NodeResult::Success);
-    let tree = BehaviorTree::new(task);
-    let entity = app.world.spawn((tree, TreeStatus(NodeStatus::Beginning))).id();
+    let entity = app.world.spawn(BehaviorTreeBundle::from_root(task)).id();
     app.update();
     app.update();
     assert!(
@@ -130,8 +128,7 @@ fn test_log_test_task() {
     let mut app = App::new();
     app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
     let task = TesterTask::<0>::new(1, NodeResult::Success);
-    let tree = BehaviorTree::new(task);
-    let _entity = app.world.spawn((tree, TreeStatus(NodeStatus::Beginning))).id();
+    let _entity = app.world.spawn(BehaviorTreeBundle::from_root(task)).id();
     app.update();
     app.update();
     let expected = TestLog {log: vec![

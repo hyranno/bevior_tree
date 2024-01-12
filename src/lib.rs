@@ -16,7 +16,7 @@ use node::{Node, NodeStatus, NodeState};
 pub mod prelude {
     pub use crate::{
         BehaviorTreePlugin, BehaviorTreeSystemSet,
-        BehaviorTree, Freeze, TreeStatus,
+        BehaviorTreeBundle, BehaviorTree, Freeze, TreeStatus,
         node::prelude::*,
         task::prelude::*,
     };
@@ -70,6 +70,20 @@ impl Node for BehaviorTree {
     }
     fn resume(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) -> NodeStatus {
         self.root.resume(world, entity, state)
+    }
+}
+
+#[derive(Bundle)]
+pub struct BehaviorTreeBundle {
+    pub tree: BehaviorTree,
+    pub status: TreeStatus,
+}
+impl BehaviorTreeBundle {
+    pub fn from_root(root: impl Node) -> Self {
+        Self::from_tree(BehaviorTree::new(root))
+    }
+    pub fn from_tree(tree: BehaviorTree) -> Self {
+        Self { tree, status: TreeStatus(NodeStatus::Beginning) }
     }
 }
 
