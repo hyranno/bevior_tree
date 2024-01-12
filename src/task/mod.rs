@@ -1,5 +1,5 @@
 
-use std::{sync::{Arc, Mutex}, any::Any};
+use std::{sync::Mutex, any::Any};
 
 use bevy::ecs::{world::World, system::{ReadOnlySystem, System, IntoSystem, Commands, In}, entity::Entity, bundle::Bundle};
 
@@ -33,15 +33,15 @@ pub struct TaskBridge {
     event_listeners: Mutex<Vec<(TaskEvent, Box<dyn System<In=Entity, Out=()>>)>>,
 }
 impl TaskBridge {
-    pub fn new<F, Marker>(checker: F) -> Arc<TaskBridge>
+    pub fn new<F, Marker>(checker: F) -> TaskBridge
     where
         F: IntoSystem<Entity, TaskStatus, Marker>,
         <F as IntoSystem<Entity, TaskStatus, Marker>>::System : ReadOnlySystem,
     {
-        Arc::new(TaskBridge {
+        TaskBridge {
             checker: Mutex::new(Box::new(IntoSystem::into_system(checker))),
             event_listeners: Mutex::new(vec![]),
-        })
+        }
     }
     pub fn on_event<Marker>(self, event: TaskEvent, callback: impl IntoSystem<Entity, (), Marker>) -> Self {
         self.event_listeners.lock().expect("Failed to lock.").push((event, Box::new(IntoSystem::into_system(callback))));
@@ -58,13 +58,19 @@ impl TaskBridge {
     }
 
     /// Check current [`TaskStatus`].
-    fn check(&self, world: &World, entity: Entity) -> TaskStatus {
-        self.checker.lock().expect("Failed to lock.").run_readonly(entity, world)
+    fn check(&self, world: &mut World, entity: Entity) -> TaskStatus {
+        let mut checker = self.checker.lock().expect("Failed to lock.");
+        checker.initialize(world);
+        checker.run_readonly(entity, world)
     }
 
     fn trigger_event(&self, world: &mut World, entity: Entity, event: TaskEvent) {
         self.event_listeners.lock().expect("Failed to lock.").iter_mut().filter(|(ev, _)| *ev == event).for_each(
-            |(_, sys)| sys.run(entity, world)
+            |(_, sys)| {
+                sys.initialize(world);
+                sys.run(entity, world);
+                sys.apply_deferred(world);
+            }
         );
     }
 }

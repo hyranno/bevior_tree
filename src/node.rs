@@ -18,7 +18,7 @@ pub enum NodeStatus {
     Complete(NodeResult),
 }
 
-pub trait Node: Send + Sync {
+pub trait Node: 'static + Send + Sync {
     fn begin(&self, world: &mut World, entity: Entity) -> NodeStatus;
     fn resume(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) -> NodeStatus;
 }

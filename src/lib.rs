@@ -7,7 +7,10 @@ use bevy::{prelude::*, ecs::schedule::ScheduleLabel};
 pub mod node;
 pub mod task;
 
-use node::{Node, NodeStatus};
+#[cfg(test)]
+mod tester_util;
+
+use node::{Node, NodeStatus, NodeState};
 
 /// Module for convenient imports. Use with `use bevior_tree::prelude::*;`.
 pub mod prelude {}
@@ -45,9 +48,22 @@ pub enum BehaviorTreeSystemSet {
 
 /// Behavior tree component.
 /// Task nodes of the tree affect the entity with this component.
-#[derive(Component)]
+#[derive(Component, Clone)]
 pub struct BehaviorTree {
     root: Arc<dyn Node>,
+}
+impl BehaviorTree {
+    pub fn new(root: impl Node) -> Self {
+        Self { root: Arc::new(root) }
+    }
+}
+impl Node for BehaviorTree {
+    fn begin(&self, world: &mut World, entity: Entity) -> NodeStatus {
+        self.root.begin(world, entity)
+    }
+    fn resume(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) -> NodeStatus {
+        self.root.resume(world, entity, state)
+    }
 }
 
 /// Add to the same entity with the BehaviorTree to temporarily freeze the update.
