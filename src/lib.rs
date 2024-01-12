@@ -13,7 +13,14 @@ mod tester_util;
 use node::{Node, NodeStatus, NodeState};
 
 /// Module for convenient imports. Use with `use bevior_tree::prelude::*;`.
-pub mod prelude {}
+pub mod prelude {
+    pub use crate::{
+        BehaviorTreePlugin, BehaviorTreeSystemSet,
+        BehaviorTree, Freeze, TreeStatus,
+        node::prelude::*,
+        task::prelude::*,
+    };
+}
 
 /// Add to your app to use this crate.
 pub struct BehaviorTreePlugin {
@@ -106,4 +113,5 @@ fn update (
 
 #[cfg(test)]
 mod tests {
+    use crate::tester_util::prelude::*;
 }

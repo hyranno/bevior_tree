@@ -2,6 +2,11 @@
 use std::any::Any;
 use bevy::prelude::{World, Entity};
 
+pub mod prelude {
+    pub use super::{Node, NodeStatus, NodeResult, NodeState,};
+}
+
+
 pub trait NodeState: Send + Sync{
     fn into_any(self: Box<Self>) -> Box<dyn Any>;
 }

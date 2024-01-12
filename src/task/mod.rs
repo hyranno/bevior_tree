@@ -5,6 +5,10 @@ use bevy::ecs::{world::World, system::{ReadOnlySystem, System, IntoSystem, Comma
 
 use crate::node::{Node, NodeResult, NodeState, NodeStatus};
 
+pub mod prelude {
+    pub use super::{TaskBridge, TaskEvent, TaskStatus,};
+}
+
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TaskStatus {

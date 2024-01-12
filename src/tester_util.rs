@@ -8,6 +8,11 @@ use crate::{
 
 pub use bevy::prelude::*;
 
+pub mod prelude {
+    pub use crate::prelude::*;
+    pub use super::{TesterPlugin, TesterTask, TesterComponent, TestLog, TestLogEntry,};
+}
+
 
 pub struct TesterPlugin;
 impl Plugin for TesterPlugin {
