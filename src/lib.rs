@@ -6,6 +6,7 @@ use bevy::{prelude::*, ecs::schedule::ScheduleLabel};
 
 pub mod node;
 pub mod task;
+pub mod sequential;
 
 #[cfg(test)]
 mod tester_util;
@@ -19,6 +20,7 @@ pub mod prelude {
         BehaviorTreeBundle, BehaviorTree, Freeze, TreeStatus,
         node::prelude::*,
         task::prelude::*,
+        sequential::prelude::*,
     };
 }
 
