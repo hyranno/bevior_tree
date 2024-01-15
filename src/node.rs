@@ -1,5 +1,5 @@
 
-use std::any::Any;
+use std::{any::Any, ops::Not};
 use bevy::prelude::{World, Entity};
 
 pub mod prelude {
@@ -15,6 +15,15 @@ pub trait NodeState: Send + Sync{
 pub enum NodeResult {
     Success,
     Failure,
+}
+impl Not for NodeResult {
+    type Output = NodeResult;
+    fn not(self) -> Self::Output {
+        match self {
+            NodeResult::Success => NodeResult::Failure,
+            NodeResult::Failure => NodeResult::Success,
+        }
+    }
 }
 
 pub enum NodeStatus {

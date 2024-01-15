@@ -8,6 +8,7 @@ pub mod node;
 pub mod task;
 pub mod sequential;
 pub mod conditional;
+pub mod converter;
 
 #[cfg(test)]
 mod tester_util;
@@ -23,6 +24,7 @@ pub mod prelude {
         task::prelude::*,
         sequential::prelude::*,
         conditional::prelude::*,
+        converter::prelude::*,
     };
 }
 
