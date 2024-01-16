@@ -51,6 +51,7 @@ impl ScoredSequence {
         }
     }
 }
+impl WithState<ScoredSequenceState> for ScoredSequence {}
 impl Node for ScoredSequence {
     fn begin(&self, world: &mut World, entity: Entity) -> NodeStatus {
         let scores = self.nodes.iter().map(
@@ -66,7 +67,7 @@ impl Node for ScoredSequence {
     }
 
     fn resume(&self, world: &mut bevy::prelude::World, entity: Entity, state: Box<dyn NodeState>) -> NodeStatus {
-        let state = state.into_any().downcast::<ScoredSequenceState>().expect("invalid state type");
+        let state = Self::downcast(state).expect("Invalid state.");
         let Some(&index) = state.indices.iter().skip(state.count).next() else {
             let result = (*self.result_constructor)(state.results);
             return NodeStatus::Complete(result)

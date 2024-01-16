@@ -45,6 +45,7 @@ impl ConditionalLoop {
         checker.run((entity, loop_state), world)
     }
 }
+impl WithState<ConditionalLoopState> for ConditionalLoop {}
 impl Node for ConditionalLoop {
     fn begin(&self, world: &mut World, entity: Entity) -> NodeStatus {
         let state = ConditionalLoopState {
@@ -55,7 +56,7 @@ impl Node for ConditionalLoop {
     }
 
     fn resume(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) -> NodeStatus {
-        let state = state.into_any().downcast::<ConditionalLoopState>().expect("invalid state type");
+        let state = Self::downcast(state).expect("Invalid state type.");
         let state = match state.child_status {
             NodeStatus::Beginning => {
                 if !self.check(world, entity, state.loop_state) {
@@ -156,12 +157,13 @@ impl CheckIf {
         checker.run(entity, world)
     }
 }
+impl WithState<CheckIfState> for CheckIf{}
 impl Node for CheckIf {
     fn begin(&self, world: &mut World, entity: Entity) -> NodeStatus {
         self.resume(world, entity, Box::new(CheckIfState))
     }
     fn resume(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) -> NodeStatus {
-        let _state = state.into_any().downcast::<CheckIfState>().expect("invalid state type");
+        let _state = Self::downcast(state).expect("Invalid state type.");
         NodeStatus::Complete(
             if self.check(world, entity) {NodeResult::Success} else {NodeResult::Failure}
         )
@@ -194,15 +196,16 @@ impl ElseFreeze {
         checker.run(entity, world)
     }
 }
+impl WithState<ElseFreezeState> for ElseFreeze {}
 impl Node for ElseFreeze {
     fn begin(&self, world: &mut World, entity: Entity) -> NodeStatus {
         self.resume(world, entity, Box::new(ElseFreezeState{ child_status: NodeStatus::Beginning }))
     }
 
     fn resume(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) -> NodeStatus {
-        let state = state.into_any().downcast::<ElseFreezeState>().expect("invalid state type");
+        let state = Self::downcast(state).expect("Invalid state.");
         if !self.check(world, entity) {
-            return NodeStatus::Pending(state);
+            return NodeStatus::Pending(Box::new(state));
         }
         let child_status = match state.child_status {
             NodeStatus::Beginning => {

@@ -3,7 +3,7 @@ use std::{sync::Mutex, any::Any};
 
 use bevy::ecs::{world::World, system::{ReadOnlySystem, System, IntoSystem, Commands, In}, entity::Entity, bundle::Bundle};
 
-use crate::node::{Node, NodeResult, NodeState, NodeStatus};
+use crate::node::prelude::*;
 
 pub mod prelude {
     pub use super::{TaskBridge, TaskEvent, TaskStatus,};
@@ -78,16 +78,17 @@ impl TaskBridge {
         );
     }
 }
+impl WithState<TaskState> for TaskBridge {}
 impl Node for TaskBridge {
     fn begin(&self, world: &mut World, entity: Entity) -> NodeStatus {
         self.trigger_event(world, entity, TaskEvent::Enter);
         self.resume(world, entity, Box::new(TaskState))
     }
     fn resume(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) -> NodeStatus {
-        let state = state.into_any().downcast::<TaskState>().expect("invalid state type");
+        let state = Self::downcast(state).expect("Invalid state.");
         let status = self.check(world, entity);
         match status {
-            TaskStatus::Running => NodeStatus::Pending(state),
+            TaskStatus::Running => NodeStatus::Pending(Box::new(state)),
             TaskStatus::Complete(result) => {
                 match result {
                     NodeResult::Success => self.trigger_event(world, entity, TaskEvent::Success),
