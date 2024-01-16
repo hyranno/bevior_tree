@@ -77,6 +77,9 @@ impl Node for BehaviorTree {
     fn resume(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) -> NodeStatus {
         self.root.resume(world, entity, state)
     }
+    fn force_exit(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) {
+        self.root.force_exit(world, entity, state)
+    }
 }
 
 #[derive(Bundle)]

@@ -66,6 +66,9 @@ impl Node for RandomOrderedSequentialAnd {
     fn resume(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) -> NodeStatus {
         self.delegate.resume(world, entity, state)
     }
+    fn force_exit(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) {
+        self.delegate.force_exit(world, entity, state)
+    }
 }
 
 
@@ -94,6 +97,9 @@ impl Node for RandomOrderedSequentialOr {
     }
     fn resume(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) -> NodeStatus {
         self.delegate.resume(world, entity, state)
+    }
+    fn force_exit(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) {
+        self.delegate.force_exit(world, entity, state)
     }
 }
 
@@ -124,6 +130,9 @@ impl Node for RandomOrderedForcedSequence {
     fn resume(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) -> NodeStatus {
         self.delegate.resume(world, entity, state)
     }
+    fn force_exit(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) {
+        self.delegate.force_exit(world, entity, state)
+    }
 }
 
 
@@ -150,6 +159,9 @@ impl Node for RandomForcedSelector {
     }
     fn resume(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) -> NodeStatus {
         self.delegate.resume(world, entity, state)
+    }
+    fn force_exit(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) {
+        self.delegate.force_exit(world, entity, state)
     }
 }
 

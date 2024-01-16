@@ -94,6 +94,14 @@ impl Node for ScoredSequence {
             NodeStatus::Beginning => panic!("Unexpected NodeStatus::Beginning."),
         }
     }
+
+    fn force_exit(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) {
+        let state = Self::downcast(state).expect("Invalid state.");
+        let Some(&index) = state.indices.iter().skip(state.count).next() else {return};
+        let (_, Some(child_state)) = state.extract_child_state() else {return};
+        let node = &self.nodes[index].0;
+        node.force_exit(world, entity, child_state)
+    }
 }
 
 

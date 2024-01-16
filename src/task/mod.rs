@@ -99,5 +99,9 @@ impl Node for TaskBridge {
             },
         }
     }
+    fn force_exit(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) {
+        let _state = Self::downcast(state).expect("Invalid state.");
+        self.trigger_event(world, entity, TaskEvent::Exit);
+    }
 }
 

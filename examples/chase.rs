@@ -90,6 +90,9 @@ impl bevior_tree::node::Node for NearTask {
     fn resume(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) -> NodeStatus {
         self.delegate.resume(world, entity, state)
     }
+    fn force_exit(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) {
+        self.delegate.force_exit(world, entity, state)
+    }
 }
 
 
@@ -128,6 +131,9 @@ impl bevior_tree::node::Node for FollowTask {
     }
     fn resume(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) -> NodeStatus {
         self.delegate.resume(world, entity, state)
+    }
+    fn force_exit(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) {
+        self.delegate.force_exit(world, entity, state)
     }
 }
 

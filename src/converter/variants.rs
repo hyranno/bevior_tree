@@ -30,6 +30,9 @@ impl Node for Invert {
     fn resume(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) -> NodeStatus {
         self.delegate.resume(world, entity, state)
     }
+    fn force_exit(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) {
+        self.delegate.force_exit(world, entity, state)
+    }
 }
 
 /// Returns the specified result whatever the child returns.
@@ -49,6 +52,9 @@ impl Node for ForceResult {
     }
     fn resume(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) -> NodeStatus {
         self.delegate.resume(world, entity, state)
+    }
+    fn force_exit(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) {
+        self.delegate.force_exit(world, entity, state)
     }
 }
 

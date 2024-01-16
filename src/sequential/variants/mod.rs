@@ -65,6 +65,9 @@ impl Node for SequentialAnd {
     fn resume(&self, world: &mut bevy::prelude::World, entity: Entity, state: Box<dyn NodeState>) -> NodeStatus {
         self.delegate.resume(world, entity, state)
     }
+    fn force_exit(&self, world: &mut bevy::prelude::World, entity: Entity, state: Box<dyn NodeState>) {
+        self.delegate.force_exit(world, entity, state)
+    }
 }
 
 
@@ -90,6 +93,9 @@ impl Node for SequentialOr {
     fn resume(&self, world: &mut bevy::prelude::World, entity: Entity, state: Box<dyn NodeState>) -> NodeStatus {
         self.delegate.resume(world, entity, state)
     }
+    fn force_exit(&self, world: &mut bevy::prelude::World, entity: Entity, state: Box<dyn NodeState>) {
+        self.delegate.force_exit(world, entity, state)
+    }
 }
 
 
@@ -113,6 +119,9 @@ impl Node for ForcedSequence {
     }
     fn resume(&self, world: &mut bevy::prelude::World, entity: Entity, state: Box<dyn NodeState>) -> NodeStatus {
         self.delegate.resume(world, entity, state)
+    }
+    fn force_exit(&self, world: &mut bevy::prelude::World, entity: Entity, state: Box<dyn NodeState>) {
+        self.delegate.force_exit(world, entity, state)
     }
 }
 

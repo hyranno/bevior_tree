@@ -94,6 +94,14 @@ impl Node for ConditionalLoop {
             },
         }
     }
+
+    fn force_exit(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) {
+        let state = Self::downcast(state).expect("Invalid state type.");
+        match state.child_status {
+            NodeStatus::Pending(child_state) => self.child.force_exit(world, entity, child_state),
+            _ => {}
+        }
+    }
 }
 
 
@@ -168,6 +176,9 @@ impl Node for CheckIf {
             if self.check(world, entity) {NodeResult::Success} else {NodeResult::Failure}
         )
     }
+    fn force_exit(&self, _world: &mut World, _entity: Entity, _state: Box<dyn NodeState>) {
+        // never
+    }
 }
 
 
@@ -222,6 +233,14 @@ impl Node for ElseFreeze {
                 NodeStatus::Pending(Box::new(ElseFreezeState { child_status }))
             },
             NodeStatus::Complete(_) => child_status,
+        }
+    }
+
+    fn force_exit(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) {
+        let state = Self::downcast(state).expect("Invalid state.");
+        match state.child_status {
+            NodeStatus::Pending(child_state) => self.child.force_exit(world, entity, child_state),
+            _ => {}
         }
     }
 }

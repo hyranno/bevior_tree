@@ -38,4 +38,7 @@ impl Node for ResultConverter {
     fn resume(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) -> NodeStatus {
         self.convert(self.child.resume(world, entity, state))
     }
+    fn force_exit(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) {
+        self.child.force_exit(world, entity, state)
+    }
 }

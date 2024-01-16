@@ -55,6 +55,9 @@ impl Node for ScoreOrderedSequentialAnd {
     fn resume(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) -> NodeStatus {
         self.delegate.resume(world, entity, state)
     }
+    fn force_exit(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) {
+        self.delegate.force_exit(world, entity, state)
+    }
 }
 
 
@@ -79,6 +82,9 @@ impl Node for ScoreOrderedSequentialOr {
     }
     fn resume(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) -> NodeStatus {
         self.delegate.resume(world, entity, state)
+    }
+    fn force_exit(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) {
+        self.delegate.force_exit(world, entity, state)
     }
 }
 
@@ -105,6 +111,9 @@ impl Node for ScoreOrderedForcedSequence {
     fn resume(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) -> NodeStatus {
         self.delegate.resume(world, entity, state)
     }
+    fn force_exit(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) {
+        self.delegate.force_exit(world, entity, state)
+    }
 }
 
 
@@ -128,6 +137,9 @@ impl Node for ScoredForcedSelector {
     }
     fn resume(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) -> NodeStatus {
         self.delegate.resume(world, entity, state)
+    }
+    fn force_exit(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) {
+        self.delegate.force_exit(world, entity, state)
     }
 }
 

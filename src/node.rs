@@ -47,7 +47,7 @@ impl NodeStatus {
 pub trait Node: 'static + Send + Sync {
     fn begin(&self, world: &mut World, entity: Entity) -> NodeStatus;
     fn resume(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) -> NodeStatus;
-    // fn force_exit(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>);
+    fn force_exit(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>);
 }
 
 
