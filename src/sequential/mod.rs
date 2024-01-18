@@ -1,4 +1,4 @@
-use std::{sync::Mutex, any::Any};
+use std::sync::Mutex;
 
 use bevy::ecs::{system::{ReadOnlySystem, IntoSystem}, entity::Entity, world::World};
 
@@ -30,6 +30,7 @@ pub trait ResultConstructor: Fn(Vec<NodeResult>) -> NodeResult + 'static + Send 
 impl<F> ResultConstructor for F where F: Fn(Vec<NodeResult>) -> NodeResult + 'static + Send + Sync {}
 
 
+#[with_state(ScoredSequenceState)]
 pub struct ScoredSequence {
     nodes: Vec<(Box<dyn Node>, Mutex<Box<dyn Scorer>>)>,
     picker: Box<dyn Picker>,
@@ -51,7 +52,6 @@ impl ScoredSequence {
         }
     }
 }
-impl WithState<ScoredSequenceState> for ScoredSequence {}
 impl Node for ScoredSequence {
     fn begin(&self, world: &mut World, entity: Entity) -> NodeStatus {
         let scores = self.nodes.iter().map(
@@ -105,16 +105,12 @@ impl Node for ScoredSequence {
 }
 
 
+#[derive(NodeState)]
 struct ScoredSequenceState {
     count: usize,
     indices: Vec<usize>,
     results: Vec<NodeResult>,
     child_state: Option<Box<dyn NodeState>>,
-}
-impl NodeState for ScoredSequenceState {
-    fn into_any(self: Box<Self>) -> Box<dyn Any> {
-        self
-    }
 }
 impl ScoredSequenceState {
     fn new(indices: Vec<usize>) -> Self {

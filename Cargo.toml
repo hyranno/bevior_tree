@@ -14,10 +14,18 @@ license = "MIT OR Apache-2.0"
 default = ["random"]
 random = ["dep:rand"]
 
+[workspace]
+
 [dependencies]
 bevy = { version = "0.12", default-features = false }
 ordered-float = { version = "4.1" }
 rand = { version = "0.8", optional = true}
+
+[dependencies.derive-nodestate]
+path = "libs/derive-nodestate"
+
+[dependencies.macro-withstate]
+path = "libs/macro-withstate"
 
 [dev-dependencies]
 bevy = "0.12"

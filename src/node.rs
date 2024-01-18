@@ -7,6 +7,8 @@ pub mod prelude {
         Node, NodeStatus, NodeResult, NodeState,
         WithState, NodeStateError,
     };
+    pub use derive_nodestate::NodeState;
+    pub use macro_withstate::with_state;
 }
 
 

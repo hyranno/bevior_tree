@@ -15,6 +15,7 @@ pub mod prelude {
 }
 
 
+#[with_state(ParallelState)]
 pub struct Parallel {
     children: Vec<Box<dyn Node>>,
     result_constructor: Box<dyn Fn(Vec<Option<NodeResult>>) -> Option<NodeResult> + 'static + Send + Sync>,
@@ -30,7 +31,6 @@ impl Parallel {
         }
     }
 }
-impl WithState<ParallelState> for Parallel {}
 impl Node for Parallel {
     fn begin(&self, world: &mut World, entity: Entity) -> NodeStatus {
         let state = ParallelState {
@@ -75,13 +75,9 @@ impl Node for Parallel {
 }
 
 
+#[derive(NodeState)]
 struct ParallelState {
     children_status: Vec<NodeStatus>,
-}
-impl NodeState for ParallelState {
-    fn into_any(self: Box<Self>) -> Box<dyn std::any::Any> {
-        self
-    }
 }
 impl ParallelState {
     fn results(&self) -> Vec<Option<NodeResult>> {

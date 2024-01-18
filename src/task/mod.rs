@@ -1,5 +1,5 @@
 
-use std::{sync::Mutex, any::Any};
+use std::sync::Mutex;
 
 use bevy::ecs::{world::World, system::{ReadOnlySystem, System, IntoSystem, Commands, In}, entity::Entity, bundle::Bundle};
 
@@ -16,13 +16,8 @@ pub enum TaskStatus {
     Complete(NodeResult),
 }
 
-#[derive(Debug)]
+#[derive(NodeState, Debug)]
 struct TaskState;
-impl NodeState for TaskState {
-    fn into_any(self: Box<Self>) -> Box<dyn Any> {
-        self
-    }
-}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TaskEvent {
@@ -32,6 +27,7 @@ pub enum TaskEvent {
     Failure,
 }
 
+#[with_state(TaskState)]
 pub struct TaskBridge {
     checker: Mutex<Box<dyn ReadOnlySystem<In=Entity, Out=TaskStatus>>>,
     event_listeners: Mutex<Vec<(TaskEvent, Box<dyn System<In=Entity, Out=()>>)>>,
@@ -78,7 +74,6 @@ impl TaskBridge {
         );
     }
 }
-impl WithState<TaskState> for TaskBridge {}
 impl Node for TaskBridge {
     fn begin(&self, world: &mut World, entity: Entity) -> NodeStatus {
         self.trigger_event(world, entity, TaskEvent::Enter);

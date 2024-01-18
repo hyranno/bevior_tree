@@ -1,6 +1,6 @@
 
 
-use std::{sync::Mutex, any::Any};
+use std::sync::Mutex;
 
 use bevy::ecs::{system::{ReadOnlySystem, IntoSystem}, entity::Entity, world::World};
 
@@ -23,6 +23,7 @@ pub trait LoopCondChecker: ReadOnlySystem<In=(Entity, LoopState), Out=bool> {}
 impl<S> LoopCondChecker for S where S: ReadOnlySystem<In=(Entity, LoopState), Out=bool> {}
 
 
+#[with_state(ConditionalLoopState)]
 pub struct ConditionalLoop {
     child: Box<dyn Node>,
     checker: Mutex<Box<dyn LoopCondChecker>>,
@@ -45,7 +46,6 @@ impl ConditionalLoop {
         checker.run((entity, loop_state), world)
     }
 }
-impl WithState<ConditionalLoopState> for ConditionalLoop {}
 impl Node for ConditionalLoop {
     fn begin(&self, world: &mut World, entity: Entity) -> NodeStatus {
         let state = ConditionalLoopState {
@@ -105,7 +105,7 @@ impl Node for ConditionalLoop {
 }
 
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(NodeState, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct LoopState {
     count: usize,
     last_result: Option<NodeResult>,
@@ -118,33 +118,20 @@ impl LoopState {
         }
     }
 }
-impl NodeState for LoopState {
-    fn into_any(self: Box<Self>) -> Box<dyn Any> {
-        self
-    }
-}
 
+#[derive(NodeState)]
 struct ConditionalLoopState {
     loop_state: LoopState,
     child_status: NodeStatus,
 }
-impl NodeState for ConditionalLoopState {
-    fn into_any(self: Box<Self>) -> Box<dyn Any> {
-        self
-    }
-}
 
 
 
-#[derive(Debug)]
+#[derive(NodeState, Debug)]
 struct CheckIfState;
-impl NodeState for CheckIfState {
-    fn into_any(self: Box<Self>) -> Box<dyn Any> {
-        self
-    }
-}
 
 /// Node that check the condition, then return it as [`NodeResult`].
+#[with_state(CheckIfState)]
 pub struct CheckIf {
     checker: Mutex<Box<dyn ReadOnlySystem<In=Entity, Out=bool>>>,
 }
@@ -165,7 +152,6 @@ impl CheckIf {
         checker.run(entity, world)
     }
 }
-impl WithState<CheckIfState> for CheckIf{}
 impl Node for CheckIf {
     fn begin(&self, world: &mut World, entity: Entity) -> NodeStatus {
         self.resume(world, entity, Box::new(CheckIfState))
@@ -185,6 +171,7 @@ impl Node for CheckIf {
 
 /// Run the child while condition matched, else freeze.
 /// Supposing to be used as a root.
+#[with_state(ElseFreezeState)]
 pub struct ElseFreeze {
     child: Box<dyn Node>,
     checker: Mutex<Box<dyn ReadOnlySystem<In=Entity, Out=bool>>>,
@@ -207,7 +194,6 @@ impl ElseFreeze {
         checker.run(entity, world)
     }
 }
-impl WithState<ElseFreezeState> for ElseFreeze {}
 impl Node for ElseFreeze {
     fn begin(&self, world: &mut World, entity: Entity) -> NodeStatus {
         self.resume(world, entity, Box::new(ElseFreezeState{ child_status: NodeStatus::Beginning }))
@@ -245,13 +231,9 @@ impl Node for ElseFreeze {
     }
 }
 
+#[derive(NodeState)]
 struct ElseFreezeState {
     child_status: NodeStatus,
-}
-impl NodeState for ElseFreezeState {
-    fn into_any(self: Box<Self>) -> Box<dyn Any> {
-        self
-    }
 }
 
 
