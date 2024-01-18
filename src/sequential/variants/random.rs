@@ -1,8 +1,8 @@
 use std::{ops::DerefMut, sync::{Arc, Mutex}};
 
-use bevy::ecs::{world::World, entity::Entity};
 use rand::{distributions::Uniform, Rng, prelude::Distribution};
 
+use crate as bevior_tree;
 use crate::node::prelude::*;
 use super::{ScoredSequence, Scorer, last_result};
 use super::sorted::{pick_sorted, pick_max};
@@ -42,6 +42,7 @@ pub fn pick_random_one(scores: Vec<f32>, rng: &mut impl Rng) -> Vec<usize> {
 
 /// Node that runs children while their result is Success.
 /// Children are sorted random weighted by score on enter the node.
+#[delegate_node(delegate)]
 pub struct RandomOrderedSequentialAnd{
     delegate: ScoredSequence,
 }
@@ -59,21 +60,11 @@ impl RandomOrderedSequentialAnd
         )}
     }
 }
-impl Node for RandomOrderedSequentialAnd {
-    fn begin(&self, world: &mut World, entity: Entity) -> NodeStatus {
-        self.delegate.begin(world, entity)
-    }
-    fn resume(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) -> NodeStatus {
-        self.delegate.resume(world, entity, state)
-    }
-    fn force_exit(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) {
-        self.delegate.force_exit(world, entity, state)
-    }
-}
 
 
 /// Node that runs children while their result is Failure.
 /// Children are sorted random weighted by score on enter the node.
+#[delegate_node(delegate)]
 pub struct RandomOrderedSequentialOr{
     delegate: ScoredSequence,
 }
@@ -91,21 +82,11 @@ impl RandomOrderedSequentialOr
         )}
     }
 }
-impl Node for RandomOrderedSequentialOr {
-    fn begin(&self, world: &mut World, entity: Entity) -> NodeStatus {
-        self.delegate.begin(world, entity)
-    }
-    fn resume(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) -> NodeStatus {
-        self.delegate.resume(world, entity, state)
-    }
-    fn force_exit(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) {
-        self.delegate.force_exit(world, entity, state)
-    }
-}
 
 
 /// Node that runs all children.
 /// Children are sorted random weighted by score on enter the node.
+#[delegate_node(delegate)]
 pub struct RandomOrderedForcedSequence{
     delegate: ScoredSequence,
 }
@@ -123,20 +104,10 @@ impl RandomOrderedForcedSequence
         )}
     }
 }
-impl Node for RandomOrderedForcedSequence {
-    fn begin(&self, world: &mut World, entity: Entity) -> NodeStatus {
-        self.delegate.begin(world, entity)
-    }
-    fn resume(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) -> NodeStatus {
-        self.delegate.resume(world, entity, state)
-    }
-    fn force_exit(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) {
-        self.delegate.force_exit(world, entity, state)
-    }
-}
 
 
 /// Node that runs just one child picked with score-weighted random on enter the node.
+#[delegate_node(delegate)]
 pub struct RandomForcedSelector {
     delegate: ScoredSequence,
 }
@@ -151,17 +122,6 @@ impl RandomForcedSelector {
             |_| false,
             last_result,
         )}
-    }
-}
-impl Node for RandomForcedSelector {
-    fn begin(&self, world: &mut World, entity: Entity) -> NodeStatus {
-        self.delegate.begin(world, entity)
-    }
-    fn resume(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) -> NodeStatus {
-        self.delegate.resume(world, entity, state)
-    }
-    fn force_exit(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) {
-        self.delegate.force_exit(world, entity, state)
     }
 }
 

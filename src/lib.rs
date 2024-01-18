@@ -14,7 +14,7 @@ pub mod parallel;
 #[cfg(test)]
 mod tester_util;
 
-use node::{Node, NodeStatus, NodeState};
+use node::{Node, NodeStatus, DelegateNode};
 
 /// Module for convenient imports. Use with `use bevior_tree::prelude::*;`.
 pub mod prelude {
@@ -72,15 +72,9 @@ impl BehaviorTree {
         Self { root: Arc::new(root) }
     }
 }
-impl Node for BehaviorTree {
-    fn begin(&self, world: &mut World, entity: Entity) -> NodeStatus {
-        self.root.begin(world, entity)
-    }
-    fn resume(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) -> NodeStatus {
-        self.root.resume(world, entity, state)
-    }
-    fn force_exit(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) {
-        self.root.force_exit(world, entity, state)
+impl DelegateNode for BehaviorTree {
+    fn delegate_node(&self) -> &dyn Node {
+        self.root.as_ref()
     }
 }
 

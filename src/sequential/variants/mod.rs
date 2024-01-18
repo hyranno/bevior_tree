@@ -2,6 +2,7 @@ use std::sync::Mutex;
 
 use bevy::ecs::{system::{IntoSystem, In}, entity::Entity};
 
+use crate as bevior_tree;
 use crate::node::prelude::*;
 use super::{Scorer, ScoredSequence};
 
@@ -45,6 +46,7 @@ pub fn last_result(results: Vec<NodeResult>) -> NodeResult {
 
 pub type Sequence = SequentialAnd;
 /// Node that runs children in order while their result is Success.
+#[delegate_node(delegate)]
 pub struct SequentialAnd {
     delegate: ScoredSequence,
 }
@@ -58,21 +60,11 @@ impl SequentialAnd {
         )}
     }
 }
-impl Node for SequentialAnd {
-    fn begin(&self, world: &mut bevy::prelude::World, entity: Entity) -> NodeStatus {
-        self.delegate.begin(world, entity)
-    }
-    fn resume(&self, world: &mut bevy::prelude::World, entity: Entity, state: Box<dyn NodeState>) -> NodeStatus {
-        self.delegate.resume(world, entity, state)
-    }
-    fn force_exit(&self, world: &mut bevy::prelude::World, entity: Entity, state: Box<dyn NodeState>) {
-        self.delegate.force_exit(world, entity, state)
-    }
-}
 
 
 pub type Selector = SequentialOr;
 /// Node that runs children in order until one of them returns Success.
+#[delegate_node(delegate)]
 pub struct SequentialOr {
     delegate: ScoredSequence,
 }
@@ -86,20 +78,10 @@ impl SequentialOr {
         )}
     }
 }
-impl Node for SequentialOr {
-    fn begin(&self, world: &mut bevy::prelude::World, entity: Entity) -> NodeStatus {
-        self.delegate.begin(world, entity)
-    }
-    fn resume(&self, world: &mut bevy::prelude::World, entity: Entity, state: Box<dyn NodeState>) -> NodeStatus {
-        self.delegate.resume(world, entity, state)
-    }
-    fn force_exit(&self, world: &mut bevy::prelude::World, entity: Entity, state: Box<dyn NodeState>) {
-        self.delegate.force_exit(world, entity, state)
-    }
-}
 
 
 /// Node that runs all children in order.
+#[delegate_node(delegate)]
 pub struct ForcedSequence {
     delegate: ScoredSequence,
 }
@@ -111,17 +93,6 @@ impl ForcedSequence {
             |_| true,
             last_result,
         )}
-    }
-}
-impl Node for ForcedSequence {
-    fn begin(&self, world: &mut bevy::prelude::World, entity: Entity) -> NodeStatus {
-        self.delegate.begin(world, entity)
-    }
-    fn resume(&self, world: &mut bevy::prelude::World, entity: Entity, state: Box<dyn NodeState>) -> NodeStatus {
-        self.delegate.resume(world, entity, state)
-    }
-    fn force_exit(&self, world: &mut bevy::prelude::World, entity: Entity, state: Box<dyn NodeState>) {
-        self.delegate.force_exit(world, entity, state)
     }
 }
 

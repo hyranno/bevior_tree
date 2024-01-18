@@ -1,6 +1,5 @@
 
-use bevy::ecs::{entity::Entity, world::World};
-
+use crate as bevior_tree;
 use crate::node::prelude::*;
 use super::ResultConverter;
 
@@ -13,6 +12,7 @@ pub mod prelude {
 
 
 /// Invert the result of the child.
+#[delegate_node(delegate)]
 pub struct Invert {
     delegate: ResultConverter,
 }
@@ -23,19 +23,9 @@ impl Invert {
         }
     }
 }
-impl Node for Invert {
-    fn begin(&self, world: &mut World, entity: Entity) -> NodeStatus {
-        self.delegate.begin(world, entity)
-    }
-    fn resume(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) -> NodeStatus {
-        self.delegate.resume(world, entity, state)
-    }
-    fn force_exit(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) {
-        self.delegate.force_exit(world, entity, state)
-    }
-}
 
 /// Returns the specified result whatever the child returns.
+#[delegate_node(delegate)]
 pub struct ForceResult {
     delegate: ResultConverter,
 }
@@ -44,17 +34,6 @@ impl ForceResult {
         Self {
             delegate: ResultConverter::new(child, move |_| result)
         }
-    }
-}
-impl Node for ForceResult {
-    fn begin(&self, world: &mut World, entity: Entity) -> NodeStatus {
-        self.delegate.begin(world, entity)
-    }
-    fn resume(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) -> NodeStatus {
-        self.delegate.resume(world, entity, state)
-    }
-    fn force_exit(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) {
-        self.delegate.force_exit(world, entity, state)
     }
 }
 

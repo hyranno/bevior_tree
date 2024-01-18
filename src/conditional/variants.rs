@@ -2,8 +2,9 @@
 
 use std::borrow::Cow;
 
-use bevy::ecs::{system::{IntoSystem, ReadOnlySystem, In, System, Combine, CombinatorSystem}, entity::Entity, world::World};
+use bevy::ecs::{system::{IntoSystem, ReadOnlySystem, In, System, Combine, CombinatorSystem}, entity::Entity};
 
+use crate as bevior_tree;
 use crate::node::prelude::*;
 use super::{ConditionalLoop, LoopState};
 
@@ -37,6 +38,7 @@ where
 
 
 /// Node that runs the child if condition is matched.
+#[delegate_node(delegate)]
 pub struct Conditional {
     delegate: ConditionalLoop,
 }
@@ -56,17 +58,6 @@ impl Conditional {
                 Cow::Borrowed("check cond")
             )
         )}
-    }
-}
-impl Node for Conditional {
-    fn begin(&self, world: &mut World, entity: Entity) -> NodeStatus {
-        self.delegate.begin(world, entity)
-    }
-    fn resume(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) -> NodeStatus {
-        self.delegate.resume(world, entity, state)
-    }
-    fn force_exit(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) {
-        self.delegate.force_exit(world, entity, state)
     }
 }
 

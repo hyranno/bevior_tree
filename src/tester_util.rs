@@ -2,7 +2,7 @@
 use bevy::core::FrameCount;
 use crate::{
     BehaviorTreePlugin,
-    node::prelude::*,
+    node::{prelude::*, DelegateNode},
     task::{TaskBridge, TaskStatus}, BehaviorTreeBundle,
 };
 
@@ -37,15 +37,9 @@ impl Plugin for TesterPlugin {
 pub struct TesterTask<const ID: i32> {
     task: TaskBridge,
 }
-impl<const ID: i32> crate::node::Node for TesterTask<ID> {
-    fn begin(&self, world: &mut World, entity: Entity) -> NodeStatus {
-        self.task.begin(world, entity)
-    }
-    fn resume(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) -> NodeStatus {
-        self.task.resume(world, entity, state)
-    }
-    fn force_exit(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) {
-        self.task.force_exit(world, entity, state)
+impl<const ID: i32> DelegateNode for TesterTask<ID> {
+    fn delegate_node(&self) -> &dyn crate::node::Node {
+        &self.task
     }
 }
 impl<const ID: i32> TesterTask<ID> {

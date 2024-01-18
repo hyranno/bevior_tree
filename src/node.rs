@@ -9,6 +9,7 @@ pub mod prelude {
     };
     pub use derive_nodestate::NodeState;
     pub use macro_withstate::with_state;
+    pub use macro_delegatenode::delegate_node;
 }
 
 
@@ -68,3 +69,18 @@ pub enum NodeStateError {
     InvalidTypeOfState,
 }
 
+
+pub trait DelegateNode: 'static + Send + Sync {
+    fn delegate_node(&self) -> &dyn Node;
+}
+impl<T: DelegateNode> Node for T {
+    fn begin(&self, world: &mut World, entity: Entity) -> NodeStatus {
+        self.delegate_node().begin(world, entity)
+    }
+    fn resume(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) -> NodeStatus {
+        self.delegate_node().resume(world, entity, state)
+    }
+    fn force_exit(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) {
+        self.delegate_node().force_exit(world, entity, state)
+    }
+}

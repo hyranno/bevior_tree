@@ -1,8 +1,8 @@
 use std::{cmp::Reverse, sync::Mutex};
 
-use bevy::ecs::{world::World, entity::Entity};
 use ordered_float::OrderedFloat;
 
+use crate as bevior_tree;
 use crate::node::prelude::*;
 use super::{ScoredSequence, Scorer, last_result};
 
@@ -35,6 +35,7 @@ pub fn pick_max(scores: Vec<f32>) -> Vec<usize> {
 
 /// Node that runs children while their result is Success.
 /// Children are sorted descending by score on enter the node.
+#[delegate_node(delegate)]
 pub struct ScoreOrderedSequentialAnd {
     delegate: ScoredSequence,
 }
@@ -48,21 +49,11 @@ impl ScoreOrderedSequentialAnd {
         )}
     }
 }
-impl Node for ScoreOrderedSequentialAnd {
-    fn begin(&self, world: &mut World, entity: Entity) -> NodeStatus {
-        self.delegate.begin(world, entity)
-    }
-    fn resume(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) -> NodeStatus {
-        self.delegate.resume(world, entity, state)
-    }
-    fn force_exit(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) {
-        self.delegate.force_exit(world, entity, state)
-    }
-}
 
 
 /// Node that runs children while their result is Failure.
 /// Children are sorted descending by score on enter the node.
+#[delegate_node(delegate)]
 pub struct ScoreOrderedSequentialOr {
     delegate: ScoredSequence,
 }
@@ -76,21 +67,11 @@ impl ScoreOrderedSequentialOr {
         )}
     }
 }
-impl Node for ScoreOrderedSequentialOr {
-    fn begin(&self, world: &mut World, entity: Entity) -> NodeStatus {
-        self.delegate.begin(world, entity)
-    }
-    fn resume(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) -> NodeStatus {
-        self.delegate.resume(world, entity, state)
-    }
-    fn force_exit(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) {
-        self.delegate.force_exit(world, entity, state)
-    }
-}
 
 
 /// Node that runs all children.
 /// Children are sorted descending by score on enter the node.
+#[delegate_node(delegate)]
 pub struct ScoreOrderedForcedSequence {
     delegate: ScoredSequence,
 }
@@ -104,20 +85,10 @@ impl ScoreOrderedForcedSequence {
         )}
     }
 }
-impl Node for ScoreOrderedForcedSequence {
-    fn begin(&self, world: &mut World, entity: Entity) -> NodeStatus {
-        self.delegate.begin(world, entity)
-    }
-    fn resume(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) -> NodeStatus {
-        self.delegate.resume(world, entity, state)
-    }
-    fn force_exit(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) {
-        self.delegate.force_exit(world, entity, state)
-    }
-}
 
 
 /// Node that runs just one child with highest score on enter the node.
+#[delegate_node(delegate)]
 pub struct ScoredForcedSelector {
     delegate: ScoredSequence,
 }
@@ -129,17 +100,6 @@ impl ScoredForcedSelector {
             |_| false,
             |_| NodeResult::Failure,  // Be used only when the nodes is empty.
         )}
-    }
-}
-impl Node for ScoredForcedSelector {
-    fn begin(&self, world: &mut World, entity: Entity) -> NodeStatus {
-        self.delegate.begin(world, entity)
-    }
-    fn resume(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) -> NodeStatus {
-        self.delegate.resume(world, entity, state)
-    }
-    fn force_exit(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) {
-        self.delegate.force_exit(world, entity, state)
     }
 }
 

@@ -62,6 +62,7 @@ fn get_distance(entity0: Entity, entity1: Entity, param: Query<&Transform>) -> f
 
 // Task to wait until player get near.
 // Task trait is available for making your task, delegating core methods to TaskImpl.
+#[delegate_node(delegate)]
 struct NearTask {
     delegate: TaskBridge,
 }
@@ -83,20 +84,10 @@ impl NearTask {
         }
     }
 }
-impl bevior_tree::node::Node for NearTask {
-    fn begin(&self, world: &mut World, entity: Entity) -> NodeStatus {
-        self.delegate.begin(world, entity)
-    }
-    fn resume(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) -> NodeStatus {
-        self.delegate.resume(world, entity, state)
-    }
-    fn force_exit(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) {
-        self.delegate.force_exit(world, entity, state)
-    }
-}
 
 
 // Task node to follow the target.
+#[delegate_node(delegate)]
 struct FollowTask {
     delegate: TaskBridge,
 }
@@ -123,17 +114,6 @@ impl FollowTask {
         Self {
             delegate: task,
         }
-    }
-}
-impl bevior_tree::node::Node for FollowTask {
-    fn begin(&self, world: &mut World, entity: Entity) -> NodeStatus {
-        self.delegate.begin(world, entity)
-    }
-    fn resume(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) -> NodeStatus {
-        self.delegate.resume(world, entity, state)
-    }
-    fn force_exit(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) {
-        self.delegate.force_exit(world, entity, state)
     }
 }
 

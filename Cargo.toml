@@ -27,6 +27,9 @@ path = "libs/derive-nodestate"
 [dependencies.macro-withstate]
 path = "libs/macro-withstate"
 
+[dependencies.macro-delegatenode]
+path = "libs/macro-delegatenode"
+
 [dev-dependencies]
 bevy = "0.12"
 

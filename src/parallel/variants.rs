@@ -1,6 +1,5 @@
 
-use bevy::ecs::{entity::Entity, world::World};
-
+use crate as bevior_tree;
 use crate::node::prelude::*;
 
 use super::Parallel;
@@ -16,6 +15,7 @@ pub mod prelude {
 /// Node that runs children in parallel.
 /// When one of the children completed with Failure,
 ///  abort the rest and returns Failure.
+#[delegate_node(delegate)]
 pub struct ParallelAnd {
     delegate: Parallel,
 }
@@ -35,21 +35,11 @@ impl ParallelAnd {
         )}
     }
 }
-impl Node for ParallelAnd {
-    fn begin(&self, world: &mut World, entity: Entity) -> NodeStatus {
-        self.delegate.begin(world, entity)
-    }
-    fn resume(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) -> NodeStatus {
-        self.delegate.resume(world, entity, state)
-    }
-    fn force_exit(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) {
-        self.delegate.force_exit(world, entity, state)
-    }
-}
 
 /// Node that runs children in parallel.
 /// When one of the children completed with Success,
 ///  abort the rest and returns Success.
+#[delegate_node(delegate)]
 pub struct ParallelOr {
     delegate: Parallel,
 }
@@ -69,21 +59,11 @@ impl ParallelOr {
         )}
     }
 }
-impl Node for ParallelOr {
-    fn begin(&self, world: &mut World, entity: Entity) -> NodeStatus {
-        self.delegate.begin(world, entity)
-    }
-    fn resume(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) -> NodeStatus {
-        self.delegate.resume(world, entity, state)
-    }
-    fn force_exit(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) {
-        self.delegate.force_exit(world, entity, state)
-    }
-}
 
 
 /// Node that runs children in parallel.
 /// Complete with Success when all of the children completed.
+#[delegate_node(delegate)]
 pub struct Join {
     delegate: Parallel,
 }
@@ -99,17 +79,6 @@ impl Join {
                 }
             },
         )}
-    }
-}
-impl Node for Join {
-    fn begin(&self, world: &mut World, entity: Entity) -> NodeStatus {
-        self.delegate.begin(world, entity)
-    }
-    fn resume(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) -> NodeStatus {
-        self.delegate.resume(world, entity, state)
-    }
-    fn force_exit(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) {
-        self.delegate.force_exit(world, entity, state)
     }
 }
 
