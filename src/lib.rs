@@ -62,7 +62,7 @@ pub enum BehaviorTreeSystemSet {
 
 
 /// Behavior tree component.
-/// Task nodes of the tree affect the entity with this component.
+/// Nodes of the tree receive the entity with this component.
 #[derive(Component, Clone)]
 pub struct BehaviorTree {
     root: Arc<dyn Node>,
@@ -78,6 +78,7 @@ impl DelegateNode for BehaviorTree {
     }
 }
 
+/// Add this bundle to run behavior tree.
 #[derive(Bundle)]
 pub struct BehaviorTreeBundle {
     pub tree: BehaviorTree,
@@ -93,13 +94,17 @@ impl BehaviorTreeBundle {
 }
 
 /// Add to the same entity with the BehaviorTree to temporarily freeze the update.
-/// You may prefer [`conditional::variants::ElseFreeze`] node.
+/// You may prefer [`conditional::ElseFreeze`] node.
+/// Freezes transition of the tree, not running task.
 #[derive(Component, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Freeze;
 
+/// Represents the state of the tree.
 #[derive(Component)]
 pub struct TreeStatus(NodeStatus);
 
+
+/// The system to update the states of the behavior trees attached to entities.
 fn update (
     world: &mut World,
     query: &mut QueryState<(Entity, &BehaviorTree, &mut TreeStatus), Without<Freeze>>,

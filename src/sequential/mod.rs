@@ -1,3 +1,5 @@
+//! Composite nodes that run children in sequence.
+
 use std::sync::Mutex;
 
 use bevy::ecs::{system::{ReadOnlySystem, IntoSystem}, entity::Entity, world::World};
@@ -30,6 +32,7 @@ pub trait ResultConstructor: Fn(Vec<NodeResult>) -> NodeResult + 'static + Send 
 impl<F> ResultConstructor for F where F: Fn(Vec<NodeResult>) -> NodeResult + 'static + Send + Sync {}
 
 
+/// Composite nodes that run children in sequence.
 #[with_state(ScoredSequenceState)]
 pub struct ScoredSequence {
     nodes: Vec<(Box<dyn Node>, Mutex<Box<dyn Scorer>>)>,
@@ -105,6 +108,7 @@ impl Node for ScoredSequence {
 }
 
 
+/// State for [`ScoredSequence`]
 #[derive(NodeState)]
 struct ScoredSequenceState {
     count: usize,

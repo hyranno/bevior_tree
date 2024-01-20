@@ -1,4 +1,4 @@
-
+//! Nodes that depends on the condition of the bevy world.
 
 use std::sync::Mutex;
 
@@ -23,6 +23,7 @@ pub trait LoopCondChecker: ReadOnlySystem<In=(Entity, LoopState), Out=bool> {}
 impl<S> LoopCondChecker for S where S: ReadOnlySystem<In=(Entity, LoopState), Out=bool> {}
 
 
+/// Node for conditional loop.
 #[with_state(ConditionalLoopState)]
 pub struct ConditionalLoop {
     child: Box<dyn Node>,
@@ -119,6 +120,7 @@ impl LoopState {
     }
 }
 
+/// State for [`ConditionalLoop`]
 #[derive(NodeState)]
 struct ConditionalLoopState {
     loop_state: LoopState,
@@ -126,7 +128,7 @@ struct ConditionalLoopState {
 }
 
 
-
+/// State for [`CheckIf`]
 #[derive(NodeState, Debug)]
 struct CheckIfState;
 
@@ -168,9 +170,8 @@ impl Node for CheckIf {
 }
 
 
-
-/// Run the child while condition matched, else freeze.
-/// Supposing to be used as a root.
+/// Node that run the child while condition matched, else freeze.
+/// Freezes transition of the child sub-tree, not running task.
 #[with_state(ElseFreezeState)]
 pub struct ElseFreeze {
     child: Box<dyn Node>,
@@ -231,6 +232,7 @@ impl Node for ElseFreeze {
     }
 }
 
+/// State for [`ElseFreeze`]
 #[derive(NodeState)]
 struct ElseFreezeState {
     child_status: NodeStatus,

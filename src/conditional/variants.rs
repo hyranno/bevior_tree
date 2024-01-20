@@ -37,7 +37,7 @@ where
 
 
 
-/// Node that runs the child if condition is matched.
+/// Node that runs the child once if condition is matched.
 #[delegate_node(delegate)]
 pub struct Conditional {
     delegate: ConditionalLoop,

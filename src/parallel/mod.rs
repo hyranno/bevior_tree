@@ -15,12 +15,18 @@ pub mod prelude {
 }
 
 
+/// Composite node that run children parallelly.
 #[with_state(ParallelState)]
 pub struct Parallel {
     children: Vec<Box<dyn Node>>,
     result_constructor: Box<dyn Fn(Vec<Option<NodeResult>>) -> Option<NodeResult> + 'static + Send + Sync>,
 }
 impl Parallel {
+    /// Creates new [`Parallel`] node.
+    /// 
+    /// # Arguments
+    /// * children - Children nodes that this node runs.
+    /// * result_constructor - Take results of children, then return the result of this node if available.
     pub fn new(
         children: Vec<Box<dyn Node>>,
         result_constructor: impl Fn(Vec<Option<NodeResult>>) -> Option<NodeResult> + 'static + Send + Sync,
@@ -75,6 +81,7 @@ impl Node for Parallel {
 }
 
 
+/// State for [`Parallel`]
 #[derive(NodeState)]
 struct ParallelState {
     children_status: Vec<NodeStatus>,

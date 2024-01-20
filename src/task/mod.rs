@@ -1,3 +1,4 @@
+//! Node that represents Task.
 
 use std::sync::Mutex;
 
@@ -16,6 +17,7 @@ pub enum TaskStatus {
     Complete(NodeResult),
 }
 
+/// State for [`TaskBridge`]
 #[derive(NodeState, Debug)]
 struct TaskState;
 
@@ -27,6 +29,17 @@ pub enum TaskEvent {
     Failure,
 }
 
+
+/// Node that represents task.
+/// This node is for telling what to do for other systems.
+/// 
+/// This node marks what to do for other systems (usually via adding component) and check the completion to proceed the behavior tree.
+/// [`TaskBridge::insert_while_running`] is good for marking.
+///
+/// This pattern is needed to keep advantages of ECS.
+/// ECS does good performance running same kind of tasks in a batch.
+/// But while processing the behavior trees, various tasks appears in various order.
+/// So the this nodes just marks what to do, expecting other systems does actual updates later.
 #[with_state(TaskState)]
 pub struct TaskBridge {
     checker: Mutex<Box<dyn ReadOnlySystem<In=Entity, Out=TaskStatus>>>,
@@ -43,10 +56,13 @@ impl TaskBridge {
             event_listeners: Mutex::new(vec![]),
         }
     }
+    /// Register callback for [`TaskEvent`].
+    /// Use this to communicate to bevy world.
     pub fn on_event<Marker>(self, event: TaskEvent, callback: impl IntoSystem<Entity, (), Marker>) -> Self {
         self.event_listeners.lock().expect("Failed to lock.").push((event, Box::new(IntoSystem::into_system(callback))));
         self
     }
+    /// Register callbacks that add the bundle on entering node then remove it on exiting.
     pub fn insert_while_running<T: Bundle + 'static + Clone>(self, bundle: T) -> Self {
         self
             .on_event(TaskEvent::Enter, move |In(entity), mut commands: Commands| {
