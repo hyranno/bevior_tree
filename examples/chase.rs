@@ -2,8 +2,8 @@
 // enemy, the enemy moves towards them, until the player moves back out of range.
 // This example matches to the one of `seldom_state`.
 
-use bevy::prelude::*;
 use bevior_tree::prelude::*;
+use bevy::prelude::*;
 
 fn main() {
     App::new()
@@ -13,6 +13,7 @@ fn main() {
         .add_systems(Update, (follow, move_player))
         .run();
 }
+
 
 // Setup the game
 fn init(mut commands: Commands, asset_server: Res<AssetServer>) {
@@ -38,13 +39,13 @@ fn init(mut commands: Commands, asset_server: Res<AssetServer>) {
         },
 
         // This behavior tree handles the enemy's behavior.
-        BehaviorTree::new(
+        BehaviorTreeBundle::from_root(
             ConditionalLoop::new(
                 Sequence::new(vec![
                     // Task to wait until player get near.
-                    NearTask::new(player, 300.),
+                    Box::new(NearTask::new(player, 300.)),
                     // Task to follow the player.
-                    FollowTask::new(player, 300., 100.),
+                    Box::new(FollowTask::new(player, 300., 100.)),
                 ]),
                 |In(_)| true
             )
@@ -57,69 +58,62 @@ fn get_distance(entity0: Entity, entity1: Entity, param: Query<&Transform>) -> f
         .distance(param.get(entity1).unwrap().translation.truncate())
 }
 
+
+
 // Task to wait until player get near.
 // Task trait is available for making your task, delegating core methods to TaskImpl.
+#[delegate_node(delegate)]
 struct NearTask {
-    task: Arc<TaskImpl>,
+    delegate: TaskBridge,
 }
 impl NearTask {
     pub fn new(
         target: Entity,
         range: f32,
-    ) -> Arc<Self> {
+    ) -> Self {
         let checker = move |In(entity): In<Entity>, param: Query<&Transform>| {
             let distance = get_distance(entity, target, param);
             // Check whether the target is within range. If it is, return `Success`.
             match distance <= range {
-                true => TaskState::Success,
-                false => TaskState::Running,
+                true => TaskStatus::Complete(NodeResult::Success),
+                false => TaskStatus::Running,
             } 
         };
-        Arc::new(Self {
-            task: Arc::new(TaskImpl::new(checker)),
-        })
-    }
-}
-impl Task for NearTask {
-    // Specify what checker you use with this task.
-    fn task_impl(&self) -> Arc<TaskImpl> {
-        self.task.clone()
+        Self {
+            delegate: TaskBridge::new(checker),
+        }
     }
 }
 
+
 // Task node to follow the target.
+#[delegate_node(delegate)]
 struct FollowTask {
-    task: Arc<TaskImpl>,
+    delegate: TaskBridge,
 }
 impl FollowTask {
     pub fn new(
         target: Entity,
         range: f32,
         speed: f32,
-    ) -> Arc<Self> {
+    ) -> Self {
         let checker = move |In(entity): In<Entity>, param: Query<&Transform>| {
             let distance = get_distance(entity, target, param);
             // Return `Failure` if target is out of range.
             match distance <= range {
-                true => TaskState::Running,
-                false => TaskState::Failure,
+                true => TaskStatus::Running,
+                false => TaskStatus::Complete(NodeResult::Failure),
             } 
         };
-        let task = TaskImpl::new(checker)
+        let task = TaskBridge::new(checker)
             // Task inserts some components to the entity while running.
             .insert_while_running(Follow {target, speed})
             // Or run some commands on enter/exit.
-            .on_enter(|_entity, mut _commands| { info!("Beginning to follow."); })
+            .on_event(TaskEvent::Enter,|_entity: In<Entity>, mut _commands: Commands| { info!("Beginning to follow."); })
         ;
-        Arc::new(Self {
-            task: Arc::new(task),
-        })
-    }
-}
-impl Task for FollowTask {
-    // Specify what checker you use with this task.
-    fn task_impl(&self) -> Arc<TaskImpl> {
-        self.task.clone()
+        Self {
+            delegate: task,
+        }
     }
 }
 

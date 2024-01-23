@@ -1,34 +1,34 @@
 //! Behavior tree plugin for Bevy.
 
-use std::{sync::{Arc, Mutex}, future::Future};
+use std::sync::Arc;
 use bevy::{prelude::*, ecs::schedule::ScheduleLabel};
-use genawaiter::{sync::{Co, Gen}, GeneratorState};
 
-use self::nullable_access::{NullableWorldAccess, TemporalWorldSharing};
 
+pub mod node;
 pub mod task;
 pub mod sequential;
-pub mod parallel;
 pub mod conditional;
 pub mod converter;
-
-pub mod nullable_access;
+pub mod parallel;
 
 #[cfg(test)]
 mod tester_util;
 
+use node::{Node, NodeStatus, DelegateNode};
+
 /// Module for convenient imports. Use with `use bevior_tree::prelude::*;`.
 pub mod prelude {
-    pub use std::sync::Arc;
     pub use crate::{
-        *,
-        task::*,
-        sequential::variants::*,
-        conditional::{ConditionalLoop, variants::*},
-        converter::{ResultConverter, variants::*},
+        BehaviorTreePlugin, BehaviorTreeSystemSet,
+        BehaviorTreeBundle, BehaviorTree, Freeze, TreeStatus,
+        node::prelude::*,
+        task::prelude::*,
+        sequential::prelude::*,
+        conditional::prelude::*,
+        converter::prelude::*,
+        parallel::prelude::*,
     };
 }
-
 
 /// Add to your app to use this crate.
 pub struct BehaviorTreePlugin {
@@ -60,249 +60,103 @@ pub enum BehaviorTreeSystemSet {
     Update,
 }
 
+
 /// Behavior tree component.
-/// Task nodes of the tree affect the entity with this component.
-#[derive(Component)]
+/// Nodes of the tree receive the entity with this component.
+#[derive(Component, Clone)]
 pub struct BehaviorTree {
     root: Arc<dyn Node>,
-    runner: Option<NodeRunner>,
-    result: Option<NodeResult>,
-    world: Arc<Mutex<NullableWorldAccess>>,
 }
+impl BehaviorTree {
+    pub fn new(root: impl Node) -> Self {
+        Self { root: Arc::new(root) }
+    }
+}
+impl DelegateNode for BehaviorTree {
+    fn delegate_node(&self) -> &dyn Node {
+        self.root.as_ref()
+    }
+}
+
+/// Add this bundle to run behavior tree.
+#[derive(Bundle)]
+pub struct BehaviorTreeBundle {
+    pub tree: BehaviorTree,
+    pub status: TreeStatus,
+}
+impl BehaviorTreeBundle {
+    pub fn from_root(root: impl Node) -> Self {
+        Self::from_tree(BehaviorTree::new(root))
+    }
+    pub fn from_tree(tree: BehaviorTree) -> Self {
+        Self { tree, status: TreeStatus(NodeStatus::Beginning) }
+    }
+}
+
 /// Add to the same entity with the BehaviorTree to temporarily freeze the update.
-/// You may prefer [`conditional::variants::ElseFreeze`] node.
+/// You may prefer [`conditional::ElseFreeze`] node.
+/// Freezes transition of the tree, not running task.
 #[derive(Component, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Freeze;
-/// Add to the same entity with the BehaviorTree to abort the process.
-/// You should abort before remove the BehaviorTree, or on_exit of the running task will not be executed.
-#[derive(Component, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct Abort;
 
-impl BehaviorTree {
-    pub fn new(root: Arc<dyn Node>) -> Self {
-        Self {
-            root,
-            runner: None,
-            result: None,
-            world: Arc::new(Mutex::new(NullableWorldAccess::new())),
-        }
-    }
-    pub fn result(&self) -> Option<NodeResult> {
-        self.result
-    }
-    fn stub(&self) -> Self {
-        Self {
-            root: Arc::<StubNode>::default(),
-            runner: None,
-            result: None,
-            world: Arc::new(Mutex::new(NullableWorldAccess::new())),
-        }
-    }
-}
-impl Drop for BehaviorTree {
-    fn drop(&mut self) {
-        if let Some(gen) = self.runner.as_mut() {
-            gen.abort_if_incomplete();
-        }
-    }
-}
-impl Clone for BehaviorTree {
-    /// Returns new de-initialized tree, with same instance of nodes.
-    fn clone(&self) -> Self {
-        Self::new(Arc::clone(&self.root))
-    }
-}
+/// Represents the state of the tree.
+#[derive(Component)]
+pub struct TreeStatus(NodeStatus);
 
+
+/// The system to update the states of the behavior trees attached to entities.
 fn update (
     world: &mut World,
-    query: &mut QueryState<(Entity, &mut BehaviorTree, Option<&Abort>), Without<Freeze>>,
+    query: &mut QueryState<(Entity, &BehaviorTree, &mut TreeStatus), Without<Freeze>>,
 ) {
-    // Pull the trees out of the world so we can invoke mutable methods on them.
-    let mut borrowed_trees: Vec<(Entity, BehaviorTree, bool)> = query.iter_mut(world)
-        .map(|(entity, mut tree, abort)| {
-            let stub = tree.stub();
-            (entity, std::mem::replace(tree.as_mut(), stub), abort.is_some())
-        })
-        .collect()
-    ;
-
-    for (entity, tree, abort) in borrowed_trees.iter_mut() {
-        if tree.result.is_some() { continue; }
-        let _temporal_world = TemporalWorldSharing::new(tree.world.clone(), world);
-
-        match tree.runner.as_mut() {
-            None => {   // Not started yet.
-                if !*abort {
-                    tree.runner = Some(NodeRunner::new(tree.root.clone(), tree.world.clone(), *entity));
-                } else {
-                    tree.result = Some(NodeResult::Aborted);
-                }
-            },
-            Some(runner) => {   // Running.
-                if !*abort {
-                    runner.resume_if_incomplete();
-                } else {
-                    runner.abort_if_incomplete();
-                }
-                tree.result = runner.result();
-            },
+    let trees: Vec<(Entity, Arc<dyn Node>, NodeStatus)> = query.iter_mut(world).map(
+        |(entity, tree, mut status)| {
+            let mut status_swap = TreeStatus(NodeStatus::Beginning);
+            std::mem::swap(status.as_mut(), &mut status_swap);
+            (entity, tree.root.clone(), status_swap.0)
         }
+    ).collect();
 
-        // Drop used runner.
-        if tree.result.is_some() {
-            tree.runner = None;
+    let statuses_new: Vec<NodeStatus> = trees.into_iter().map(
+        |(entity, root, status)| {
+            match status {
+                NodeStatus::Beginning => root.begin(world, entity),
+                NodeStatus::Pending(state) => root.resume(world, entity, state),
+                NodeStatus::Complete(_) => status
+            }
         }
-    }
+    ).collect();
 
-    // put the borrowed trees back
-    for (entity, tree, _) in borrowed_trees {
-        *query.get_mut(world, entity).unwrap().1 = tree;
-    }
-}
+    query.iter_mut(world).zip(statuses_new).for_each( |((_, _, mut state), state_new)| {
+        let mut state_new_swap = TreeStatus(state_new);
+        std::mem::swap(state.as_mut(), &mut state_new_swap);
+    });
 
-/// Nodes return this on complete.
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum NodeResult {
-    Success,
-    Failure,
-    Aborted,
-}
-impl Into<bool> for NodeResult {
-    fn into(self) -> bool {
-        match self {
-            NodeResult::Success => true,
-            NodeResult::Failure => false,
-            _ => {warn!("converted {:?} into bool", self); false}
-        }
-    }
-}
-impl From<bool> for NodeResult {
-    fn from(value: bool) -> Self {
-        if value { NodeResult::Success } else { NodeResult::Failure }
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum ResumeSignal {
-    Resume,
-    Abort,
-}
-
-type Y = ();
-type R = ResumeSignal;
-type C = NodeResult;
-pub type NodeGenState = GeneratorState<Y, C>;
-
-/// Representation of one execution of the node.
-/// In the implementation, it is generator function.
-pub trait NodeGen: Send + Sync {
-    fn resume(&mut self) -> NodeGenState;
-    fn abort(&mut self) -> NodeGenState;
-}
-impl<F> NodeGen for Gen<Y, R, F> where
-F: Future<Output = C> + Send + Sync + 'static
-{
-    fn resume(&mut self) -> NodeGenState {
-        Gen::<Y, R, F>::resume_with(self, ResumeSignal::Resume)
-    }
-    fn abort(&mut self) -> NodeGenState {
-        Gen::<Y, R, F>::resume_with(self, ResumeSignal::Abort)
-    }
-}
-
-/// Node of behavior tree.
-pub trait Node: Send + Sync {
-    fn run(self: Arc<Self>, world: Arc<Mutex<NullableWorldAccess>>, entity: Entity) -> Box<dyn NodeGen>;
-}
-
-#[derive(Debug, Default)]
-struct StubNode;
-impl Node for StubNode {
-    fn run(self: Arc<Self>, _world: Arc<Mutex<NullableWorldAccess>>, _entity: Entity) -> Box<dyn NodeGen> {
-        let producer = |_co| async move {
-            NodeResult::Failure
-        };
-        Box::new(Gen::new(producer))
-    }
-}
-
-
-/// Container for [`NodeGen`] and its result.
-pub struct NodeRunner {
-    gen: Box<dyn NodeGen>,
-    state: NodeGenState,
-}
-impl NodeRunner {
-    pub fn new(node: Arc<dyn Node>, world: Arc<Mutex<NullableWorldAccess>>, entity: Entity) -> Self {
-        let mut gen = node.run(world, entity);
-        let state = gen.resume();
-        Self { gen, state }
-    }
-    pub fn state(&self) -> &NodeGenState {
-        &self.state
-    }
-    pub fn result(&self) -> Option<NodeResult> {
-        match self.state {
-            NodeGenState::Yielded(()) => None,
-            NodeGenState::Complete(res) => Some(res)
-        }
-    }
-    pub fn resume_if_incomplete(&mut self) {
-        if self.result().is_none() {
-            self.state = self.gen.resume();
-        }
-    }
-    pub fn abort_if_incomplete(&mut self) {
-        if self.result().is_none() {
-            self.state = self.gen.abort();
-        }
-    }
-}
-
-
-async fn complete_or_yield(co: &Co<(), ResumeSignal>, gen: &mut Box<dyn NodeGen>) -> NodeResult {
-    let mut state = gen.resume();
-    loop {
-        match state {
-            NodeGenState::Yielded(yielded_value) => {
-                let signal = co.yield_(yielded_value).await;
-                if signal == ResumeSignal::Abort {
-                    gen.abort();
-                    return NodeResult::Aborted;
-                }
-                state = gen.resume();
-            },
-            NodeGenState::Complete(result) => { return result; }
-        }
-    }
 }
 
 
 #[cfg(test)]
 mod tests {
-    use crate::tester_util::*;
+    use crate::{tester_util::prelude::*, node::NodeStatus};
 
     #[test]
     fn test_tree_end_with_result() {
         let mut app = App::new();
         app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
-        let task = TesterTask::<0>::new(1, TaskState::Success);
-        let tree = BehaviorTree::new(task);
-        let entity = app.world.spawn(tree).id();
+        let task = TesterTask::<0>::new(1, NodeResult::Success);
+        let entity = app.world.spawn(BehaviorTreeBundle::from_root(task)).id();
         app.update();
         app.update();
-        let tree = app.world.get::<BehaviorTree>(entity).unwrap();
+        let status = app.world.get::<TreeStatus>(entity);
         assert!(
-            tree.result.is_some(),
+            status.is_some(),
             "BehaviorTree should have result on the end."
         );
         assert!(
-            tree.result.unwrap() == NodeResult::Success,
+            if let Some(TreeStatus(NodeStatus::Complete(result))) = status {
+                result == &NodeResult::Success
+            } else {false},
             "BehaviorTree should have result that match with the result of the root."
-        );
-        assert!(
-            tree.runner.is_none(),
-            "BehaviorTree shold not have generator after the run."
         );
     }
 
@@ -310,9 +164,8 @@ mod tests {
     fn test_freeze() {
         let mut app = App::new();
         app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
-        let task = TesterTask::<0>::new(2, TaskState::Success);
-        let tree = BehaviorTree::new(task);
-        let entity = app.world.spawn(tree).id();
+        let task = TesterTask::<0>::new(2, NodeResult::Success);
+        let entity = app.world.spawn(BehaviorTreeBundle::from_root(task)).id();
         app.update();
         app.world.entity_mut(entity).insert(Freeze);
         app.update();  // 0
@@ -326,54 +179,10 @@ mod tests {
             TestLogEntry {task_id: 0, updated_count: 2, frame: 3},
             TestLogEntry {task_id: 0, updated_count: 3, frame: 4},
         ]};
+        let found = app.world.get_resource::<TestLog>().unwrap();
         assert!(
-            app.world.get_resource::<TestLog>().unwrap() == &expected,
-            "Task should not proceed while freeze."
-        );
-    }
-
-    #[test]
-    fn test_abort() {
-        let mut app = App::new();
-        app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
-        let task = TesterTask::<0>::new(4, TaskState::Success);
-        let tree = BehaviorTree::new(task);
-        let entity = app.world.spawn(tree).id();
-        app.update();
-        app.update();  // 0
-        app.world.entity_mut(entity).insert(Abort);
-        app.update();  // 1, tree abort
-        app.update();
-        let expected = TestLog {log: vec![
-            TestLogEntry {task_id: 0, updated_count: 0, frame: 1},
-            TestLogEntry {task_id: 0, updated_count: 1, frame: 2},
-        ]};
-        assert!(
-            app.world.get_resource::<TestLog>().unwrap() == &expected,
-            "BehaviorTree should be aborted."
-        );
-    }
-
-    #[test]
-    fn test_drop() {
-        let mut app = App::new();
-        app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
-        let task = TesterTask::<0>::new(4, TaskState::Success);
-        let tree = BehaviorTree::new(task);
-        let entity = app.world.spawn(tree).id();
-        app.update();
-        app.update();  // 0
-        app.world.entity_mut(entity).remove::<BehaviorTree>();
-        app.update();  // 1, BehaviorTree still exists on Update stage.
-        app.update();  // 2, Dropping BehaviorTree with running task will not execute on_exit 
-        let expected = TestLog {log: vec![
-            TestLogEntry {task_id: 0, updated_count: 0, frame: 1},
-            TestLogEntry {task_id: 0, updated_count: 1, frame: 2},
-            TestLogEntry {task_id: 0, updated_count: 2, frame: 3},
-        ]};
-        assert!(
-            app.world.get_resource::<TestLog>().unwrap() == &expected,
-            "Dropped BehaviorTree should be aborted."
+            found == &expected,
+            "Task should not proceed while freeze. found: {:?}", found
         );
     }
 

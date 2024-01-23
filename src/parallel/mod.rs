@@ -1,73 +1,99 @@
 //! Composite nodes that run children parallelly.
 
-use std::sync::{Arc, Mutex};
-use genawaiter::sync::{Gen, Co};
+use bevy::ecs::{entity::Entity, world::World};
 
-use bevy::ecs::entity::Entity;
-
-use crate::{Node, NodeResult, NodeRunner, NodeGen, NodeGenState, ResumeSignal, nullable_access::NullableWorldAccess};
+use crate::node::prelude::*;
+use crate::sequential::ResultConstructor;
 
 pub mod variants;
 
+pub mod prelude {
+    pub use super::{
+        Parallel,
+        variants::prelude::*,
+    };
+}
 
-/// Node that runs children in parallel.
+
+/// Composite node that run children parallelly.
+#[with_state(ParallelState)]
 pub struct Parallel {
-    children: Vec<Arc<dyn Node>>,
-    checker: Box<dyn Fn(Vec<&NodeGenState>) -> NodeGenState + 'static + Send + Sync>,
+    children: Vec<Box<dyn Node>>,
+    result_constructor: Box<dyn ResultConstructor>,
 }
 impl Parallel {
+    /// Creates new [`Parallel`] node.
+    /// 
+    /// # Arguments
+    /// * children - Children nodes that this node runs.
+    /// * result_constructor - Take results of children, then return the result of this node if available.
     pub fn new(
-        children: Vec<Arc<dyn Node>>,
-        checker: impl Fn(Vec<&NodeGenState>) -> NodeGenState + 'static + Send + Sync,
-    ) -> Arc<Self> {
-        Arc::new(Self {
+        children: Vec<Box<dyn Node>>,
+        result_constructor: impl ResultConstructor,
+    ) -> Self {
+        Self {
             children,
-            checker: Box::new(checker)
-        })
+            result_constructor: Box::new(result_constructor)
+        }
     }
 }
 impl Node for Parallel {
-    fn run(self: Arc<Self>, world: Arc<Mutex<NullableWorldAccess>>, entity: Entity) -> Box<dyn NodeGen> {
-        let producer = |co: Co<(), ResumeSignal>| async move {
-            let mut children: Vec<NodeRunner> = self.children.iter().map(|child| {
-                NodeRunner::new(child.clone(), world.clone(), entity)
-            }).collect();
-            let mut node_res: Option<NodeResult> = None;
-            while node_res.is_none() {
-                match (self.checker)(children.iter().map(|runner| runner.state()).collect()) {
-                    NodeGenState::Complete(res) => {
-                        node_res = Some(res);
-                    },
-                    NodeGenState::Yielded(()) => {
-                        let signal = co.yield_(()).await;
-                        match signal {
-                            ResumeSignal::Abort => {
-                                node_res = Some(NodeResult::Aborted);
-                            },
-                            ResumeSignal::Resume => {
-                                for child in children.iter_mut() {
-                                    child.resume_if_incomplete();
-                                }
-                                let debug_print: Vec<String> = children.iter()
-                                .map(|child|
-                                    match child.state() {
-                                        NodeGenState::Yielded(()) => format!("yield"),
-                                        NodeGenState::Complete(res) => format!("{:?}", res),
-                                    }
-                                ).collect();
-                                println!("{:?}", debug_print);
-                            }
-                        }
-                    }
-                }
-            };
-            // abort rest
-            for mut child in children {
-                child.abort_if_incomplete();
-            }
-            node_res.unwrap()
+    fn begin(&self, world: &mut World, entity: Entity) -> NodeStatus {
+        let state = ParallelState {
+            children_status: self.children.iter().map(|_| NodeStatus::Beginning).collect(),
         };
-        Box::new(Gen::new(producer))
+        self.resume(world, entity, Box::new(state))
+    }
+
+    fn resume(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) -> NodeStatus {
+        let state = Self::downcast(state).expect("Invalid state.");
+        if let Some(result) = (*self.result_constructor)(state.results()) {
+            self.force_exit(world, entity, Box::new(state));
+            return NodeStatus::Complete(result);
+        }
+        let children_status = self.children.iter().zip(state.children_status.into_iter()).map(
+            |(child, child_status)|
+            match child_status {
+                NodeStatus::Beginning => child.begin(world, entity),
+                NodeStatus::Pending(child_state) => child.resume(world, entity, child_state),
+                NodeStatus::Complete(_) => child_status,
+            }
+        ).collect();
+        let state = ParallelState {children_status};
+        if let Some(result) = (*self.result_constructor)(state.results()) {
+            self.force_exit(world, entity, Box::new(state));
+            NodeStatus::Complete(result)
+        } else {
+            NodeStatus::Pending(Box::new(state))
+        }
+    }
+
+    fn force_exit(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) {
+        let state = Self::downcast(state).expect("Invalid state.");
+        self.children.iter().zip(state.children_status.into_iter()).for_each(
+            |(child, child_status)|
+            match child_status {
+                NodeStatus::Pending(child_state) => child.force_exit(world, entity, child_state),
+                _ => {}
+            }
+        );
     }
 }
 
+
+/// State for [`Parallel`]
+#[derive(NodeState)]
+struct ParallelState {
+    children_status: Vec<NodeStatus>,
+}
+impl ParallelState {
+    fn results(&self) -> Vec<Option<NodeResult>> {
+        self.children_status.iter().map(
+            |status|
+            match status {
+                &NodeStatus::Complete(result) => Some(result),
+                _ => None
+            }
+        ).collect()
+    }
+}

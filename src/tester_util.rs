@@ -1,7 +1,19 @@
 
 use bevy::core::FrameCount;
-pub use bevy::prelude::*;
-pub use crate::prelude::*;
+use crate::{
+    BehaviorTreePlugin,
+    node::{prelude::*, DelegateNode},
+    task::{TaskBridge, TaskStatus}, BehaviorTreeBundle,
+};
+
+use bevy::prelude::*;
+
+pub mod prelude {
+    pub use bevy::prelude::*;
+    pub use crate::prelude::*;
+    pub use super::{TesterPlugin, TesterTask, TestLog, TestLogEntry,};
+}
+
 
 pub struct TesterPlugin;
 impl Plugin for TesterPlugin {
@@ -23,27 +35,27 @@ impl Plugin for TesterPlugin {
 
 /// Returns result after count.
 pub struct TesterTask<const ID: i32> {
-    task: Arc<TaskImpl>,
+    task: TaskBridge,
 }
-impl<const ID: i32> Task for TesterTask<ID> {
-    fn task_impl(&self) -> Arc<TaskImpl> {
-        self.task.clone()
+impl<const ID: i32> DelegateNode for TesterTask<ID> {
+    fn delegate_node(&self) -> &dyn crate::node::Node {
+        &self.task
     }
 }
 impl<const ID: i32> TesterTask<ID> {
-    pub fn new(count: u32, result: TaskState) -> Arc<Self> {
+    pub fn new(count: u32, result: NodeResult) -> Self {
         let checker = move |In(entity): In<Entity>, param: Query<&TesterComponent<ID>>| {
             let comp = param.get(entity).expect("TesterComponent not found!");
             if comp.updated_count < count {
-                TaskState::Running
+                TaskStatus::Running
             } else {
-                result
+                TaskStatus::Complete(result)
             }
         };
-        let task = Arc::new(TaskImpl::new(checker)
+        let task = TaskBridge::new(checker)
             .insert_while_running(TesterComponent::<ID> { updated_count: 0 })
-        );
-        Arc::new(Self {task})
+        ;
+        Self {task}
     }
 }
 
@@ -80,14 +92,12 @@ fn update<const ID: i32>(
     }
 }
 
-
 #[test]
 fn test_enter_tester_task() {
     let mut app = App::new();
     app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
-    let task = TesterTask::<0>::new(1, TaskState::Success);
-    let tree = BehaviorTree::new(task);
-    let entity = app.world.spawn(tree).id();
+    let task = TesterTask::<0>::new(1, NodeResult::Success);
+    let entity = app.world.spawn(BehaviorTreeBundle::from_root(task)).id();
     app.update();
     assert!(
         app.world.get::<TesterComponent<0>>(entity).is_some(),
@@ -101,9 +111,8 @@ fn test_enter_tester_task() {
 fn test_exit_tester_task() {
     let mut app = App::new();
     app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
-    let task = TesterTask::<0>::new(1, TaskState::Success);
-    let tree = BehaviorTree::new(task);
-    let entity = app.world.spawn(tree).id();
+    let task = TesterTask::<0>::new(1, NodeResult::Success);
+    let entity = app.world.spawn(BehaviorTreeBundle::from_root(task)).id();
     app.update();
     app.update();
     assert!(
@@ -116,16 +125,16 @@ fn test_exit_tester_task() {
 fn test_log_test_task() {
     let mut app = App::new();
     app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
-    let task = TesterTask::<0>::new(1, TaskState::Success);
-    let tree = BehaviorTree::new(task);
-    let _entity = app.world.spawn(tree).id();
+    let task = TesterTask::<0>::new(1, NodeResult::Success);
+    let _entity = app.world.spawn(BehaviorTreeBundle::from_root(task)).id();
     app.update();
     app.update();
     let expected = TestLog {log: vec![
         TestLogEntry {task_id: 0, updated_count: 0, frame: 1},
     ]};
+    let found = app.world.get_resource::<TestLog>().unwrap();
     assert!(
-        app.world.get_resource::<TestLog>().unwrap() == &expected,
-        "TesterComponent should removed on exit."
+        found == &expected,
+        "TesterComponent should removed on exit. found: {:?}", found
     );
 }

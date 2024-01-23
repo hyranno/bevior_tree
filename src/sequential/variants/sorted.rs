@@ -1,116 +1,108 @@
-use std::{cmp::Reverse, sync::{Arc, Mutex}};
-use bevy::prelude::*;
+use std::{cmp::Reverse, sync::Mutex};
+
 use ordered_float::OrderedFloat;
 
-use crate::{Node, NodeGen, NodeResult};
-use crate::nullable_access::NullableWorldAccess;
-use crate::sequential::{ScoredSequence, NodeScorer};
-use super::last_result;
+use crate as bevior_tree;
+use crate::node::prelude::*;
+use super::{ScoredSequence, Scorer, result_and, result_or, result_last, result_forced,};
+
+
+pub mod prelude {
+    pub use super::{
+        pick_sorted, pick_max,
+        ScoreOrderedSequentialAnd,
+        ScoreOrderedSequentialOr,
+        ScoreOrderedForcedSequence,
+        ScoredForcedSelector,
+    };
+}
 
 
 /// Sort descending by score.
-pub fn pick_sorted(mut nodes: Vec<(f32, Arc<dyn Node>)>) -> Vec<(f32, Arc<dyn Node>)> {
-    nodes.sort_by_key(|(score, _)| Reverse(OrderedFloat(*score)));
-    nodes
+pub fn pick_sorted(scores: Vec<f32>) -> Vec<usize> {
+    let mut enumerated: Vec<(usize, f32)> = scores.into_iter().enumerate().collect();
+    enumerated.sort_by_key(|(_, score)| Reverse(OrderedFloat(*score)));
+    enumerated.into_iter().map(|(index, _)| index).collect()
 }
-pub fn pick_max(nodes: Vec<(f32, Arc<dyn Node>)>) -> Vec<(f32, Arc<dyn Node>)> {
-    let picked = nodes.into_iter().max_by_key(|(score, _)| OrderedFloat(*score));
-    match picked {
-        Some(node) => vec![node],
-        None => vec![],
-    }
+pub fn pick_max(scores: Vec<f32>) -> Vec<usize> {
+    scores.into_iter()
+        .enumerate()
+        .max_by_key(|(_, score)| OrderedFloat(*score))
+        .map(|(index, _)| index)
+        .into_iter().collect()
 }
+
 
 /// Node that runs children while their result is Success.
 /// Children are sorted descending by score on enter the node.
+#[delegate_node(delegate)]
 pub struct ScoreOrderedSequentialAnd {
-    delegate: Arc<ScoredSequence>,
-}
-impl Node for ScoreOrderedSequentialAnd {
-    fn run(self: Arc<Self>, world: Arc<Mutex<NullableWorldAccess>>, entity: Entity) -> Box<dyn NodeGen> {
-        self.delegate.clone().run(world, entity)
-    }
+    delegate: ScoredSequence,
 }
 impl ScoreOrderedSequentialAnd {
-    pub fn new(node_scorers: Vec<Box<dyn NodeScorer>>) -> Arc<Self> {
-        Arc::new(Self {delegate: ScoredSequence::new(
-            node_scorers,
+    pub fn new(nodes: Vec<(Box<dyn Node>, Mutex<Box<dyn Scorer>>)>) -> Self {
+        Self {delegate: ScoredSequence::new(
+            nodes,
             pick_sorted,
-            |res| res==NodeResult::Success,
-            |_| NodeResult::Success,
-        )})
+            result_and,
+        )}
     }
 }
+
 
 /// Node that runs children while their result is Failure.
 /// Children are sorted descending by score on enter the node.
+#[delegate_node(delegate)]
 pub struct ScoreOrderedSequentialOr {
-    delegate: Arc<ScoredSequence>,
-}
-impl Node for ScoreOrderedSequentialOr {
-    fn run(self: Arc<Self>, world: Arc<Mutex<NullableWorldAccess>>, entity: Entity) -> Box<dyn NodeGen> {
-        self.delegate.clone().run(world, entity)
-    }
+    delegate: ScoredSequence,
 }
 impl ScoreOrderedSequentialOr {
-    pub fn new(node_scorers: Vec<Box<dyn NodeScorer>>) -> Arc<Self> {
-        Arc::new(Self {delegate: ScoredSequence::new(
-            node_scorers,
+    pub fn new(nodes: Vec<(Box<dyn Node>, Mutex<Box<dyn Scorer>>)>) -> Self {
+        Self {delegate: ScoredSequence::new(
+            nodes,
             pick_sorted,
-            |res| res==NodeResult::Failure,
-            last_result,
-        )})
+            result_or,
+        )}
     }
 }
+
 
 /// Node that runs all children.
 /// Children are sorted descending by score on enter the node.
+#[delegate_node(delegate)]
 pub struct ScoreOrderedForcedSequence {
-    delegate: Arc<ScoredSequence>,
-}
-impl Node for ScoreOrderedForcedSequence {
-    fn run(self: Arc<Self>, world: Arc<Mutex<NullableWorldAccess>>, entity: Entity) -> Box<dyn NodeGen> {
-        self.delegate.clone().run(world, entity)
-    }
+    delegate: ScoredSequence,
 }
 impl ScoreOrderedForcedSequence {
-    pub fn new(node_scorers: Vec<Box<dyn NodeScorer>>) -> Arc<Self> {
-        Arc::new(Self {delegate: ScoredSequence::new(
-            node_scorers,
+    pub fn new(nodes: Vec<(Box<dyn Node>, Mutex<Box<dyn Scorer>>)>) -> Self {
+        Self {delegate: ScoredSequence::new(
+            nodes,
             pick_sorted,
-            |_| true,
-            last_result,
-        )})
+            result_last,
+        )}
     }
 }
 
+
 /// Node that runs just one child with highest score on enter the node.
+#[delegate_node(delegate)]
 pub struct ScoredForcedSelector {
-    delegate: Arc<ScoredSequence>,
-}
-impl Node for ScoredForcedSelector {
-    fn run(self: Arc<Self>, world: Arc<Mutex<NullableWorldAccess>>, entity: Entity) -> Box<dyn NodeGen> {
-        self.delegate.clone().run(world, entity)
-    }
+    delegate: ScoredSequence,
 }
 impl ScoredForcedSelector {
-    pub fn new(node_scorers: Vec<Box<dyn NodeScorer>>) -> Arc<Self> {
-        Arc::new(Self {delegate: ScoredSequence::new(
-            node_scorers,
+    pub fn new(nodes: Vec<(Box<dyn Node>, Mutex<Box<dyn Scorer>>)>) -> Self {
+        Self {delegate: ScoredSequence::new(
+            nodes,
             pick_max,
-            |_| false,
-            |_| NodeResult::Failure,  // Be used only when the nodes is empty.
-        )})
+            result_forced,
+        )}
     }
 }
 
 
 #[cfg(test)]
 mod tests {
-    use crate::*;
-    use crate::task::*;
-    use crate::tester_util::{TesterPlugin, TesterTask, TestLog, TestLogEntry};
-    use crate::sequential::NodeScorerImpl;
+    use crate::tester_util::prelude::*;
     use super::*;
 
     #[test]
@@ -118,25 +110,24 @@ mod tests {
         let mut app = App::new();
         app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let sequence = ScoreOrderedSequentialAnd::new(vec![
-            Box::new(NodeScorerImpl::new(
+            pair_node_scorer_fn(
+                TesterTask::<0>::new(1, NodeResult::Success),
                 |In(_)| 0.1,
-                TesterTask::<0>::new(1, TaskState::Success)
-            )),
-            Box::new(NodeScorerImpl::new(
+            ),
+            pair_node_scorer_fn(
+                TesterTask::<1>::new(1, NodeResult::Success),
                 |In(_)| 0.3,
-                TesterTask::<1>::new(1, TaskState::Success)
-            )),
-            Box::new(NodeScorerImpl::new(
+            ),
+            pair_node_scorer_fn(
+                TesterTask::<2>::new(1, NodeResult::Failure),
                 |In(_)| 0.2,
-                TesterTask::<2>::new(1, TaskState::Failure)
-            )),
-            Box::new(NodeScorerImpl::new(
+            ),
+            pair_node_scorer_fn(
+                TesterTask::<3>::new(1, NodeResult::Success),
                 |In(_)| 0.4,
-                TesterTask::<3>::new(1, TaskState::Success)
-            )),
+            ),
         ]);
-        let tree = BehaviorTree::new(sequence);
-        let _entity = app.world.spawn(tree).id();
+        let _entity = app.world.spawn(BehaviorTreeBundle::from_root(sequence)).id();
         app.update();
         app.update();  // 3
         app.update();  // 1
@@ -147,9 +138,10 @@ mod tests {
             TestLogEntry {task_id: 1, updated_count: 0, frame: 2},
             TestLogEntry {task_id: 2, updated_count: 0, frame: 3},
         ]};
+        let found = app.world.get_resource::<TestLog>().unwrap();
         assert!(
-            app.world.get_resource::<TestLog>().unwrap() == &expected,
-            "ScoreOrderedSequentialAnd should match result."
+            found == &expected,
+            "Result mismatch. found: {:?}", found
         );
     }
 
@@ -158,25 +150,24 @@ mod tests {
         let mut app = App::new();
         app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let sequence = ScoreOrderedSequentialOr::new(vec![
-            Box::new(NodeScorerImpl::new(
+            pair_node_scorer_fn(
+                TesterTask::<0>::new(1, NodeResult::Failure),
                 |In(_)| 0.1,
-                TesterTask::<0>::new(1, TaskState::Failure)
-            )),
-            Box::new(NodeScorerImpl::new(
+            ),
+            pair_node_scorer_fn(
+                TesterTask::<1>::new(1, NodeResult::Failure),
                 |In(_)| 0.3,
-                TesterTask::<1>::new(1, TaskState::Failure)
-            )),
-            Box::new(NodeScorerImpl::new(
+            ),
+            pair_node_scorer_fn(
+                TesterTask::<2>::new(1, NodeResult::Success),
                 |In(_)| 0.2,
-                TesterTask::<2>::new(1, TaskState::Success)
-            )),
-            Box::new(NodeScorerImpl::new(
+            ),
+            pair_node_scorer_fn(
+                TesterTask::<3>::new(1, NodeResult::Failure),
                 |In(_)| 0.4,
-                TesterTask::<3>::new(1, TaskState::Failure)
-            )),
+            ),
         ]);
-        let tree = BehaviorTree::new(sequence);
-        let _entity = app.world.spawn(tree).id();
+        let _entity = app.world.spawn(BehaviorTreeBundle::from_root(sequence)).id();
         app.update();
         app.update();  // 3
         app.update();  // 1
@@ -187,9 +178,10 @@ mod tests {
             TestLogEntry {task_id: 1, updated_count: 0, frame: 2},
             TestLogEntry {task_id: 2, updated_count: 0, frame: 3},
         ]};
+        let found = app.world.get_resource::<TestLog>().unwrap();
         assert!(
-            app.world.get_resource::<TestLog>().unwrap() == &expected,
-            "ScoreOrderedSequentialAnd should match result."
+            found == &expected,
+            "Result mismatch. found: {:?}", found
         );
     }
 
@@ -198,25 +190,24 @@ mod tests {
         let mut app = App::new();
         app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let sequence = ScoreOrderedForcedSequence::new(vec![
-            Box::new(NodeScorerImpl::new(
+            pair_node_scorer_fn(
+                TesterTask::<0>::new(1, NodeResult::Failure),
                 |In(_)| 0.1,
-                TesterTask::<0>::new(1, TaskState::Failure)
-            )),
-            Box::new(NodeScorerImpl::new(
+            ),
+            pair_node_scorer_fn(
+                TesterTask::<1>::new(1, NodeResult::Failure),
                 |In(_)| 0.3,
-                TesterTask::<1>::new(1, TaskState::Failure)
-            )),
-            Box::new(NodeScorerImpl::new(
+            ),
+            pair_node_scorer_fn(
+                TesterTask::<2>::new(1, NodeResult::Success),
                 |In(_)| 0.2,
-                TesterTask::<2>::new(1, TaskState::Success)
-            )),
-            Box::new(NodeScorerImpl::new(
+            ),
+            pair_node_scorer_fn(
+                TesterTask::<3>::new(1, NodeResult::Failure),
                 |In(_)| 0.4,
-                TesterTask::<3>::new(1, TaskState::Failure)
-            )),
+            ),
         ]);
-        let tree = BehaviorTree::new(sequence);
-        let _entity = app.world.spawn(tree).id();
+        let _entity = app.world.spawn(BehaviorTreeBundle::from_root(sequence)).id();
         app.update();
         app.update();  // 3
         app.update();  // 1
@@ -229,9 +220,10 @@ mod tests {
             TestLogEntry {task_id: 2, updated_count: 0, frame: 3},
             TestLogEntry {task_id: 0, updated_count: 0, frame: 4},
         ]};
+        let found = app.world.get_resource::<TestLog>().unwrap();
         assert!(
-            app.world.get_resource::<TestLog>().unwrap() == &expected,
-            "ScoreOrderedForcedSequence should match result."
+            found == &expected,
+            "Result mismatch. found: {:?}", found
         );
     }
 
@@ -240,34 +232,34 @@ mod tests {
         let mut app = App::new();
         app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let sequence = ScoredForcedSelector::new(vec![
-            Box::new(NodeScorerImpl::new(
+            pair_node_scorer_fn(
+                TesterTask::<0>::new(1, NodeResult::Failure),
                 |In(_)| 0.1,
-                TesterTask::<0>::new(1, TaskState::Failure)
-            )),
-            Box::new(NodeScorerImpl::new(
+            ),
+            pair_node_scorer_fn(
+                TesterTask::<1>::new(1, NodeResult::Failure),
                 |In(_)| 0.3,
-                TesterTask::<1>::new(1, TaskState::Failure)
-            )),
-            Box::new(NodeScorerImpl::new(
+            ),
+            pair_node_scorer_fn(
+                TesterTask::<2>::new(1, NodeResult::Success),
                 |In(_)| 0.2,
-                TesterTask::<2>::new(1, TaskState::Success)
-            )),
-            Box::new(NodeScorerImpl::new(
+            ),
+            pair_node_scorer_fn(
+                TesterTask::<3>::new(1, NodeResult::Failure),
                 |In(_)| 0.4,
-                TesterTask::<3>::new(1, TaskState::Failure)
-            )),
+            ),
         ]);
-        let tree = BehaviorTree::new(sequence);
-        let _entity = app.world.spawn(tree).id();
+        let _entity = app.world.spawn(BehaviorTreeBundle::from_root(sequence)).id();
         app.update();
         app.update();  // 3, sequence complete
         app.update();  // nop
         let expected = TestLog {log: vec![
             TestLogEntry {task_id: 3, updated_count: 0, frame: 1},
         ]};
+        let found = app.world.get_resource::<TestLog>().unwrap();
         assert!(
-            app.world.get_resource::<TestLog>().unwrap() == &expected,
-            "ScoreOrderedForcedSelector should match result."
+            found == &expected,
+            "Result mismatch. found: {:?}", found
         );
     }
 }

@@ -1,37 +1,44 @@
 //! Decorator nodes that convert the result of its child.
 
-use std::sync::{Arc, Mutex};
-use genawaiter::sync::Gen;
+use bevy::ecs::{entity::Entity, world::World};
 
-use bevy::ecs::entity::Entity;
-
-use super::{Node, NodeGen, NodeResult, complete_or_yield, nullable_access::NullableWorldAccess};
-
+use crate::node::prelude::*;
 
 pub mod variants;
+
+pub mod prelude {
+    pub use super::{
+        ResultConverter,
+        variants::prelude::*,
+    };
+}
 
 /// Node that converts the result of the child.
 pub struct ResultConverter
 where
 {
-    child: Arc<dyn Node>,
-    convert: Box<dyn Fn(bool) -> bool + 'static + Send + Sync>,
+    child: Box<dyn Node>,
+    converter: Box<dyn Fn(NodeResult) -> NodeResult + 'static + Send + Sync>,
 }
 impl ResultConverter {
-    pub fn new(child: Arc<dyn Node>, convert: impl Fn(bool) -> bool + 'static + Send + Sync) -> Arc<Self> {
-        Arc::new(Self { child, convert: Box::new(convert) })
+    pub fn new(child: impl Node, converter: impl Fn(NodeResult) -> NodeResult + 'static + Send + Sync) -> Self {
+        Self { child: Box::new(child), converter: Box::new(converter) }
+    }
+    fn convert(&self, status: NodeStatus) -> NodeStatus {
+        match &status {
+            &NodeStatus::Complete(result) => NodeStatus::Complete((*self.converter)(result)),
+            _ => status
+        }
     }
 }
 impl Node for ResultConverter {
-    fn run(self: Arc<Self>, world: Arc<Mutex<NullableWorldAccess>>, entity: Entity) -> Box<dyn NodeGen> {
-        let producer = |co| async move {
-            let mut gen = self.child.clone().run(world.clone(), entity);
-            let node_result = complete_or_yield(&co, &mut gen).await;
-            match node_result {
-                NodeResult::Aborted => { node_result },
-                _ => { (self.convert)(node_result.into()).into() },
-            }
-        };
-        Box::new(Gen::new(producer))
+    fn begin(&self, world: &mut World, entity: Entity) -> NodeStatus {
+        self.convert(self.child.begin(world, entity))
+    }
+    fn resume(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) -> NodeStatus {
+        self.convert(self.child.resume(world, entity, state))
+    }
+    fn force_exit(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) {
+        self.child.force_exit(world, entity, state)
     }
 }

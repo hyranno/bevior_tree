@@ -1,143 +1,131 @@
+use std::{ops::DerefMut, sync::{Arc, Mutex}};
 
-use std::{cmp::Reverse, ops::DerefMut, sync::{Arc, Mutex}};
-use bevy::prelude::*;
-use ordered_float::OrderedFloat;
 use rand::{distributions::Uniform, Rng, prelude::Distribution};
 
-use crate::{Node, NodeGen, NodeResult};
-use crate::nullable_access::NullableWorldAccess;
-use crate::sequential::{ScoredSequence, NodeScorer, };
+use crate as bevior_tree;
+use crate::node::prelude::*;
+use super::{ScoredSequence, Scorer, result_and, result_or, result_last, result_forced,};
+use super::sorted::{pick_sorted, pick_max};
 
-use super::last_result;
+
+pub mod prelude {
+    pub use super::{
+        pick_random_sorted, pick_random_one,
+        RandomOrderedSequentialAnd,
+        RandomOrderedSequentialOr,
+        RandomOrderedForcedSequence,
+        RandomForcedSelector,
+    };
+}
 
 
 /// Weighted random sampling.
 /// Probability of being picked next is proportional to the score.
 /// Using algorithm called A-ES by Efraimidis and Spirakis.
-pub fn pick_random_sorted<R: Rng>(mut nodes: Vec<(f32, Arc<dyn Node>)>, rng: &mut R) -> Vec<(f32, Arc<dyn Node>)> {
+pub fn pick_random_sorted(scores: Vec<f32>, rng: &mut impl Rng) -> Vec<usize> {
     let dist = Uniform::<f32>::new(0.0, 1.0);
-    nodes.sort_by_key(|(score, _)| Reverse(OrderedFloat(
+    let scores = scores.into_iter().map(|score|
         dist.sample(rng).powf(1.0/score)
-    )));
-    nodes
+    ).collect();
+    pick_sorted(scores)
 }
 /// Weighted random sampling.
-/// Note: does not match with first element of `pick_random_sorted`.
-pub fn pick_random_one<R: Rng>(nodes: Vec<(f32, Arc<dyn Node>)>, rng: &mut R) -> Vec<(f32, Arc<dyn Node>)> {
+pub fn pick_random_one(scores: Vec<f32>, rng: &mut impl Rng) -> Vec<usize> {
     let dist = Uniform::<f32>::new(0.0, 1.0);
-    let picked = nodes.into_iter().max_by_key(|(score, _)| OrderedFloat(
+    let scores = scores.into_iter().map(|score|
         dist.sample(rng).powf(1.0/score)
-    ));
-    match picked {
-        Some(node) => vec![node],
-        None => vec![],
-    }
+    ).collect();
+    pick_max(scores)
 }
+
 
 
 /// Node that runs children while their result is Success.
 /// Children are sorted random weighted by score on enter the node.
+#[delegate_node(delegate)]
 pub struct RandomOrderedSequentialAnd{
-    delegate: Arc<ScoredSequence>,
-}
-impl Node for RandomOrderedSequentialAnd {
-    fn run(self: Arc<Self>, world: Arc<Mutex<NullableWorldAccess>>, entity: Entity) -> Box<dyn NodeGen> {
-        self.delegate.clone().run(world, entity)
-    }
+    delegate: ScoredSequence,
 }
 impl RandomOrderedSequentialAnd
 {
-    pub fn new<R>(node_scorers: Vec<Box<dyn NodeScorer>>, rng: Arc<Mutex<R>>) -> Arc<Self>
+    pub fn new<R>(nodes: Vec<(Box<dyn Node>, Mutex<Box<dyn Scorer>>)>, rng: Arc<Mutex<R>>) -> Self
     where
-        R: Rng + 'static + Send + Sync,
+    R: Rng + 'static + Send + Sync,
     {
-        Arc::new(Self {delegate: ScoredSequence::new(
-            node_scorers,
-            move |nodes| pick_random_sorted(nodes, (&mut rng.lock().unwrap()).deref_mut()),
-            |res| res==NodeResult::Success,
-            |_| NodeResult::Success,
-        )})
+        Self {delegate: ScoredSequence::new(
+            nodes,
+            move |scores| pick_random_sorted(scores, (&mut rng.lock().unwrap()).deref_mut()),
+            result_and,
+        )}
     }
 }
+
 
 /// Node that runs children while their result is Failure.
 /// Children are sorted random weighted by score on enter the node.
+#[delegate_node(delegate)]
 pub struct RandomOrderedSequentialOr{
-    delegate: Arc<ScoredSequence>,
-}
-impl Node for RandomOrderedSequentialOr {
-    fn run(self: Arc<Self>, world: Arc<Mutex<NullableWorldAccess>>, entity: Entity) -> Box<dyn NodeGen> {
-        self.delegate.clone().run(world, entity)
-    }
+    delegate: ScoredSequence,
 }
 impl RandomOrderedSequentialOr
 {
-    pub fn new<R>(node_scorers: Vec<Box<dyn NodeScorer>>, rng: Arc<Mutex<R>>) -> Arc<Self>
+    pub fn new<R>(nodes: Vec<(Box<dyn Node>, Mutex<Box<dyn Scorer>>)>, rng: Arc<Mutex<R>>) -> Self
     where
-        R: Rng + 'static + Send + Sync,
+    R: Rng + 'static + Send + Sync,
     {
-        Arc::new(Self {delegate: ScoredSequence::new(
-            node_scorers,
-            move |nodes| pick_random_sorted(nodes, (&mut rng.lock().unwrap()).deref_mut()),
-            |res| res==NodeResult::Failure,
-            last_result,
-        )})
+        Self {delegate: ScoredSequence::new(
+            nodes,
+            move |scores| pick_random_sorted(scores, (&mut rng.lock().unwrap()).deref_mut()),
+            result_or,
+        )}
     }
 }
+
+
 /// Node that runs all children.
 /// Children are sorted random weighted by score on enter the node.
+#[delegate_node(delegate)]
 pub struct RandomOrderedForcedSequence{
-    delegate: Arc<ScoredSequence>,
-}
-impl Node for RandomOrderedForcedSequence {
-    fn run(self: Arc<Self>, world: Arc<Mutex<NullableWorldAccess>>, entity: Entity) -> Box<dyn NodeGen> {
-        self.delegate.clone().run(world, entity)
-    }
+    delegate: ScoredSequence,
 }
 impl RandomOrderedForcedSequence
 {
-    pub fn new<R>(node_scorers: Vec<Box<dyn NodeScorer>>, rng: Arc<Mutex<R>>) -> Arc<Self>
+    pub fn new<R>(nodes: Vec<(Box<dyn Node>, Mutex<Box<dyn Scorer>>)>, rng: Arc<Mutex<R>>) -> Self
     where
-        R: Rng + 'static + Send + Sync,
+    R: Rng + 'static + Send + Sync,
     {
-        Arc::new(Self {delegate: ScoredSequence::new(
-            node_scorers,
-            move |nodes| pick_random_sorted(nodes, (&mut rng.lock().unwrap()).deref_mut()),
-            |_| true,
-            last_result,
-        )})
+        Self {delegate: ScoredSequence::new(
+            nodes,
+            move |scores| pick_random_sorted(scores, (&mut rng.lock().unwrap()).deref_mut()),
+            result_last,
+        )}
     }
 }
 
+
 /// Node that runs just one child picked with score-weighted random on enter the node.
+#[delegate_node(delegate)]
 pub struct RandomForcedSelector {
-    delegate: Arc<ScoredSequence>,
-}
-impl Node for RandomForcedSelector {
-    fn run(self: Arc<Self>, world: Arc<Mutex<NullableWorldAccess>>, entity: Entity) -> Box<dyn NodeGen> {
-        self.delegate.clone().run(world, entity)
-    }
+    delegate: ScoredSequence,
 }
 impl RandomForcedSelector {
-    pub fn new<R>(node_scorers: Vec<Box<dyn NodeScorer>>, rng: Arc<Mutex<R>>) -> Arc<Self>
+    pub fn new<R>(nodes: Vec<(Box<dyn Node>, Mutex<Box<dyn Scorer>>)>, rng: Arc<Mutex<R>>) -> Self
     where
-        R: Rng + 'static + Send + Sync,
+    R: Rng + 'static + Send + Sync,
     {
-        Arc::new(Self {delegate: ScoredSequence::new(
-            node_scorers,
-            move |nodes| pick_random_one(nodes, (&mut rng.lock().unwrap()).deref_mut()),
-            |_| false,
-            |_| NodeResult::Failure,  // Be used only when the nodes is empty.
-        )})
+        Self {delegate: ScoredSequence::new(
+            nodes,
+            move |scores| pick_random_one(scores, (&mut rng.lock().unwrap()).deref_mut()),
+            result_forced
+        )}
     }
 }
+
+
 
 #[cfg(test)]
 mod tests {
-    use crate::*;
-    use crate::task::*;
-    use crate::tester_util::{TesterPlugin, TesterTask, TestLog, TestLogEntry};
-    use crate::sequential::NodeScorerImpl;
+    use crate::tester_util::prelude::*;
     use super::*;
 
     use rand::SeedableRng;
@@ -148,36 +136,35 @@ mod tests {
         app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let sequence = RandomOrderedSequentialAnd::new(
             vec![
-                Box::new(NodeScorerImpl::new(
+                pair_node_scorer_fn(
+                    TesterTask::<0>::new(1, NodeResult::Success),
                     |In(_)| 0.1,
-                    TesterTask::<0>::new(1, TaskState::Failure)
-                )),
-                Box::new(NodeScorerImpl::new(
+                ),
+                pair_node_scorer_fn(
+                    TesterTask::<1>::new(1, NodeResult::Success),
                     |In(_)| 0.3,
-                    TesterTask::<1>::new(1, TaskState::Success)
-                )),
-                Box::new(NodeScorerImpl::new(
+                ),
+                pair_node_scorer_fn(
+                    TesterTask::<2>::new(1, NodeResult::Success),
                     |In(_)| 0.2,
-                    TesterTask::<2>::new(1, TaskState::Success)
-                )),
-                Box::new(NodeScorerImpl::new(
+                ),
+                pair_node_scorer_fn(
+                    TesterTask::<3>::new(1, NodeResult::Failure),
                     |In(_)| 0.4,
-                    TesterTask::<3>::new(1, TaskState::Success)
-                )),
+                ),
             ],
             Arc::new(Mutex::new(rand::rngs::StdRng::seed_from_u64(224)))
         );
-        let tree = BehaviorTree::new(sequence);
-        let _entity = app.world.spawn(tree).id();
+        let _entity = app.world.spawn(BehaviorTreeBundle::from_root(sequence)).id();
         app.update();
-        app.update();  // 3
+        app.update();  // 1
         app.update();  // 2
-        app.update();  // 0, sequence complete with Failure
+        app.update();  // 3, sequence complete with Failure
         app.update();  // nop
         let expected = TestLog {log: vec![
-            TestLogEntry {task_id: 3, updated_count: 0, frame: 1},
+            TestLogEntry {task_id: 1, updated_count: 0, frame: 1},
             TestLogEntry {task_id: 2, updated_count: 0, frame: 2},
-            TestLogEntry {task_id: 0, updated_count: 0, frame: 3},
+            TestLogEntry {task_id: 3, updated_count: 0, frame: 3},
         ]};
         let found =app.world.get_resource::<TestLog>().unwrap();
         assert!(
@@ -192,36 +179,35 @@ mod tests {
         app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let sequence = RandomOrderedSequentialOr::new(
             vec![
-                Box::new(NodeScorerImpl::new(
+                pair_node_scorer_fn(
+                    TesterTask::<0>::new(1, NodeResult::Failure),
                     |In(_)| 0.1,
-                    TesterTask::<0>::new(1, TaskState::Success)
-                )),
-                Box::new(NodeScorerImpl::new(
+                ),
+                pair_node_scorer_fn(
+                    TesterTask::<1>::new(1, NodeResult::Failure),
                     |In(_)| 0.3,
-                    TesterTask::<1>::new(1, TaskState::Failure)
-                )),
-                Box::new(NodeScorerImpl::new(
+                ),
+                pair_node_scorer_fn(
+                    TesterTask::<2>::new(1, NodeResult::Failure),
                     |In(_)| 0.2,
-                    TesterTask::<2>::new(1, TaskState::Failure)
-                )),
-                Box::new(NodeScorerImpl::new(
+                ),
+                pair_node_scorer_fn(
+                    TesterTask::<3>::new(1, NodeResult::Success),
                     |In(_)| 0.4,
-                    TesterTask::<3>::new(1, TaskState::Failure)
-                )),
+                ),
             ],
             Arc::new(Mutex::new(rand::rngs::StdRng::seed_from_u64(224)))
         );
-        let tree = BehaviorTree::new(sequence);
-        let _entity = app.world.spawn(tree).id();
+        let _entity = app.world.spawn(BehaviorTreeBundle::from_root(sequence)).id();
         app.update();
-        app.update();  // 3
+        app.update();  // 1
         app.update();  // 2
-        app.update();  // 0, sequence complete with Success
+        app.update();  // 3, sequence complete with Success
         app.update();  // nop
         let expected = TestLog {log: vec![
-            TestLogEntry {task_id: 3, updated_count: 0, frame: 1},
+            TestLogEntry {task_id: 1, updated_count: 0, frame: 1},
             TestLogEntry {task_id: 2, updated_count: 0, frame: 2},
-            TestLogEntry {task_id: 0, updated_count: 0, frame: 3},
+            TestLogEntry {task_id: 3, updated_count: 0, frame: 3},
         ]};
         let found =app.world.get_resource::<TestLog>().unwrap();
         assert!(
@@ -236,38 +222,37 @@ mod tests {
         app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let sequence = RandomOrderedForcedSequence::new(
             vec![
-                Box::new(NodeScorerImpl::new(
+                pair_node_scorer_fn(
+                    TesterTask::<0>::new(1, NodeResult::Failure),
                     |In(_)| 0.1,
-                    TesterTask::<0>::new(1, TaskState::Failure)
-                )),
-                Box::new(NodeScorerImpl::new(
+                ),
+                pair_node_scorer_fn(
+                    TesterTask::<1>::new(1, NodeResult::Failure),
                     |In(_)| 0.3,
-                    TesterTask::<1>::new(1, TaskState::Failure)
-                )),
-                Box::new(NodeScorerImpl::new(
+                ),
+                pair_node_scorer_fn(
+                    TesterTask::<2>::new(1, NodeResult::Success),
                     |In(_)| 0.2,
-                    TesterTask::<2>::new(1, TaskState::Success)
-                )),
-                Box::new(NodeScorerImpl::new(
+                ),
+                pair_node_scorer_fn(
+                    TesterTask::<3>::new(1, NodeResult::Failure),
                     |In(_)| 0.4,
-                    TesterTask::<3>::new(1, TaskState::Failure)
-                )),
+                ),
             ],
             Arc::new(Mutex::new(rand::rngs::StdRng::seed_from_u64(224)))
         );
-        let tree = BehaviorTree::new(sequence);
-        let _entity = app.world.spawn(tree).id();
+        let _entity = app.world.spawn(BehaviorTreeBundle::from_root(sequence)).id();
         app.update();
-        app.update();  // 3
+        app.update();  // 1
         app.update();  // 2
-        app.update();  // 0
-        app.update();  // 1, sequence complete
+        app.update();  // 3
+        app.update();  // 0, sequence complete
         app.update();  // nop
         let expected = TestLog {log: vec![
-            TestLogEntry {task_id: 3, updated_count: 0, frame: 1},
+            TestLogEntry {task_id: 1, updated_count: 0, frame: 1},
             TestLogEntry {task_id: 2, updated_count: 0, frame: 2},
-            TestLogEntry {task_id: 0, updated_count: 0, frame: 3},
-            TestLogEntry {task_id: 1, updated_count: 0, frame: 4},
+            TestLogEntry {task_id: 3, updated_count: 0, frame: 3},
+            TestLogEntry {task_id: 0, updated_count: 0, frame: 4},
         ]};
         let found =app.world.get_resource::<TestLog>().unwrap();
         assert!(
@@ -282,32 +267,31 @@ mod tests {
         app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let sequence = RandomForcedSelector::new(
             vec![
-                Box::new(NodeScorerImpl::new(
+                pair_node_scorer_fn(
+                    TesterTask::<0>::new(1, NodeResult::Failure),
                     |In(_)| 0.1,
-                    TesterTask::<0>::new(1, TaskState::Failure)
-                )),
-                Box::new(NodeScorerImpl::new(
+                ),
+                pair_node_scorer_fn(
+                    TesterTask::<1>::new(1, NodeResult::Failure),
                     |In(_)| 0.3,
-                    TesterTask::<1>::new(1, TaskState::Failure)
-                )),
-                Box::new(NodeScorerImpl::new(
+                ),
+                pair_node_scorer_fn(
+                    TesterTask::<2>::new(1, NodeResult::Success),
                     |In(_)| 0.2,
-                    TesterTask::<2>::new(1, TaskState::Success)
-                )),
-                Box::new(NodeScorerImpl::new(
-                    |In(_)| 10.4,
-                    TesterTask::<3>::new(1, TaskState::Failure)
-                )),
+                ),
+                pair_node_scorer_fn(
+                    TesterTask::<3>::new(1, NodeResult::Failure),
+                    |In(_)| 0.4,
+                ),
             ],
             Arc::new(Mutex::new(rand::rngs::StdRng::seed_from_u64(224)))
         );
-        let tree = BehaviorTree::new(sequence);
-        let _entity = app.world.spawn(tree).id();
+        let _entity = app.world.spawn(BehaviorTreeBundle::from_root(sequence)).id();
         app.update();
         app.update();  // 3, sequence complete
         app.update();  // nop
         let expected = TestLog {log: vec![
-            TestLogEntry {task_id: 3, updated_count: 0, frame: 1},
+            TestLogEntry {task_id: 1, updated_count: 0, frame: 1},
         ]};
         let found =app.world.get_resource::<TestLog>().unwrap();
         assert!(
