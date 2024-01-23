@@ -11,7 +11,7 @@ pub mod variants;
 
 pub mod prelude {
     pub use super::{
-        Scorer, Picker, CondContinue, ResultConstructor,
+        Scorer, Picker, ResultConstructor,
         ScoredSequence,
         pair_node_scorer_fn,
         variants::prelude::*,
@@ -25,11 +25,8 @@ impl<S> Scorer for S where S: ReadOnlySystem<In=Entity, Out=f32> {}
 pub trait Picker: Fn(Vec<f32>) -> Vec<usize> + 'static + Send + Sync {}
 impl<F> Picker for F where F: Fn(Vec<f32>) -> Vec<usize> + 'static + Send + Sync {}
 
-pub trait CondContinue: Fn(NodeResult) -> bool + 'static + Send + Sync {}
-impl<F> CondContinue for F where F: Fn(NodeResult) -> bool + 'static + Send + Sync {}
-
-pub trait ResultConstructor: Fn(Vec<NodeResult>) -> NodeResult + 'static + Send + Sync {}
-impl<F> ResultConstructor for F where F: Fn(Vec<NodeResult>) -> NodeResult + 'static + Send + Sync {}
+pub trait ResultConstructor: Fn(Vec<Option<NodeResult>>) -> Option<NodeResult> + 'static + Send + Sync {}
+impl<F> ResultConstructor for F where F: Fn(Vec<Option<NodeResult>>) -> Option<NodeResult> + 'static + Send + Sync {}
 
 
 /// Composite nodes that run children in sequence.
@@ -37,20 +34,17 @@ impl<F> ResultConstructor for F where F: Fn(Vec<NodeResult>) -> NodeResult + 'st
 pub struct ScoredSequence {
     nodes: Vec<(Box<dyn Node>, Mutex<Box<dyn Scorer>>)>,
     picker: Box<dyn Picker>,
-    cond_continue: Box<dyn CondContinue>,
     result_constructor: Box<dyn ResultConstructor>,
 }
 impl ScoredSequence {
     pub fn new(
         nodes: Vec<(Box<dyn Node>, Mutex<Box<dyn Scorer>>)>,
         picker: impl Picker,
-        cond_continue: impl CondContinue,
         result_constructor: impl ResultConstructor,
     ) -> Self {
         Self {
             nodes,
             picker: Box::new(picker),
-            cond_continue: Box::new(cond_continue),
             result_constructor: Box::new(result_constructor),
         }
     }
@@ -71,27 +65,28 @@ impl Node for ScoredSequence {
 
     fn resume(&self, world: &mut bevy::prelude::World, entity: Entity, state: Box<dyn NodeState>) -> NodeStatus {
         let state = Self::downcast(state).expect("Invalid state.");
-        let Some(&index) = state.indices.iter().skip(state.count).next() else {
-            let result = (*self.result_constructor)(state.results);
+        let Some(&index) = state.indices.iter().skip(state.count).next() else { // All the nodes are completed.
+            let Some(result) = (*self.result_constructor)(state.results) else {
+                panic!("Result constructor returned None on the end.");
+            };
             return NodeStatus::Complete(result)
         };
         let (state, child_state) = state.extract_child_state();
         let node = &self.nodes[index].0;
-        let status = match child_state {
+        let child_status = match child_state {
             None => node.begin(world, entity),
             Some(s) => node.resume(world, entity, s),
         };
-        match status {
+        match child_status {
             NodeStatus::Pending(child_state) => {
                 NodeStatus::Pending(Box::new(state.update_pending(child_state)))
             },
-            NodeStatus::Complete(result) => {
-                let state = state.update_result(result);
-                if (*self.cond_continue)(result) {
-                    self.resume(world, entity, Box::new(state))
-                } else {
-                    let result = (*self.result_constructor)(state.results);
-                    NodeStatus::Complete(result)
+            NodeStatus::Complete(child_result) => {
+                let state = state.update_result(child_result);
+                let result = (*self.result_constructor)(state.results.clone());
+                match result {
+                    Some(result) => NodeStatus::Complete(result), 
+                    None => self.resume(world, entity, Box::new(state))
                 }
             },
             NodeStatus::Beginning => panic!("Unexpected NodeStatus::Beginning."),
@@ -113,15 +108,16 @@ impl Node for ScoredSequence {
 struct ScoredSequenceState {
     count: usize,
     indices: Vec<usize>,
-    results: Vec<NodeResult>,
+    results: Vec<Option<NodeResult>>,
     child_state: Option<Box<dyn NodeState>>,
 }
 impl ScoredSequenceState {
     fn new(indices: Vec<usize>) -> Self {
+        let results = indices.iter().map(|_| None).collect();
         Self {
             count: 0,
             indices,
-            results: vec![],
+            results,
             child_state: None,
         }
     }
@@ -134,10 +130,15 @@ impl ScoredSequenceState {
         }
     }
     fn update_result(self, result: NodeResult) -> Self {
+        let results = self.results.into_iter()
+            .enumerate()
+            .map(|(index, v)| if index == self.count {Some(result)} else {v})
+            .collect()
+        ;
         Self {
             count: self.count + 1,
             indices: self.indices,
-            results: self.results.into_iter().chain([result]).collect(),
+            results,
             child_state: None,
         }
     }

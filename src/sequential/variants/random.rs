@@ -4,7 +4,7 @@ use rand::{distributions::Uniform, Rng, prelude::Distribution};
 
 use crate as bevior_tree;
 use crate::node::prelude::*;
-use super::{ScoredSequence, Scorer, last_result};
+use super::{ScoredSequence, Scorer, result_and, result_or, result_last, result_forced,};
 use super::sorted::{pick_sorted, pick_max};
 
 
@@ -55,8 +55,7 @@ impl RandomOrderedSequentialAnd
         Self {delegate: ScoredSequence::new(
             nodes,
             move |scores| pick_random_sorted(scores, (&mut rng.lock().unwrap()).deref_mut()),
-            |res| res==NodeResult::Success,
-            |results| if results.is_empty() {NodeResult::Success} else {last_result(results)},
+            result_and,
         )}
     }
 }
@@ -77,8 +76,7 @@ impl RandomOrderedSequentialOr
         Self {delegate: ScoredSequence::new(
             nodes,
             move |scores| pick_random_sorted(scores, (&mut rng.lock().unwrap()).deref_mut()),
-            |res| res==NodeResult::Failure,
-            last_result,
+            result_or,
         )}
     }
 }
@@ -99,8 +97,7 @@ impl RandomOrderedForcedSequence
         Self {delegate: ScoredSequence::new(
             nodes,
             move |scores| pick_random_sorted(scores, (&mut rng.lock().unwrap()).deref_mut()),
-            |_| true,
-            last_result,
+            result_last,
         )}
     }
 }
@@ -119,8 +116,7 @@ impl RandomForcedSelector {
         Self {delegate: ScoredSequence::new(
             nodes,
             move |scores| pick_random_one(scores, (&mut rng.lock().unwrap()).deref_mut()),
-            |_| false,
-            last_result,
+            result_forced
         )}
     }
 }

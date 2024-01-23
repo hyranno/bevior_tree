@@ -3,7 +3,7 @@
 use bevy::ecs::{entity::Entity, world::World};
 
 use crate::node::prelude::*;
-
+use crate::sequential::ResultConstructor;
 
 pub mod variants;
 
@@ -19,7 +19,7 @@ pub mod prelude {
 #[with_state(ParallelState)]
 pub struct Parallel {
     children: Vec<Box<dyn Node>>,
-    result_constructor: Box<dyn Fn(Vec<Option<NodeResult>>) -> Option<NodeResult> + 'static + Send + Sync>,
+    result_constructor: Box<dyn ResultConstructor>,
 }
 impl Parallel {
     /// Creates new [`Parallel`] node.
@@ -29,7 +29,7 @@ impl Parallel {
     /// * result_constructor - Take results of children, then return the result of this node if available.
     pub fn new(
         children: Vec<Box<dyn Node>>,
-        result_constructor: impl Fn(Vec<Option<NodeResult>>) -> Option<NodeResult> + 'static + Send + Sync,
+        result_constructor: impl ResultConstructor,
     ) -> Self {
         Self {
             children,

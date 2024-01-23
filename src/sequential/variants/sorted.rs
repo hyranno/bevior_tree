@@ -4,7 +4,7 @@ use ordered_float::OrderedFloat;
 
 use crate as bevior_tree;
 use crate::node::prelude::*;
-use super::{ScoredSequence, Scorer, last_result};
+use super::{ScoredSequence, Scorer, result_and, result_or, result_last, result_forced,};
 
 
 pub mod prelude {
@@ -44,8 +44,7 @@ impl ScoreOrderedSequentialAnd {
         Self {delegate: ScoredSequence::new(
             nodes,
             pick_sorted,
-            |res| res==NodeResult::Success,
-            |_| NodeResult::Success,
+            result_and,
         )}
     }
 }
@@ -62,8 +61,7 @@ impl ScoreOrderedSequentialOr {
         Self {delegate: ScoredSequence::new(
             nodes,
             pick_sorted,
-            |res| res==NodeResult::Failure,
-            last_result,
+            result_or,
         )}
     }
 }
@@ -80,8 +78,7 @@ impl ScoreOrderedForcedSequence {
         Self {delegate: ScoredSequence::new(
             nodes,
             pick_sorted,
-            |_| true,
-            last_result,
+            result_last,
         )}
     }
 }
@@ -97,8 +94,7 @@ impl ScoredForcedSelector {
         Self {delegate: ScoredSequence::new(
             nodes,
             pick_max,
-            |_| false,
-            |_| NodeResult::Failure,  // Be used only when the nodes is empty.
+            result_forced,
         )}
     }
 }

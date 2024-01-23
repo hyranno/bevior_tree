@@ -3,7 +3,7 @@ use crate as bevior_tree;
 use crate::node::prelude::*;
 
 use super::Parallel;
-
+use crate::sequential::variants::{result_and, result_or,};
 
 pub mod prelude {
     pub use super::{
@@ -23,15 +23,7 @@ impl ParallelAnd {
     pub fn new(nodes: Vec<Box<dyn Node>>,) -> Self {
         Self {delegate: Parallel::new(
             nodes,
-            |results: Vec<Option<NodeResult>>| {
-                if results.contains(&Some(NodeResult::Failure)) {
-                    Some(NodeResult::Failure)
-                } else if results.contains(&None) {
-                    None
-                } else {
-                    Some(NodeResult::Success)
-                }
-            },
+            result_and,
         )}
     }
 }
@@ -47,15 +39,7 @@ impl ParallelOr {
     pub fn new(nodes: Vec<Box<dyn Node>>,) -> Self {
         Self {delegate: Parallel::new(
             nodes,
-            |results: Vec<Option<NodeResult>>| {
-                if results.contains(&Some(NodeResult::Success)) {
-                    Some(NodeResult::Success)
-                } else if results.contains(&None) {
-                    None
-                } else {
-                    Some(NodeResult::Failure)
-                }
-            },
+            result_or,
         )}
     }
 }

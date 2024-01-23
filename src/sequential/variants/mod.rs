@@ -15,7 +15,7 @@ pub mod random;
 
 pub mod prelude {
     pub use super::{
-        score_uniform, pick_identity, last_result,
+        score_uniform, pick_identity,
         SequentialAnd, Sequence,
         SequentialOr, Selector,
         ForcedSequence,
@@ -39,8 +39,36 @@ pub fn pick_identity(scores: Vec<f32>) -> Vec<usize> {
     (0..scores.len()).collect()
 }
 
-pub fn last_result(results: Vec<NodeResult>) -> NodeResult {
-    *results.last().unwrap_or(&NodeResult::Failure)
+pub fn result_and(results: Vec<Option<NodeResult>>) -> Option<NodeResult> {
+    if results.contains(&Some(NodeResult::Failure)) {
+        Some(NodeResult::Failure)
+    } else if results.contains(&None) {
+        None
+    } else {
+        Some(NodeResult::Success)
+    }
+}
+pub fn result_or(results: Vec<Option<NodeResult>>) -> Option<NodeResult> {
+    if results.contains(&Some(NodeResult::Success)) {
+        Some(NodeResult::Success)
+    } else if results.contains(&None) {
+        None
+    } else {
+        Some(NodeResult::Failure)
+    }
+}
+pub fn result_last(results: Vec<Option<NodeResult>>) -> Option<NodeResult> {
+    if results.contains(&None) {
+        None
+    } else {
+        match results.last() {
+            Some(result) => *result,
+            None => Some(NodeResult::Failure),
+        }
+    }
+}
+pub fn result_forced(results: Vec<Option<NodeResult>>) -> Option<NodeResult> {
+    results.into_iter().find_map(|r| r)
 }
 
 
@@ -55,8 +83,7 @@ impl SequentialAnd {
         Self {delegate: ScoredSequence::new(
             score_uniform(nodes),
             pick_identity,
-            |res| res==NodeResult::Success,
-            |_| NodeResult::Success,
+            result_and,
         )}
     }
 }
@@ -73,8 +100,7 @@ impl SequentialOr {
         Self {delegate: ScoredSequence::new(
             score_uniform(nodes),
             pick_identity,
-            |res| res==NodeResult::Failure,
-            last_result,
+            result_or,
         )}
     }
 }
@@ -90,8 +116,7 @@ impl ForcedSequence {
         Self {delegate: ScoredSequence::new(
             score_uniform(nodes),
             pick_identity,
-            |_| true,
-            last_result,
+            result_last,
         )}
     }
 }
