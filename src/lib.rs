@@ -1,7 +1,7 @@
 //! Behavior tree plugin for Bevy.
 
 use std::sync::Arc;
-use bevy::{prelude::*, ecs::schedule::ScheduleLabel};
+use bevy::{ecs::schedule::ScheduleLabel, prelude::*, utils::intern::Interned};
 
 
 pub mod node;
@@ -32,24 +32,24 @@ pub mod prelude {
 
 /// Add to your app to use this crate.
 pub struct BehaviorTreePlugin {
-    schedule: Box<dyn ScheduleLabel>,
+    schedule: Interned<dyn ScheduleLabel>,
 }
 impl BehaviorTreePlugin {
     /// Adds the systems to the given schedule rather than default [`PostUpdate`].
     pub fn in_schedule(mut self, schedule: impl ScheduleLabel) -> Self {
-        self.schedule = Box::new(schedule);
+        self.schedule = schedule.intern();
         self
     }
 }
 impl Default for BehaviorTreePlugin {
     fn default() -> Self {
-        Self { schedule: Box::new(PostUpdate) }
+        Self { schedule: PostUpdate.intern() }
     }
 }
 impl Plugin for BehaviorTreePlugin {
     fn build(&self, app: &mut App) {
         app
-            .add_systems(PostUpdate, (update).in_set(BehaviorTreeSystemSet::Update))
+            .add_systems(self.schedule, (update).in_set(BehaviorTreeSystemSet::Update))
         ;
     }
 }
