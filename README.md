@@ -13,7 +13,7 @@ The `chase.rs` example is written for your first step.
 
 If you want to know about specific node, unit tests in the code might help.
 
-This crate is written with reference to [`seldom_state`](https://github.com/Seldom-SE/seldom_state),
+This crate started with reference to [`seldom_state`](https://github.com/Seldom-SE/seldom_state),
     which is good for state machines.
 
 
@@ -34,6 +34,7 @@ For example:
 
 | Bevy | `bevior_tree` | 
 | ---- | ------------- |
+| 0.13 | 0.5           |
 | 0.12 | 0.4           |
 | 0.11 | 0.1 - 0.3     |
 
