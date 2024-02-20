@@ -19,6 +19,12 @@ jobs:
       - name: Install alsa and udev
         run: sudo apt-get update; sudo apt-get install --no-install-recommends libasound2-dev libudev-dev
 
+      - name: publish macros
+        run:
+          (cd libs/derive-nodesate && cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }})
+          (cd libs/macro-delegatenode && cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }})
+          (cd libs/macro-withstate && cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }})
+
       - name: Publish
         run: cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
         # Automatically published to doc.rs too

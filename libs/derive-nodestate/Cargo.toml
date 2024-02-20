@@ -1,6 +1,9 @@
 [package]
 name = "derive-nodestate"
-version = "0.1.0"
+version.workspace = true
+description.workspace = true
+repository.workspace = true
+license.workspace = true
 
 [lib]
 proc-macro = true
