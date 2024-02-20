@@ -22,12 +22,15 @@ ordered-float = { version = "4.1" }
 rand = { version = "0.8", optional = true}
 
 [dependencies.derive-nodestate]
+version = "0.1"
 path = "libs/derive-nodestate"
 
 [dependencies.macro-withstate]
+version = "0.1"
 path = "libs/macro-withstate"
 
 [dependencies.macro-delegatenode]
+version = "0.1"
 path = "libs/macro-delegatenode"
 
 [dev-dependencies]
