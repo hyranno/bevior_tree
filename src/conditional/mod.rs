@@ -331,7 +331,7 @@ mod tests {
             |In(_), state: Res<State<TestStates>>| *state.get() == TestStates::MainState,
         );
         let _entity = app.world.spawn(BehaviorTreeBundle::from_root(root)).id();
-        app.add_state::<TestStates>();
+        app.init_state::<TestStates>();
         app.update();
         app.update();  // 0
         app.world.get_resource_mut::<NextState<TestStates>>().unwrap().set(TestStates::FreezeState);

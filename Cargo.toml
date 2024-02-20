@@ -17,7 +17,7 @@ random = ["dep:rand"]
 [workspace]
 
 [dependencies]
-bevy = { version = "0.12", default-features = false }
+bevy = { version = "0.13", default-features = false }
 ordered-float = { version = "4.1" }
 rand = { version = "0.8", optional = true}
 
@@ -31,7 +31,7 @@ path = "libs/macro-withstate"
 path = "libs/macro-delegatenode"
 
 [dev-dependencies]
-bevy = "0.12"
+bevy = "0.13"
 
 [package.metadata.docs.rs]
 all-features = true
