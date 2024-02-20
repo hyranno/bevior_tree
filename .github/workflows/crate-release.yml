@@ -21,7 +21,7 @@ jobs:
 
       - name: publish macros
         run:
-          (cd libs/derive-nodesate && cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }});
+          (cd libs/derive-nodestate && cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }});
           (cd libs/macro-delegatenode && cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }});
           (cd libs/macro-withstate && cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }});
 
