@@ -1,7 +1,7 @@
 //! Behavior tree plugin for Bevy.
 
 use std::sync::Arc;
-use bevy::{ecs::schedule::ScheduleLabel, prelude::*, utils::intern::Interned};
+use bevy::{ecs::{schedule::ScheduleLabel, intern::Interned}, prelude::*};
 
 
 pub mod node;
