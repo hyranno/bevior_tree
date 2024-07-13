@@ -244,6 +244,7 @@ struct ElseFreezeState {
 #[cfg(test)]
 mod tests {
     use crate::tester_util::prelude::*;
+    use bevy::state::app::StatesPlugin;
 
     #[derive(Component)]
     struct TestMarker;
@@ -324,7 +325,7 @@ mod tests {
     #[test]
     fn test_conditional_freeze() {
         let mut app = App::new();
-        app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
+        app.add_plugins((StatesPlugin, BehaviorTreePlugin::default(), TesterPlugin));
         let task = TesterTask::<0>::new(2, NodeResult::Success);
         let root = ElseFreeze::new(
             task,
