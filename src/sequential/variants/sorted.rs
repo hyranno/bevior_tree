@@ -127,7 +127,7 @@ mod tests {
                 |In(_)| 0.4,
             ),
         ]);
-        let _entity = app.world.spawn(BehaviorTreeBundle::from_root(sequence)).id();
+        let _entity = app.world_mut().spawn(BehaviorTreeBundle::from_root(sequence)).id();
         app.update();
         app.update();  // 3
         app.update();  // 1
@@ -138,7 +138,7 @@ mod tests {
             TestLogEntry {task_id: 1, updated_count: 0, frame: 2},
             TestLogEntry {task_id: 2, updated_count: 0, frame: 3},
         ]};
-        let found = app.world.get_resource::<TestLog>().unwrap();
+        let found = app.world().get_resource::<TestLog>().unwrap();
         assert!(
             found == &expected,
             "Result mismatch. found: {:?}", found
@@ -167,7 +167,7 @@ mod tests {
                 |In(_)| 0.4,
             ),
         ]);
-        let _entity = app.world.spawn(BehaviorTreeBundle::from_root(sequence)).id();
+        let _entity = app.world_mut().spawn(BehaviorTreeBundle::from_root(sequence)).id();
         app.update();
         app.update();  // 3
         app.update();  // 1
@@ -178,7 +178,7 @@ mod tests {
             TestLogEntry {task_id: 1, updated_count: 0, frame: 2},
             TestLogEntry {task_id: 2, updated_count: 0, frame: 3},
         ]};
-        let found = app.world.get_resource::<TestLog>().unwrap();
+        let found = app.world().get_resource::<TestLog>().unwrap();
         assert!(
             found == &expected,
             "Result mismatch. found: {:?}", found
@@ -207,7 +207,7 @@ mod tests {
                 |In(_)| 0.4,
             ),
         ]);
-        let _entity = app.world.spawn(BehaviorTreeBundle::from_root(sequence)).id();
+        let _entity = app.world_mut().spawn(BehaviorTreeBundle::from_root(sequence)).id();
         app.update();
         app.update();  // 3
         app.update();  // 1
@@ -220,7 +220,7 @@ mod tests {
             TestLogEntry {task_id: 2, updated_count: 0, frame: 3},
             TestLogEntry {task_id: 0, updated_count: 0, frame: 4},
         ]};
-        let found = app.world.get_resource::<TestLog>().unwrap();
+        let found = app.world().get_resource::<TestLog>().unwrap();
         assert!(
             found == &expected,
             "Result mismatch. found: {:?}", found
@@ -249,14 +249,14 @@ mod tests {
                 |In(_)| 0.4,
             ),
         ]);
-        let _entity = app.world.spawn(BehaviorTreeBundle::from_root(sequence)).id();
+        let _entity = app.world_mut().spawn(BehaviorTreeBundle::from_root(sequence)).id();
         app.update();
         app.update();  // 3, sequence complete
         app.update();  // nop
         let expected = TestLog {log: vec![
             TestLogEntry {task_id: 3, updated_count: 0, frame: 1},
         ]};
-        let found = app.world.get_resource::<TestLog>().unwrap();
+        let found = app.world().get_resource::<TestLog>().unwrap();
         assert!(
             found == &expected,
             "Result mismatch. found: {:?}", found

@@ -1,7 +1,7 @@
 //! Behavior tree plugin for Bevy.
 
 use std::sync::Arc;
-use bevy::{ecs::schedule::ScheduleLabel, prelude::*, utils::intern::Interned};
+use bevy::{ecs::{schedule::ScheduleLabel, intern::Interned}, prelude::*};
 
 
 pub mod node;
@@ -144,10 +144,10 @@ mod tests {
         let mut app = App::new();
         app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let task = TesterTask::<0>::new(1, NodeResult::Success);
-        let entity = app.world.spawn(BehaviorTreeBundle::from_root(task)).id();
+        let entity = app.world_mut().spawn(BehaviorTreeBundle::from_root(task)).id();
         app.update();
         app.update();
-        let status = app.world.get::<TreeStatus>(entity);
+        let status = app.world().get::<TreeStatus>(entity);
         assert!(
             status.is_some(),
             "BehaviorTree should have result on the end."
@@ -165,13 +165,13 @@ mod tests {
         let mut app = App::new();
         app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let task = TesterTask::<0>::new(2, NodeResult::Success);
-        let entity = app.world.spawn(BehaviorTreeBundle::from_root(task)).id();
+        let entity = app.world_mut().spawn(BehaviorTreeBundle::from_root(task)).id();
         app.update();
-        app.world.entity_mut(entity).insert(Freeze);
+        app.world_mut().entity_mut(entity).insert(Freeze);
         app.update();  // 0
         app.update();  // 1
         app.update();  // 2
-        app.world.entity_mut(entity).remove::<Freeze>();
+        app.world_mut().entity_mut(entity).remove::<Freeze>();
         app.update();  // 3, task complete
         let expected = TestLog {log: vec![
             TestLogEntry {task_id: 0, updated_count: 0, frame: 1},
@@ -179,7 +179,7 @@ mod tests {
             TestLogEntry {task_id: 0, updated_count: 2, frame: 3},
             TestLogEntry {task_id: 0, updated_count: 3, frame: 4},
         ]};
-        let found = app.world.get_resource::<TestLog>().unwrap();
+        let found = app.world().get_resource::<TestLog>().unwrap();
         assert!(
             found == &expected,
             "Task should not proceed while freeze. found: {:?}", found

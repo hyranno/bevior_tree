@@ -138,7 +138,7 @@ mod tests {
             Box::new(TesterTask::<2>::new(1, NodeResult::Failure)),
             Box::new(TesterTask::<3>::new(1, NodeResult::Success))
         ]);
-        let _entity = app.world.spawn(BehaviorTreeBundle::from_root(sequence)).id();
+        let _entity = app.world_mut().spawn(BehaviorTreeBundle::from_root(sequence)).id();
         app.update();
         app.update();  // 0
         app.update();  // 1
@@ -149,7 +149,7 @@ mod tests {
             TestLogEntry {task_id: 1, updated_count: 0, frame: 2},
             TestLogEntry {task_id: 2, updated_count: 0, frame: 3},
         ]};
-        let found = app.world.get_resource::<TestLog>().unwrap();
+        let found = app.world().get_resource::<TestLog>().unwrap();
         assert!(
             found == &expected,
             "SequentialAnd should match result. found: {:?}", found
@@ -166,7 +166,7 @@ mod tests {
             Box::new(TesterTask::<2>::new(1, NodeResult::Success)),
             Box::new(TesterTask::<3>::new(1, NodeResult::Failure)),
         ]);
-        let _entity = app.world.spawn(BehaviorTreeBundle::from_root(sequence)).id();
+        let _entity = app.world_mut().spawn(BehaviorTreeBundle::from_root(sequence)).id();
         app.update();
         app.update();  // 0
         app.update();  // 1
@@ -177,7 +177,7 @@ mod tests {
             TestLogEntry {task_id: 1, updated_count: 0, frame: 2},
             TestLogEntry {task_id: 2, updated_count: 0, frame: 3},
         ]};
-        let found = app.world.get_resource::<TestLog>().unwrap();
+        let found = app.world().get_resource::<TestLog>().unwrap();
         assert!(
             found == &expected,
             "SequentialOr should match result. found: {:?}", found
@@ -194,7 +194,7 @@ mod tests {
             Box::new(TesterTask::<2>::new(1, NodeResult::Success)),
             Box::new(TesterTask::<3>::new(1, NodeResult::Failure)),
         ]);
-        let _entity = app.world.spawn(BehaviorTreeBundle::from_root(sequence)).id();
+        let _entity = app.world_mut().spawn(BehaviorTreeBundle::from_root(sequence)).id();
         app.update();
         app.update();  // 0
         app.update();  // 1
@@ -206,7 +206,7 @@ mod tests {
             TestLogEntry {task_id: 2, updated_count: 0, frame: 3},
             TestLogEntry {task_id: 3, updated_count: 0, frame: 4},
         ]};
-        let found = app.world.get_resource::<TestLog>().unwrap();
+        let found = app.world().get_resource::<TestLog>().unwrap();
         assert!(
             found == &expected,
             "ForcedSequence should run all the tasks. found: {:?}", found

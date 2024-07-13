@@ -1,4 +1,4 @@
-//! Nodes that depends on the condition of the bevy world.
+//! Nodes that depends on the condition of the bevy world().
 
 use std::sync::Mutex;
 
@@ -244,6 +244,7 @@ struct ElseFreezeState {
 #[cfg(test)]
 mod tests {
     use crate::tester_util::prelude::*;
+    use bevy::state::app::StatesPlugin;
 
     #[derive(Component)]
     struct TestMarker;
@@ -268,7 +269,7 @@ mod tests {
             task,
             |In((_, loop_state)): In<(Entity, LoopState)>| loop_state.count < 3
         );
-        let _entity = app.world.spawn(BehaviorTreeBundle::from_root(repeater)).id();
+        let _entity = app.world_mut().spawn(BehaviorTreeBundle::from_root(repeater)).id();
         app.update();
         app.update();  // 0
         app.update();  // 1
@@ -278,7 +279,7 @@ mod tests {
             TestLogEntry {task_id: 0, updated_count: 0, frame: 2},
             TestLogEntry {task_id: 0, updated_count: 0, frame: 3},
         ]};
-        let found = app.world.get_resource::<TestLog>().unwrap();
+        let found = app.world().get_resource::<TestLog>().unwrap();
         assert!(
             found == &expected,
             "ConditionalLoop should repeat the task. found: {:?}", found
@@ -290,10 +291,10 @@ mod tests {
         let mut app = App::new();
         app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let task = CheckIf::new(test_marker_exists);
-        let entity = app.world.spawn(BehaviorTreeBundle::from_root(task)).id();
+        let entity = app.world_mut().spawn(BehaviorTreeBundle::from_root(task)).id();
         app.update();
         app.update();
-        let tree_status = app.world.get::<TreeStatus>(entity);
+        let tree_status = app.world().get::<TreeStatus>(entity);
         assert!(
             match tree_status {
                 Some(&TreeStatus(NodeStatus::Complete(NodeResult::Failure))) => true,
@@ -308,10 +309,10 @@ mod tests {
         let mut app = App::new();
         app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let task = CheckIf::new(test_marker_exists);
-        let entity = app.world.spawn((BehaviorTreeBundle::from_root(task), TestMarker)).id();
+        let entity = app.world_mut().spawn((BehaviorTreeBundle::from_root(task), TestMarker)).id();
         app.update();
         app.update();
-        let tree_status = app.world.get::<TreeStatus>(entity);
+        let tree_status = app.world().get::<TreeStatus>(entity);
         assert!(
             match tree_status {
                 Some(&TreeStatus(NodeStatus::Complete(NodeResult::Success))) => true,
@@ -324,20 +325,20 @@ mod tests {
     #[test]
     fn test_conditional_freeze() {
         let mut app = App::new();
-        app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
+        app.add_plugins((StatesPlugin, BehaviorTreePlugin::default(), TesterPlugin));
         let task = TesterTask::<0>::new(2, NodeResult::Success);
         let root = ElseFreeze::new(
             task,
             |In(_), state: Res<State<TestStates>>| *state.get() == TestStates::MainState,
         );
-        let _entity = app.world.spawn(BehaviorTreeBundle::from_root(root)).id();
+        let _entity = app.world_mut().spawn(BehaviorTreeBundle::from_root(root)).id();
         app.init_state::<TestStates>();
         app.update();
         app.update();  // 0
-        app.world.get_resource_mut::<NextState<TestStates>>().unwrap().set(TestStates::FreezeState);
+        app.world_mut().get_resource_mut::<NextState<TestStates>>().unwrap().set(TestStates::FreezeState);
         app.update();  // 1
         app.update();  // 2
-        app.world.get_resource_mut::<NextState<TestStates>>().unwrap().set(TestStates::MainState);
+        app.world_mut().get_resource_mut::<NextState<TestStates>>().unwrap().set(TestStates::MainState);
         app.update();  // 3, repeater complete
         let expected = TestLog {log: vec![
             TestLogEntry {task_id: 0, updated_count: 0, frame: 1},
@@ -345,7 +346,7 @@ mod tests {
             TestLogEntry {task_id: 0, updated_count: 2, frame: 3},
             TestLogEntry {task_id: 0, updated_count: 3, frame: 4},
         ]};
-        let found = app.world.get_resource::<TestLog>().unwrap();
+        let found = app.world().get_resource::<TestLog>().unwrap();
         assert!(
             found == &expected,
             "ElseFreeze should match the result. found: {:?}", found
