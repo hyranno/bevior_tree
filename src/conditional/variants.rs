@@ -81,12 +81,12 @@ mod tests {
         app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let task = TesterTask::<0>::new(1, NodeResult::Success);
         let conditional = Conditional::new(task, test_marker_exists);
-        let _entity = app.world.spawn(BehaviorTreeBundle::from_root(conditional)).id();
+        let _entity = app.world_mut().spawn(BehaviorTreeBundle::from_root(conditional)).id();
         app.update();
         app.update();  // nop
         let expected = TestLog {log: vec![
         ]};
-        let found = app.world.get_resource::<TestLog>().unwrap();
+        let found = app.world().get_resource::<TestLog>().unwrap();
         assert!(
             found == &expected,
             "Conditional should not do the task. Found {:?}", found
@@ -99,14 +99,14 @@ mod tests {
         app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let task = TesterTask::<0>::new(1, NodeResult::Success);
         let conditional = Conditional::new(task, test_marker_exists);
-        let _entity = app.world.spawn((BehaviorTreeBundle::from_root(conditional), TestMarker)).id();
+        let _entity = app.world_mut().spawn((BehaviorTreeBundle::from_root(conditional), TestMarker)).id();
         app.update();
         app.update();  // 0
         app.update();  // nop
         let expected = TestLog {log: vec![
             TestLogEntry {task_id: 0, updated_count: 0, frame: 1},
         ]};
-        let found = app.world.get_resource::<TestLog>().unwrap();
+        let found = app.world().get_resource::<TestLog>().unwrap();
         assert!(
             found == &expected,
             "Conditional should do the task. Found {:?}", found

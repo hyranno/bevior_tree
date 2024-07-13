@@ -155,7 +155,7 @@ mod tests {
             ],
             Arc::new(Mutex::new(rand::rngs::StdRng::seed_from_u64(224)))
         );
-        let _entity = app.world.spawn(BehaviorTreeBundle::from_root(sequence)).id();
+        let _entity = app.world_mut().spawn(BehaviorTreeBundle::from_root(sequence)).id();
         app.update();
         app.update();  // 1
         app.update();  // 2
@@ -166,7 +166,7 @@ mod tests {
             TestLogEntry {task_id: 2, updated_count: 0, frame: 2},
             TestLogEntry {task_id: 3, updated_count: 0, frame: 3},
         ]};
-        let found =app.world.get_resource::<TestLog>().unwrap();
+        let found =app.world().get_resource::<TestLog>().unwrap();
         assert!(
             found == &expected,
             "RandomOrderedSequentialAnd should match result. found: {:?}", found
@@ -198,7 +198,7 @@ mod tests {
             ],
             Arc::new(Mutex::new(rand::rngs::StdRng::seed_from_u64(224)))
         );
-        let _entity = app.world.spawn(BehaviorTreeBundle::from_root(sequence)).id();
+        let _entity = app.world_mut().spawn(BehaviorTreeBundle::from_root(sequence)).id();
         app.update();
         app.update();  // 1
         app.update();  // 2
@@ -209,7 +209,7 @@ mod tests {
             TestLogEntry {task_id: 2, updated_count: 0, frame: 2},
             TestLogEntry {task_id: 3, updated_count: 0, frame: 3},
         ]};
-        let found =app.world.get_resource::<TestLog>().unwrap();
+        let found =app.world().get_resource::<TestLog>().unwrap();
         assert!(
             found == &expected,
             "RandomOrderedSequentialOr should match result. found: {:?}", found
@@ -241,7 +241,7 @@ mod tests {
             ],
             Arc::new(Mutex::new(rand::rngs::StdRng::seed_from_u64(224)))
         );
-        let _entity = app.world.spawn(BehaviorTreeBundle::from_root(sequence)).id();
+        let _entity = app.world_mut().spawn(BehaviorTreeBundle::from_root(sequence)).id();
         app.update();
         app.update();  // 1
         app.update();  // 2
@@ -254,7 +254,7 @@ mod tests {
             TestLogEntry {task_id: 3, updated_count: 0, frame: 3},
             TestLogEntry {task_id: 0, updated_count: 0, frame: 4},
         ]};
-        let found =app.world.get_resource::<TestLog>().unwrap();
+        let found =app.world().get_resource::<TestLog>().unwrap();
         assert!(
             found == &expected,
             "RandomOrderedForcedSequence should match result. found: {:?}", found
@@ -286,14 +286,14 @@ mod tests {
             ],
             Arc::new(Mutex::new(rand::rngs::StdRng::seed_from_u64(224)))
         );
-        let _entity = app.world.spawn(BehaviorTreeBundle::from_root(sequence)).id();
+        let _entity = app.world_mut().spawn(BehaviorTreeBundle::from_root(sequence)).id();
         app.update();
         app.update();  // 3, sequence complete
         app.update();  // nop
         let expected = TestLog {log: vec![
             TestLogEntry {task_id: 1, updated_count: 0, frame: 1},
         ]};
-        let found =app.world.get_resource::<TestLog>().unwrap();
+        let found =app.world().get_resource::<TestLog>().unwrap();
         assert!(
             found == &expected,
             "RandomForcedSelector should match result. found: {:?}", found

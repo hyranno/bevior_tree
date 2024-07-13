@@ -84,7 +84,7 @@ mod tests {
             Box::new(TesterTask::<2>::new(3, NodeResult::Failure)),
             Box::new(TesterTask::<3>::new(4, NodeResult::Success)),
         ]);
-        let _entity = app.world.spawn(BehaviorTreeBundle::from_root(parallel)).id();
+        let _entity = app.world_mut().spawn(BehaviorTreeBundle::from_root(parallel)).id();
         app.update();
         app.update();  // 0, 1, 2, 3
         app.update();  // 1, 2, 3
@@ -102,7 +102,7 @@ mod tests {
             TestLogEntry {task_id: 2, updated_count: 2, frame: 3},
             TestLogEntry {task_id: 3, updated_count: 2, frame: 3},
         ].into_iter().collect();
-        let found: HashSet<TestLogEntry> = app.world.get_resource::<TestLog>().unwrap().log.clone().into_iter().collect();
+        let found: HashSet<TestLogEntry> = app.world().get_resource::<TestLog>().unwrap().log.clone().into_iter().collect();
         assert!(
             found == expected,
             "ParallelAnd should match result. found: {:?}", found
@@ -119,7 +119,7 @@ mod tests {
             Box::new(TesterTask::<2>::new(3, NodeResult::Success)),
             Box::new(TesterTask::<3>::new(4, NodeResult::Failure)),
         ]);
-        let _entity = app.world.spawn(BehaviorTreeBundle::from_root(parallel)).id();
+        let _entity = app.world_mut().spawn(BehaviorTreeBundle::from_root(parallel)).id();
         app.update();
         app.update();  // 0, 1, 2, 3
         app.update();  // 1, 2, 3
@@ -137,7 +137,7 @@ mod tests {
             TestLogEntry {task_id: 2, updated_count: 2, frame: 3},
             TestLogEntry {task_id: 3, updated_count: 2, frame: 3},
         ].into_iter().collect();
-        let found: HashSet<TestLogEntry> = app.world.get_resource::<TestLog>().unwrap().log.clone().into_iter().collect();
+        let found: HashSet<TestLogEntry> = app.world().get_resource::<TestLog>().unwrap().log.clone().into_iter().collect();
         assert!(
             found == expected,
             "ParallelOr should match result. found: {:?}", found
@@ -154,7 +154,7 @@ mod tests {
             Box::new(TesterTask::<2>::new(3, NodeResult::Failure)),
             Box::new(TesterTask::<3>::new(4, NodeResult::Success)),
         ]);
-        let _entity = app.world.spawn(BehaviorTreeBundle::from_root(parallel)).id();
+        let _entity = app.world_mut().spawn(BehaviorTreeBundle::from_root(parallel)).id();
         app.update();
         app.update();  // 0, 1, 2, 3
         app.update();  // 1, 2, 3
@@ -174,7 +174,7 @@ mod tests {
             TestLogEntry {task_id: 3, updated_count: 2, frame: 3},
             TestLogEntry {task_id: 3, updated_count: 3, frame: 4},
         ].into_iter().collect();
-        let found: HashSet<TestLogEntry> = app.world.get_resource::<TestLog>().unwrap().log.clone().into_iter().collect();
+        let found: HashSet<TestLogEntry> = app.world().get_resource::<TestLog>().unwrap().log.clone().into_iter().collect();
         assert!(
             found == expected,
             "Join should match result. found: {:?}", found

@@ -97,10 +97,10 @@ fn test_enter_tester_task() {
     let mut app = App::new();
     app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
     let task = TesterTask::<0>::new(1, NodeResult::Success);
-    let entity = app.world.spawn(BehaviorTreeBundle::from_root(task)).id();
+    let entity = app.world_mut().spawn(BehaviorTreeBundle::from_root(task)).id();
     app.update();
     assert!(
-        app.world.get::<TesterComponent<0>>(entity).is_some(),
+        app.world().get::<TesterComponent<0>>(entity).is_some(),
         "TesterComponent should added on enter."
     );
     // complete the task not to call abort()
@@ -112,11 +112,11 @@ fn test_exit_tester_task() {
     let mut app = App::new();
     app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
     let task = TesterTask::<0>::new(1, NodeResult::Success);
-    let entity = app.world.spawn(BehaviorTreeBundle::from_root(task)).id();
+    let entity = app.world_mut().spawn(BehaviorTreeBundle::from_root(task)).id();
     app.update();
     app.update();
     assert!(
-        app.world.get::<TesterComponent<0>>(entity).is_none(),
+        app.world().get::<TesterComponent<0>>(entity).is_none(),
         "TesterComponent should removed on exit."
     );
 }
@@ -126,13 +126,13 @@ fn test_log_test_task() {
     let mut app = App::new();
     app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
     let task = TesterTask::<0>::new(1, NodeResult::Success);
-    let _entity = app.world.spawn(BehaviorTreeBundle::from_root(task)).id();
+    let _entity = app.world_mut().spawn(BehaviorTreeBundle::from_root(task)).id();
     app.update();
     app.update();
     let expected = TestLog {log: vec![
         TestLogEntry {task_id: 0, updated_count: 0, frame: 1},
     ]};
-    let found = app.world.get_resource::<TestLog>().unwrap();
+    let found = app.world().get_resource::<TestLog>().unwrap();
     assert!(
         found == &expected,
         "TesterComponent should removed on exit. found: {:?}", found
