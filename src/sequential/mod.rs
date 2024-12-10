@@ -2,7 +2,7 @@
 
 use std::sync::Mutex;
 
-use bevy::ecs::{system::{ReadOnlySystem, IntoSystem}, entity::Entity, world::World};
+use bevy::ecs::{system::{ReadOnlySystem, IntoSystem, In}, entity::Entity, world::World};
 
 use crate::node::prelude::*;
 
@@ -19,8 +19,8 @@ pub mod prelude {
 }
 
 
-pub trait Scorer: ReadOnlySystem<In=Entity, Out=f32> {}
-impl<S> Scorer for S where S: ReadOnlySystem<In=Entity, Out=f32> {}
+pub trait Scorer: ReadOnlySystem<In=In<Entity>, Out=f32> {}
+impl<S> Scorer for S where S: ReadOnlySystem<In=In<Entity>, Out=f32> {}
 
 pub trait Picker: Fn(Vec<f32>) -> Vec<usize> + 'static + Send + Sync {}
 impl<F> Picker for F where F: Fn(Vec<f32>) -> Vec<usize> + 'static + Send + Sync {}
@@ -158,8 +158,8 @@ impl ScoredSequenceState {
 
 pub fn pair_node_scorer_fn<F, Marker>(node: impl Node, scorer: F) -> (Box<dyn Node>, Mutex<Box<dyn Scorer>>)
 where
-    F: IntoSystem<Entity, f32, Marker>,
-    <F as IntoSystem<Entity, f32, Marker>>::System : Scorer,
+    F: IntoSystem<In<Entity>, f32, Marker>,
+    <F as IntoSystem<In<Entity>, f32, Marker>>::System : Scorer,
 {
     (Box::new(node), Mutex::new(Box::new(IntoSystem::into_system(scorer))))
 }

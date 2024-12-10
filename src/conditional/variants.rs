@@ -2,7 +2,7 @@
 
 use std::borrow::Cow;
 
-use bevy::ecs::{system::{IntoSystem, ReadOnlySystem, In, System, Combine, CombinatorSystem}, entity::Entity};
+use bevy::ecs::{entity::Entity, system::{CombinatorSystem, Combine, In, IntoSystem, ReadOnlySystem, System, SystemInput}};
 
 use crate as bevior_tree;
 use crate::node::prelude::*;
@@ -21,15 +21,15 @@ pub type SeparableConditionChecker<A, B> = CombinatorSystem<SeparableConditionCh
 pub struct SeparableConditionCheckerMarker;
 impl<A, B> Combine<A,B> for SeparableConditionCheckerMarker
 where
-    A: System<In=Entity, Out=bool>,
-    B: System<In=LoopState, Out=bool>,
+    A: System<In=In<Entity>, Out=bool>,
+    B: System<In=In<LoopState>, Out=bool>,
 {
-    type In = (Entity, LoopState);
+    type In = In<(Entity, LoopState)>;
     type Out = bool;
     fn combine(
-        (entity, loop_state): Self::In,
-        a: impl FnOnce(<A as System>::In) -> <A as System>::Out,
-        b: impl FnOnce(<B as System>::In) -> <B as System>::Out,
+        (entity, loop_state): <Self::In as SystemInput>::Inner<'_>,
+        a: impl FnOnce(<<A as System>::In as SystemInput>::Inner<'_>) -> <A as System>::Out,
+        b: impl FnOnce(<<B as System>::In as SystemInput>::Inner<'_>) -> <B as System>::Out,
     ) -> Self::Out {
         b(loop_state) && a(entity)
     }
@@ -45,8 +45,8 @@ pub struct Conditional {
 impl Conditional {
     pub fn new<F, Marker>(child:  impl Node, checker: F) -> Self
     where
-        F: IntoSystem<Entity, bool, Marker>,
-        <F as IntoSystem<Entity, bool, Marker>>::System : ReadOnlySystem,
+        F: IntoSystem<In<Entity>, bool, Marker>,
+        <F as IntoSystem<In<Entity>, bool, Marker>>::System : ReadOnlySystem,
     {
         Self { delegate: ConditionalLoop::new(
             child,

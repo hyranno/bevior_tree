@@ -17,13 +17,13 @@ fn main() {
 
 // Setup the game
 fn init(mut commands: Commands, asset_server: Res<AssetServer>) {
-    commands.spawn(Camera2dBundle::default());
+    commands.spawn(Camera2d::default());
 
     // Simple player entity
     let player = commands
         .spawn((
-            SpriteBundle {
-                texture: asset_server.load("player.png"),
+            Sprite {
+                image: asset_server.load("player.png"),
                 ..default()
             },
             Player,
@@ -32,11 +32,11 @@ fn init(mut commands: Commands, asset_server: Res<AssetServer>) {
 
     // The enemy
     commands.spawn((
-        SpriteBundle {
-            transform: Transform::from_xyz(500., 0., 0.),
-            texture: asset_server.load("enemy.png"),
+        Sprite {
+            image: asset_server.load("enemy.png"),
             ..default()
         },
+        Transform::from_xyz(500., 0., 0.),
 
         // This behavior tree handles the enemy's behavior.
         BehaviorTreeBundle::from_root(
@@ -141,7 +141,7 @@ fn follow(
         follow_transform.translation += (target_translation - follow_translation)
             .normalize_or_zero()
             * follow.speed
-            * time.delta_seconds();
+            * time.delta_secs();
     }
 }
 
@@ -165,5 +165,5 @@ fn move_player(
     )
     .normalize_or_zero()
         * PLAYER_SPEED
-        * time.delta_seconds();
+        * time.delta_secs();
 }
