@@ -2,7 +2,7 @@
 
 use std::sync::Mutex;
 
-use bevy::ecs::{system::{ReadOnlySystem, IntoSystem}, entity::Entity, world::World};
+use bevy::ecs::{entity::Entity, system::{IntoSystem, ReadOnlySystem, In}, world::World};
 
 use crate::node::prelude::*;
 
@@ -19,8 +19,8 @@ pub mod prelude {
 }
 
 
-pub trait LoopCondChecker: ReadOnlySystem<In=(Entity, LoopState), Out=bool> {}
-impl<S> LoopCondChecker for S where S: ReadOnlySystem<In=(Entity, LoopState), Out=bool> {}
+pub trait LoopCondChecker: ReadOnlySystem<In=In<(Entity, LoopState)>, Out=bool> {}
+impl<S> LoopCondChecker for S where S: ReadOnlySystem<In=In<(Entity, LoopState)>, Out=bool> {}
 
 
 /// Node for conditional loop.
@@ -32,8 +32,8 @@ pub struct ConditionalLoop {
 impl ConditionalLoop {
     pub fn new<S, Marker>(node: impl Node, checker: S) -> Self
     where
-        S: IntoSystem<(Entity, LoopState), bool, Marker>,
-        <S as IntoSystem<(Entity, LoopState), bool, Marker>>::System : LoopCondChecker,
+        S: IntoSystem<In<(Entity, LoopState)>, bool, Marker>,
+        <S as IntoSystem<In<(Entity, LoopState)>, bool, Marker>>::System : LoopCondChecker,
     {
         Self {
             child: Box::new(node),
@@ -135,13 +135,13 @@ struct CheckIfState;
 /// Node that check the condition, then return it as [`NodeResult`].
 #[with_state(CheckIfState)]
 pub struct CheckIf {
-    checker: Mutex<Box<dyn ReadOnlySystem<In=Entity, Out=bool>>>,
+    checker: Mutex<Box<dyn ReadOnlySystem<In=In<Entity>, Out=bool>>>,
 }
 impl CheckIf {
     pub fn new<F, Marker>(checker: F) -> Self
     where
-        F: IntoSystem<Entity, bool, Marker>,
-        <F as IntoSystem<Entity, bool, Marker>>::System : ReadOnlySystem,
+        F: IntoSystem<In<Entity>, bool, Marker>,
+        <F as IntoSystem<In<Entity>, bool, Marker>>::System : ReadOnlySystem,
     {
         Self {
             checker: Mutex::new(Box::new(IntoSystem::into_system(checker))),
@@ -175,13 +175,13 @@ impl Node for CheckIf {
 #[with_state(ElseFreezeState)]
 pub struct ElseFreeze {
     child: Box<dyn Node>,
-    checker: Mutex<Box<dyn ReadOnlySystem<In=Entity, Out=bool>>>,
+    checker: Mutex<Box<dyn ReadOnlySystem<In=In<Entity>, Out=bool>>>,
 }
 impl ElseFreeze {
     pub fn new<F, Marker>(child: impl Node, checker: F) -> Self
     where
-        F: IntoSystem<Entity, bool, Marker>,
-        <F as IntoSystem<Entity, bool, Marker>>::System : ReadOnlySystem,
+        F: IntoSystem<In<Entity>, bool, Marker>,
+        <F as IntoSystem<In<Entity>, bool, Marker>>::System : ReadOnlySystem,
     {
         Self {
             child: Box::new(child),

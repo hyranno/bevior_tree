@@ -42,14 +42,14 @@ pub enum TaskEvent {
 /// So the this nodes just marks what to do, expecting other systems does actual updates later.
 #[with_state(TaskState)]
 pub struct TaskBridge {
-    checker: Mutex<Box<dyn ReadOnlySystem<In=Entity, Out=TaskStatus>>>,
-    event_listeners: Mutex<Vec<(TaskEvent, Box<dyn System<In=Entity, Out=()>>)>>,
+    checker: Mutex<Box<dyn ReadOnlySystem<In=In<Entity>, Out=TaskStatus>>>,
+    event_listeners: Mutex<Vec<(TaskEvent, Box<dyn System<In=In<Entity>, Out=()>>)>>,
 }
 impl TaskBridge {
     pub fn new<F, Marker>(checker: F) -> TaskBridge
     where
-        F: IntoSystem<Entity, TaskStatus, Marker>,
-        <F as IntoSystem<Entity, TaskStatus, Marker>>::System : ReadOnlySystem,
+        F: IntoSystem<In<Entity>, TaskStatus, Marker>,
+        <F as IntoSystem<In<Entity>, TaskStatus, Marker>>::System : ReadOnlySystem,
     {
         TaskBridge {
             checker: Mutex::new(Box::new(IntoSystem::into_system(checker))),
@@ -58,7 +58,7 @@ impl TaskBridge {
     }
     /// Register callback for [`TaskEvent`].
     /// Use this to communicate to bevy world.
-    pub fn on_event<Marker>(self, event: TaskEvent, callback: impl IntoSystem<Entity, (), Marker>) -> Self {
+    pub fn on_event<Marker>(self, event: TaskEvent, callback: impl IntoSystem<In<Entity>, (), Marker>) -> Self {
         self.event_listeners.lock().expect("Failed to lock.").push((event, Box::new(IntoSystem::into_system(callback))));
         self
     }
