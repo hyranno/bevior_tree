@@ -2,14 +2,18 @@
 
 use std::sync::Mutex;
 
-use bevy::ecs::{world::World, system::{ReadOnlySystem, System, IntoSystem, Commands, In}, entity::Entity, bundle::Bundle};
+use bevy::ecs::{
+    bundle::Bundle,
+    entity::Entity,
+    system::{Commands, In, IntoSystem, ReadOnlySystem, System},
+    world::World,
+};
 
 use crate::node::prelude::*;
 
 pub mod prelude {
-    pub use super::{TaskBridge, TaskEvent, TaskStatus,};
+    pub use super::{TaskBridge, TaskEvent, TaskStatus};
 }
-
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TaskStatus {
@@ -29,10 +33,9 @@ pub enum TaskEvent {
     Failure,
 }
 
-
 /// Node that represents task.
 /// This node is for telling what to do for other systems.
-/// 
+///
 /// This node marks what to do for other systems (usually via adding component) and check the completion to proceed the behavior tree.
 /// [`TaskBridge::insert_while_running`] is good for marking.
 ///
@@ -42,14 +45,14 @@ pub enum TaskEvent {
 /// So the this nodes just marks what to do, expecting other systems does actual updates later.
 #[with_state(TaskState)]
 pub struct TaskBridge {
-    checker: Mutex<Box<dyn ReadOnlySystem<In=In<Entity>, Out=TaskStatus>>>,
-    event_listeners: Mutex<Vec<(TaskEvent, Box<dyn System<In=In<Entity>, Out=()>>)>>,
+    checker: Mutex<Box<dyn ReadOnlySystem<In = In<Entity>, Out = TaskStatus>>>,
+    event_listeners: Mutex<Vec<(TaskEvent, Box<dyn System<In = In<Entity>, Out = ()>>)>>,
 }
 impl TaskBridge {
     pub fn new<F, Marker>(checker: F) -> TaskBridge
     where
         F: IntoSystem<In<Entity>, TaskStatus, Marker>,
-        <F as IntoSystem<In<Entity>, TaskStatus, Marker>>::System : ReadOnlySystem,
+        <F as IntoSystem<In<Entity>, TaskStatus, Marker>>::System: ReadOnlySystem,
     {
         TaskBridge {
             checker: Mutex::new(Box::new(IntoSystem::into_system(checker))),
@@ -58,19 +61,28 @@ impl TaskBridge {
     }
     /// Register callback for [`TaskEvent`].
     /// Use this to communicate to bevy world.
-    pub fn on_event<Marker>(self, event: TaskEvent, callback: impl IntoSystem<In<Entity>, (), Marker>) -> Self {
-        self.event_listeners.lock().expect("Failed to lock.").push((event, Box::new(IntoSystem::into_system(callback))));
+    pub fn on_event<Marker>(
+        self,
+        event: TaskEvent,
+        callback: impl IntoSystem<In<Entity>, (), Marker>,
+    ) -> Self {
+        self.event_listeners
+            .lock()
+            .expect("Failed to lock.")
+            .push((event, Box::new(IntoSystem::into_system(callback))));
         self
     }
     /// Register callbacks that add the bundle on entering node then remove it on exiting.
     pub fn insert_while_running<T: Bundle + 'static + Clone>(self, bundle: T) -> Self {
-        self
-            .on_event(TaskEvent::Enter, move |In(entity), mut commands: Commands| {
+        self.on_event(
+            TaskEvent::Enter,
+            move |In(entity), mut commands: Commands| {
                 commands.entity(entity).insert(bundle.clone());
-            })
-            .on_event(TaskEvent::Exit, |In(entity), mut commands: Commands| {
-                commands.entity(entity).remove::<T>();
-            })
+            },
+        )
+        .on_event(TaskEvent::Exit, |In(entity), mut commands: Commands| {
+            commands.entity(entity).remove::<T>();
+        })
     }
 
     /// Check current [`TaskStatus`].
@@ -81,13 +93,16 @@ impl TaskBridge {
     }
 
     fn trigger_event(&self, world: &mut World, entity: Entity, event: TaskEvent) {
-        self.event_listeners.lock().expect("Failed to lock.").iter_mut().filter(|(ev, _)| *ev == event).for_each(
-            |(_, sys)| {
+        self.event_listeners
+            .lock()
+            .expect("Failed to lock.")
+            .iter_mut()
+            .filter(|(ev, _)| *ev == event)
+            .for_each(|(_, sys)| {
                 sys.initialize(world);
                 sys.run(entity, world);
                 sys.apply_deferred(world);
-            }
-        );
+            });
     }
 }
 impl Node for TaskBridge {
@@ -107,7 +122,7 @@ impl Node for TaskBridge {
                 }
                 self.trigger_event(world, entity, TaskEvent::Exit);
                 NodeStatus::Complete(result)
-            },
+            }
         }
     }
     fn force_exit(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) {
@@ -115,4 +130,3 @@ impl Node for TaskBridge {
         self.trigger_event(world, entity, TaskEvent::Exit);
     }
 }
-

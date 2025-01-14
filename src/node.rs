@@ -1,25 +1,20 @@
 //! Abstract representation of node of behavior tree.
 
+use bevy::prelude::{Entity, World};
 use std::{any::Any, ops::Not};
-use bevy::prelude::{World, Entity};
 
 pub mod prelude {
-    pub use super::{
-        Node, NodeStatus, NodeResult, NodeState,
-        WithState, NodeStateError,
-    };
+    pub use super::{Node, NodeResult, NodeState, NodeStateError, NodeStatus, WithState};
     pub use derive_nodestate::NodeState;
-    pub use macro_withstate::with_state;
     pub use macro_delegatenode::delegate_node;
+    pub use macro_withstate::with_state;
 }
-
 
 /// State of pending, work in progress nodes.
 /// `#[derive(NodeState)]` is available.
 pub trait NodeState: 'static + Send + Sync {
     fn into_any(self: Box<Self>) -> Box<dyn Any>;
 }
-
 
 /// Result of completed nodes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -47,11 +42,10 @@ impl NodeStatus {
     pub fn result(&self) -> Option<NodeResult> {
         match self {
             &NodeStatus::Complete(result) => Some(result),
-            _ => None
+            _ => None,
         }
     }
 }
-
 
 /// Node of behavior trees.
 /// Nodes should not hold the state of execution.
@@ -62,10 +56,9 @@ pub trait Node: 'static + Send + Sync {
     fn force_exit(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>);
 }
 
-
 /// Trait to pair the node and the state.
 /// Also `#[with_state(State)]` is available for simple cases.
-/// 
+///
 /// Nodes take `state: Box<dyn NodeState>`, so this trait help downcast it.
 pub trait WithState<State: NodeState>: Node {
     fn downcast(state: Box<dyn NodeState>) -> Result<State, NodeStateError> {
@@ -77,11 +70,10 @@ pub trait WithState<State: NodeState>: Node {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq,)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NodeStateError {
     InvalidTypeOfState,
 }
-
 
 /// Shorthand to delegate node.
 /// Also `#[delegate_node(target)]` is available for simple cases.

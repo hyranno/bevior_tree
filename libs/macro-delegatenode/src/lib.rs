@@ -6,7 +6,6 @@ use proc_macro::TokenStream;
 use quote::quote;
 use syn::{parse_macro_input, ItemStruct};
 
-
 /// Use attribute while standard way to delegate is not known.
 #[proc_macro_attribute]
 pub fn delegate_node(attr: TokenStream, item: TokenStream) -> TokenStream {

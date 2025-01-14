@@ -7,27 +7,28 @@ use crate::node::prelude::*;
 pub mod variants;
 
 pub mod prelude {
-    pub use super::{
-        ResultConverter,
-        variants::prelude::*,
-    };
+    pub use super::{variants::prelude::*, ResultConverter};
 }
 
 /// Node that converts the result of the child.
-pub struct ResultConverter
-where
-{
+pub struct ResultConverter {
     child: Box<dyn Node>,
     converter: Box<dyn Fn(NodeResult) -> NodeResult + 'static + Send + Sync>,
 }
 impl ResultConverter {
-    pub fn new(child: impl Node, converter: impl Fn(NodeResult) -> NodeResult + 'static + Send + Sync) -> Self {
-        Self { child: Box::new(child), converter: Box::new(converter) }
+    pub fn new(
+        child: impl Node,
+        converter: impl Fn(NodeResult) -> NodeResult + 'static + Send + Sync,
+    ) -> Self {
+        Self {
+            child: Box::new(child),
+            converter: Box::new(converter),
+        }
     }
     fn convert(&self, status: NodeStatus) -> NodeStatus {
         match &status {
             &NodeStatus::Complete(result) => NodeStatus::Complete((*self.converter)(result)),
-            _ => status
+            _ => status,
         }
     }
 }

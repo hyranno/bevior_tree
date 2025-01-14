@@ -1,25 +1,22 @@
-
-use bevy::core::FrameCount;
 use crate::{
-    BehaviorTreePlugin,
     node::{prelude::*, DelegateNode},
-    task::{TaskBridge, TaskStatus}, BehaviorTreeBundle,
+    task::{TaskBridge, TaskStatus},
+    BehaviorTreeBundle, BehaviorTreePlugin,
 };
+use bevy::core::FrameCount;
 
 use bevy::prelude::*;
 
 pub mod prelude {
-    pub use bevy::prelude::*;
+    pub use super::{TestLog, TestLogEntry, TesterPlugin, TesterTask};
     pub use crate::prelude::*;
-    pub use super::{TesterPlugin, TesterTask, TestLog, TestLogEntry,};
+    pub use bevy::prelude::*;
 }
-
 
 pub struct TesterPlugin;
 impl Plugin for TesterPlugin {
     fn build(&self, app: &mut App) {
-        app
-            .add_plugins(FrameCountPlugin)
+        app.add_plugins(FrameCountPlugin)
             .add_systems(Update, update::<0>)
             .add_systems(Update, update::<1>)
             .add_systems(Update, update::<2>)
@@ -28,8 +25,7 @@ impl Plugin for TesterPlugin {
             .add_systems(Update, update::<5>)
             .add_systems(Update, update::<6>)
             .add_systems(Update, update::<7>)
-            .init_resource::<TestLog>()
-        ;
+            .init_resource::<TestLog>();
     }
 }
 
@@ -53,12 +49,10 @@ impl<const ID: i32> TesterTask<ID> {
             }
         };
         let task = TaskBridge::new(checker)
-            .insert_while_running(TesterComponent::<ID> { updated_count: 0 })
-        ;
-        Self {task}
+            .insert_while_running(TesterComponent::<ID> { updated_count: 0 });
+        Self { task }
     }
 }
-
 
 #[derive(Debug, Component, Clone, Copy)]
 pub struct TesterComponent<const ID: i32> {
@@ -67,7 +61,7 @@ pub struct TesterComponent<const ID: i32> {
 
 #[derive(Debug, Resource, Default, PartialEq, Eq)]
 pub struct TestLog {
-    pub log: Vec<TestLogEntry>
+    pub log: Vec<TestLogEntry>,
 }
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub struct TestLogEntry {
@@ -75,7 +69,6 @@ pub struct TestLogEntry {
     pub updated_count: u32,
     pub frame: u32,
 }
-
 
 fn update<const ID: i32>(
     mut log: ResMut<TestLog>,
@@ -97,7 +90,10 @@ fn test_enter_tester_task() {
     let mut app = App::new();
     app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
     let task = TesterTask::<0>::new(1, NodeResult::Success);
-    let entity = app.world_mut().spawn(BehaviorTreeBundle::from_root(task)).id();
+    let entity = app
+        .world_mut()
+        .spawn(BehaviorTreeBundle::from_root(task))
+        .id();
     app.update();
     assert!(
         app.world().get::<TesterComponent<0>>(entity).is_some(),
@@ -112,7 +108,10 @@ fn test_exit_tester_task() {
     let mut app = App::new();
     app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
     let task = TesterTask::<0>::new(1, NodeResult::Success);
-    let entity = app.world_mut().spawn(BehaviorTreeBundle::from_root(task)).id();
+    let entity = app
+        .world_mut()
+        .spawn(BehaviorTreeBundle::from_root(task))
+        .id();
     app.update();
     app.update();
     assert!(
@@ -126,15 +125,23 @@ fn test_log_test_task() {
     let mut app = App::new();
     app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
     let task = TesterTask::<0>::new(1, NodeResult::Success);
-    let _entity = app.world_mut().spawn(BehaviorTreeBundle::from_root(task)).id();
+    let _entity = app
+        .world_mut()
+        .spawn(BehaviorTreeBundle::from_root(task))
+        .id();
     app.update();
     app.update();
-    let expected = TestLog {log: vec![
-        TestLogEntry {task_id: 0, updated_count: 0, frame: 1},
-    ]};
+    let expected = TestLog {
+        log: vec![TestLogEntry {
+            task_id: 0,
+            updated_count: 0,
+            frame: 1,
+        }],
+    };
     let found = app.world().get_resource::<TestLog>().unwrap();
     assert!(
         found == &expected,
-        "TesterComponent should removed on exit. found: {:?}", found
+        "TesterComponent should removed on exit. found: {:?}",
+        found
     );
 }
