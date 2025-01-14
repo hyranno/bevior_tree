@@ -1,32 +1,29 @@
 //! Behavior tree plugin for Bevy.
 
+use bevy::{
+    ecs::{intern::Interned, schedule::ScheduleLabel},
+    prelude::*,
+};
 use std::sync::Arc;
-use bevy::{ecs::{schedule::ScheduleLabel, intern::Interned}, prelude::*};
 
-
-pub mod node;
-pub mod task;
-pub mod sequential;
 pub mod conditional;
 pub mod converter;
+pub mod node;
 pub mod parallel;
+pub mod sequential;
+pub mod task;
 
 #[cfg(test)]
 mod tester_util;
 
-use node::{Node, NodeStatus, DelegateNode};
+use node::{DelegateNode, Node, NodeStatus};
 
 /// Module for convenient imports. Use with `use bevior_tree::prelude::*;`.
 pub mod prelude {
     pub use crate::{
-        BehaviorTreePlugin, BehaviorTreeSystemSet,
-        BehaviorTreeBundle, BehaviorTree, Freeze, TreeStatus,
-        node::prelude::*,
-        task::prelude::*,
-        sequential::prelude::*,
-        conditional::prelude::*,
-        converter::prelude::*,
-        parallel::prelude::*,
+        conditional::prelude::*, converter::prelude::*, node::prelude::*, parallel::prelude::*,
+        sequential::prelude::*, task::prelude::*, BehaviorTree, BehaviorTreeBundle,
+        BehaviorTreePlugin, BehaviorTreeSystemSet, Freeze, TreeStatus,
     };
 }
 
@@ -43,14 +40,17 @@ impl BehaviorTreePlugin {
 }
 impl Default for BehaviorTreePlugin {
     fn default() -> Self {
-        Self { schedule: PostUpdate.intern() }
+        Self {
+            schedule: PostUpdate.intern(),
+        }
     }
 }
 impl Plugin for BehaviorTreePlugin {
     fn build(&self, app: &mut App) {
-        app
-            .add_systems(self.schedule, (update).in_set(BehaviorTreeSystemSet::Update))
-        ;
+        app.add_systems(
+            self.schedule,
+            (update).in_set(BehaviorTreeSystemSet::Update),
+        );
     }
 }
 
@@ -60,7 +60,6 @@ pub enum BehaviorTreeSystemSet {
     Update,
 }
 
-
 /// Behavior tree component.
 /// Nodes of the tree receive the entity with this component.
 #[derive(Component, Clone)]
@@ -69,7 +68,9 @@ pub struct BehaviorTree {
 }
 impl BehaviorTree {
     pub fn new(root: impl Node) -> Self {
-        Self { root: Arc::new(root) }
+        Self {
+            root: Arc::new(root),
+        }
     }
 }
 impl DelegateNode for BehaviorTree {
@@ -89,7 +90,10 @@ impl BehaviorTreeBundle {
         Self::from_tree(BehaviorTree::new(root))
     }
     pub fn from_tree(tree: BehaviorTree) -> Self {
-        Self { tree, status: TreeStatus(NodeStatus::Beginning) }
+        Self {
+            tree,
+            status: TreeStatus(NodeStatus::Beginning),
+        }
     }
 }
 
@@ -103,48 +107,51 @@ pub struct Freeze;
 #[derive(Component)]
 pub struct TreeStatus(NodeStatus);
 
-
 /// The system to update the states of the behavior trees attached to entities.
-fn update (
+fn update(
     world: &mut World,
     query: &mut QueryState<(Entity, &BehaviorTree, &mut TreeStatus), Without<Freeze>>,
 ) {
-    let trees: Vec<(Entity, Arc<dyn Node>, NodeStatus)> = query.iter_mut(world).map(
-        |(entity, tree, mut status)| {
+    let trees: Vec<(Entity, Arc<dyn Node>, NodeStatus)> = query
+        .iter_mut(world)
+        .map(|(entity, tree, mut status)| {
             let mut status_swap = TreeStatus(NodeStatus::Beginning);
             std::mem::swap(status.as_mut(), &mut status_swap);
             (entity, tree.root.clone(), status_swap.0)
-        }
-    ).collect();
+        })
+        .collect();
 
-    let statuses_new: Vec<NodeStatus> = trees.into_iter().map(
-        |(entity, root, status)| {
-            match status {
-                NodeStatus::Beginning => root.begin(world, entity),
-                NodeStatus::Pending(state) => root.resume(world, entity, state),
-                NodeStatus::Complete(_) => status
-            }
-        }
-    ).collect();
+    let statuses_new: Vec<NodeStatus> = trees
+        .into_iter()
+        .map(|(entity, root, status)| match status {
+            NodeStatus::Beginning => root.begin(world, entity),
+            NodeStatus::Pending(state) => root.resume(world, entity, state),
+            NodeStatus::Complete(_) => status,
+        })
+        .collect();
 
-    query.iter_mut(world).zip(statuses_new).for_each( |((_, _, mut state), state_new)| {
-        let mut state_new_swap = TreeStatus(state_new);
-        std::mem::swap(state.as_mut(), &mut state_new_swap);
-    });
-
+    query
+        .iter_mut(world)
+        .zip(statuses_new)
+        .for_each(|((_, _, mut state), state_new)| {
+            let mut state_new_swap = TreeStatus(state_new);
+            std::mem::swap(state.as_mut(), &mut state_new_swap);
+        });
 }
-
 
 #[cfg(test)]
 mod tests {
-    use crate::{tester_util::prelude::*, node::NodeStatus};
+    use crate::{node::NodeStatus, tester_util::prelude::*};
 
     #[test]
     fn test_tree_end_with_result() {
         let mut app = App::new();
         app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let task = TesterTask::<0>::new(1, NodeResult::Success);
-        let entity = app.world_mut().spawn(BehaviorTreeBundle::from_root(task)).id();
+        let entity = app
+            .world_mut()
+            .spawn(BehaviorTreeBundle::from_root(task))
+            .id();
         app.update();
         app.update();
         let status = app.world().get::<TreeStatus>(entity);
@@ -155,7 +162,9 @@ mod tests {
         assert!(
             if let Some(TreeStatus(NodeStatus::Complete(result))) = status {
                 result == &NodeResult::Success
-            } else {false},
+            } else {
+                false
+            },
             "BehaviorTree should have result that match with the result of the root."
         );
     }
@@ -165,25 +174,46 @@ mod tests {
         let mut app = App::new();
         app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let task = TesterTask::<0>::new(2, NodeResult::Success);
-        let entity = app.world_mut().spawn(BehaviorTreeBundle::from_root(task)).id();
+        let entity = app
+            .world_mut()
+            .spawn(BehaviorTreeBundle::from_root(task))
+            .id();
         app.update();
         app.world_mut().entity_mut(entity).insert(Freeze);
-        app.update();  // 0
-        app.update();  // 1
-        app.update();  // 2
+        app.update(); // 0
+        app.update(); // 1
+        app.update(); // 2
         app.world_mut().entity_mut(entity).remove::<Freeze>();
-        app.update();  // 3, task complete
-        let expected = TestLog {log: vec![
-            TestLogEntry {task_id: 0, updated_count: 0, frame: 1},
-            TestLogEntry {task_id: 0, updated_count: 1, frame: 2},
-            TestLogEntry {task_id: 0, updated_count: 2, frame: 3},
-            TestLogEntry {task_id: 0, updated_count: 3, frame: 4},
-        ]};
+        app.update(); // 3, task complete
+        let expected = TestLog {
+            log: vec![
+                TestLogEntry {
+                    task_id: 0,
+                    updated_count: 0,
+                    frame: 1,
+                },
+                TestLogEntry {
+                    task_id: 0,
+                    updated_count: 1,
+                    frame: 2,
+                },
+                TestLogEntry {
+                    task_id: 0,
+                    updated_count: 2,
+                    frame: 3,
+                },
+                TestLogEntry {
+                    task_id: 0,
+                    updated_count: 3,
+                    frame: 4,
+                },
+            ],
+        };
         let found = app.world().get_resource::<TestLog>().unwrap();
         assert!(
             found == &expected,
-            "Task should not proceed while freeze. found: {:?}", found
+            "Task should not proceed while freeze. found: {:?}",
+            found
         );
     }
-
 }

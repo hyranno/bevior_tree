@@ -6,7 +6,6 @@ use proc_macro::TokenStream;
 use quote::quote;
 use syn::{parse_macro_input, ItemStruct, TypePath};
 
-
 /// Use attribute while `derive(WithState<State>)` is unavailable.
 #[proc_macro_attribute]
 pub fn with_state(attr: TokenStream, item: TokenStream) -> TokenStream {
