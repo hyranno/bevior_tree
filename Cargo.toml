@@ -25,7 +25,7 @@ random = ["dep:rand"]
 [dependencies]
 bevy = { version = "0.15", default-features = false }
 ordered-float = { version = "5.0" }
-rand = { version = "0.8", optional = true}
+rand = { version = "0.9", optional = true}
 # macro packages
 derive-nodestate = { version = "0.7", path = "libs/derive-nodestate" }
 macro-withstate = { version = "0.7", path = "libs/macro-withstate" }
