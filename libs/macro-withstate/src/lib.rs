@@ -4,7 +4,7 @@ extern crate syn;
 
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, ItemStruct, TypePath};
+use syn::{ItemStruct, TypePath, parse_macro_input};
 
 /// Use attribute while `derive(WithState<State>)` is unavailable.
 #[proc_macro_attribute]

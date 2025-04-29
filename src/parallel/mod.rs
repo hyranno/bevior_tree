@@ -8,7 +8,7 @@ use crate::sequential::ResultConstructor;
 pub mod variants;
 
 pub mod prelude {
-    pub use super::{variants::prelude::*, Parallel};
+    pub use super::{Parallel, variants::prelude::*};
 }
 
 /// Composite node that run children parallelly.

@@ -83,7 +83,7 @@ mod tests {
         app.update(); // 1, 2, 3
         app.update(); // 2, 3, completed with Failure
         app.update(); // nop
-                      // Order of the log entries within same frame may change.
+        // Order of the log entries within same frame may change.
         let expected: HashSet<TestLogEntry> = vec![
             TestLogEntry {
                 task_id: 0,
@@ -167,7 +167,7 @@ mod tests {
         app.update(); // 1, 2, 3
         app.update(); // 2, 3, complete with Success
         app.update(); // nop
-                      // Order of the log entries within same frame may change.
+        // Order of the log entries within same frame may change.
         let expected: HashSet<TestLogEntry> = vec![
             TestLogEntry {
                 task_id: 0,
@@ -252,7 +252,7 @@ mod tests {
         app.update(); // 2, 3
         app.update(); // 3, parallel completed
         app.update(); // nop
-                      // Order of the log entries within same frame may change.
+        // Order of the log entries within same frame may change.
         let expected: HashSet<TestLogEntry> = vec![
             TestLogEntry {
                 task_id: 0,

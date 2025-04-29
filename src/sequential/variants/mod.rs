@@ -16,8 +16,8 @@ pub mod random;
 
 pub mod prelude {
     pub use super::{
-        pick_identity, random::prelude::*, score_uniform, sorted::prelude::*, ForcedSequence,
-        Selector, Sequence, SequentialAnd, SequentialOr,
+        ForcedSequence, Selector, Sequence, SequentialAnd, SequentialOr, pick_identity,
+        random::prelude::*, score_uniform, sorted::prelude::*,
     };
 }
 

@@ -21,9 +21,9 @@ use node::{DelegateNode, Node, NodeStatus};
 /// Module for convenient imports. Use with `use bevior_tree::prelude::*;`.
 pub mod prelude {
     pub use crate::{
-        conditional::prelude::*, converter::prelude::*, node::prelude::*, parallel::prelude::*,
-        sequential::prelude::*, task::prelude::*, BehaviorTree, BehaviorTreeBundle,
-        BehaviorTreePlugin, BehaviorTreeSystemSet, Freeze, TreeStatus,
+        BehaviorTree, BehaviorTreeBundle, BehaviorTreePlugin, BehaviorTreeSystemSet, Freeze,
+        TreeStatus, conditional::prelude::*, converter::prelude::*, node::prelude::*,
+        parallel::prelude::*, sequential::prelude::*, task::prelude::*,
     };
 }
 

@@ -1,7 +1,7 @@
 use crate::{
-    node::{prelude::*, DelegateNode},
-    task::{TaskBridge, TaskStatus},
     BehaviorTreeBundle, BehaviorTreePlugin,
+    node::{DelegateNode, prelude::*},
+    task::{TaskBridge, TaskStatus},
 };
 use bevy::core::FrameCount;
 
