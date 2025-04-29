@@ -149,7 +149,10 @@ fn move_player(
     keys: Res<ButtonInput<KeyCode>>,
     time: Res<Time>,
 ) {
-    players.single_mut().translation += Vec3::new(
+    players
+        .single_mut()
+        .expect("Failed to get the player!")
+        .translation += Vec3::new(
         (keys.pressed(KeyCode::ArrowRight) as i32 - keys.pressed(KeyCode::ArrowLeft) as i32) as f32,
         (keys.pressed(KeyCode::ArrowUp) as i32 - keys.pressed(KeyCode::ArrowDown) as i32) as f32,
         0.,
