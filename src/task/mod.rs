@@ -17,7 +17,9 @@ pub mod prelude {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TaskStatus {
+    /// Task is running and its result is pending, so not ready to proceed next node.
     Running,
+    /// Task is complete with result, ready to proceed next node.
     Complete(NodeResult),
 }
 
