@@ -3,7 +3,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use rand::{distributions::Uniform, prelude::Distribution, Rng};
+use rand::{distr::Uniform, prelude::Distribution, Rng};
 
 use super::sorted::{pick_max, pick_sorted};
 use super::{result_and, result_forced, result_last, result_or, ScoredSequence, Scorer};
@@ -21,7 +21,7 @@ pub mod prelude {
 /// Probability of being picked next is proportional to the score.
 /// Using algorithm called A-ES by Efraimidis and Spirakis.
 pub fn pick_random_sorted(scores: Vec<f32>, rng: &mut impl Rng) -> Vec<usize> {
-    let dist = Uniform::<f32>::new(0.0, 1.0);
+    let dist = Uniform::<f32>::new(0.0, 1.0).expect("Failed to init uniform distribution.");
     let scores = scores
         .into_iter()
         .map(|score| dist.sample(rng).powf(1.0 / score))
@@ -30,7 +30,7 @@ pub fn pick_random_sorted(scores: Vec<f32>, rng: &mut impl Rng) -> Vec<usize> {
 }
 /// Weighted random sampling.
 pub fn pick_random_one(scores: Vec<f32>, rng: &mut impl Rng) -> Vec<usize> {
-    let dist = Uniform::<f32>::new(0.0, 1.0);
+    let dist = Uniform::<f32>::new(0.0, 1.0).expect("Failed to init uniform distribution.");
     let scores = scores
         .into_iter()
         .map(|score| dist.sample(rng).powf(1.0 / score))
