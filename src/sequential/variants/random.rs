@@ -3,17 +3,17 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use rand::{distr::Uniform, prelude::Distribution, Rng};
+use rand::{Rng, distr::Uniform, prelude::Distribution};
 
 use super::sorted::{pick_max, pick_sorted};
-use super::{result_and, result_forced, result_last, result_or, ScoredSequence, Scorer};
+use super::{ScoredSequence, Scorer, result_and, result_forced, result_last, result_or};
 use crate as bevior_tree;
 use crate::node::prelude::*;
 
 pub mod prelude {
     pub use super::{
-        pick_random_one, pick_random_sorted, RandomForcedSelector, RandomOrderedForcedSequence,
-        RandomOrderedSequentialAnd, RandomOrderedSequentialOr,
+        RandomForcedSelector, RandomOrderedForcedSequence, RandomOrderedSequentialAnd,
+        RandomOrderedSequentialOr, pick_random_one, pick_random_sorted,
     };
 }
 

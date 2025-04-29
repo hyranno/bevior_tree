@@ -7,7 +7,7 @@ use crate::node::prelude::*;
 pub mod variants;
 
 pub mod prelude {
-    pub use super::{variants::prelude::*, ResultConverter};
+    pub use super::{ResultConverter, variants::prelude::*};
 }
 
 /// Node that converts the result of the child.

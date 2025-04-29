@@ -14,8 +14,8 @@ pub mod variants;
 
 pub mod prelude {
     pub use super::{
-        pair_node_scorer_fn, variants::prelude::*, Picker, ResultConstructor, ScoredSequence,
-        Scorer,
+        Picker, ResultConstructor, ScoredSequence, Scorer, pair_node_scorer_fn,
+        variants::prelude::*,
     };
 }
 

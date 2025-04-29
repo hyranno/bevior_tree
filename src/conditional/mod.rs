@@ -14,7 +14,7 @@ pub mod variants;
 
 pub mod prelude {
     pub use super::{
-        variants::prelude::*, CheckIf, ConditionalLoop, ElseFreeze, LoopCondChecker, LoopState,
+        CheckIf, ConditionalLoop, ElseFreeze, LoopCondChecker, LoopState, variants::prelude::*,
     };
 }
 
