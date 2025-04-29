@@ -3,7 +3,7 @@ use crate::{
     node::{DelegateNode, prelude::*},
     task::{TaskBridge, TaskStatus},
 };
-use bevy::core::FrameCount;
+use bevy::diagnostic::{FrameCount, FrameCountPlugin};
 
 use bevy::prelude::*;
 
