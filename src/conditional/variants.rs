@@ -1,8 +1,12 @@
-use std::borrow::Cow;
-
-use bevy::ecs::{
-    entity::Entity,
-    system::{CombinatorSystem, Combine, In, IntoSystem, ReadOnlySystem, System, SystemInput},
+use bevy::{
+    ecs::{
+        entity::Entity,
+        system::{
+            CombinatorSystem, Combine, In, IntoSystem, ReadOnlySystem, RunSystemError, System,
+            SystemInput,
+        },
+    },
+    utils::prelude::DebugName,
 };
 
 use super::{ConditionalLoop, LoopState};
@@ -22,12 +26,19 @@ where
 {
     type In = In<(Entity, LoopState)>;
     type Out = bool;
-    fn combine(
+    fn combine<T>(
         (entity, loop_state): <Self::In as SystemInput>::Inner<'_>,
-        a: impl FnOnce(<<A as System>::In as SystemInput>::Inner<'_>) -> <A as System>::Out,
-        b: impl FnOnce(<<B as System>::In as SystemInput>::Inner<'_>) -> <B as System>::Out,
-    ) -> Self::Out {
-        b(loop_state) && a(entity)
+        data: &mut T,
+        a: impl FnOnce(
+            <<A as System>::In as SystemInput>::Inner<'_>,
+            &mut T,
+        ) -> Result<A::Out, RunSystemError>,
+        b: impl FnOnce(
+            <<B as System>::In as SystemInput>::Inner<'_>,
+            &mut T,
+        ) -> Result<A::Out, RunSystemError>,
+    ) -> Result<Self::Out, RunSystemError> {
+        Ok(b(loop_state, data)? && a(entity, data)?)
     }
 }
 
@@ -52,7 +63,7 @@ impl Conditional {
                             loop_state.count < 1 && loop_state.last_result.is_none()
                         }, // only once
                     ),
-                    Cow::Borrowed("check cond"),
+                    DebugName::borrowed("check cond"),
                 ),
             ),
         }

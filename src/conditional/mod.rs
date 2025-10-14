@@ -42,7 +42,9 @@ impl ConditionalLoop {
     pub fn check(&self, world: &mut World, entity: Entity, loop_state: LoopState) -> bool {
         let mut checker = self.checker.lock().expect("Failed to lock.");
         checker.initialize(world);
-        checker.run((entity, loop_state), world)
+        checker
+            .run((entity, loop_state), world)
+            .expect("Failed to run checker system.")
     }
 }
 impl Node for ConditionalLoop {
@@ -140,7 +142,9 @@ impl CheckIf {
     fn check(&self, world: &mut World, entity: Entity) -> bool {
         let mut checker = self.checker.lock().expect("Failed to lock.");
         checker.initialize(world);
-        checker.run(entity, world)
+        checker
+            .run(entity, world)
+            .expect("Failed to run checker system.")
     }
 }
 impl Node for CheckIf {
@@ -182,7 +186,9 @@ impl ElseFreeze {
     fn check(&self, world: &mut World, entity: Entity) -> bool {
         let mut checker = self.checker.lock().expect("Failed to lock.");
         checker.initialize(world);
-        checker.run(entity, world)
+        checker
+            .run(entity, world)
+            .expect("Failed to run checker system.")
     }
 }
 impl Node for ElseFreeze {

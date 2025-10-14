@@ -62,7 +62,7 @@ impl Node for ScoredSequence {
             .map(|(_, scorer)| {
                 let mut scorer = scorer.lock().expect("Failed to lock");
                 scorer.initialize(world);
-                scorer.run(entity, world)
+                scorer.run(entity, world).expect("Scorer failed")
             })
             .collect();
         let indices = (*self.picker)(scores);
