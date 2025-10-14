@@ -23,7 +23,7 @@ default = ["random"]
 random = ["dep:rand"]
 
 [dependencies]
-bevy = { version = "0.16", default-features = false }
+bevy = { version = "0.17", default-features = false }
 ordered-float = { version = "5.0" }
 rand = { version = "0.9", optional = true}
 # macro packages
@@ -32,7 +32,7 @@ macro-withstate = { version = "0.8", path = "libs/macro-withstate" }
 macro-delegatenode = { version = "0.8", path = "libs/macro-delegatenode" }
 
 [dev-dependencies]
-bevy = "0.16"
+bevy = "0.17"
 
 [package.metadata.docs.rs]
 all-features = true

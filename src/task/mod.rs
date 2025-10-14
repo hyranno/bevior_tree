@@ -91,7 +91,9 @@ impl TaskBridge {
     fn check(&self, world: &mut World, entity: Entity) -> TaskStatus {
         let mut checker = self.checker.lock().expect("Failed to lock.");
         checker.initialize(world);
-        checker.run_readonly(entity, world)
+        checker
+            .run_readonly(entity, world)
+            .expect("Failed to run checker system.")
     }
 
     fn trigger_event(&self, world: &mut World, entity: Entity, event: TaskEvent) {
@@ -102,7 +104,7 @@ impl TaskBridge {
             .filter(|(ev, _)| *ev == event)
             .for_each(|(_, sys)| {
                 sys.initialize(world);
-                sys.run(entity, world);
+                sys.run(entity, world).expect("Failed to run event system.");
                 sys.apply_deferred(world);
             });
     }
