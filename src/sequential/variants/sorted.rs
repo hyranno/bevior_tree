@@ -99,10 +99,7 @@ mod tests {
             pair_node_scorer_fn(TesterTask::<2>::new(1, NodeResult::Failure), |In(_)| 0.2),
             pair_node_scorer_fn(TesterTask::<3>::new(1, NodeResult::Success), |In(_)| 0.4),
         ]);
-        let _entity = app
-            .world_mut()
-            .spawn(BehaviorTreeBundle::from_root(sequence))
-            .id();
+        let _entity = app.world_mut().spawn(BehaviorTree::new(sequence)).id();
         app.update();
         app.update(); // 3
         app.update(); // 1
@@ -141,10 +138,7 @@ mod tests {
             pair_node_scorer_fn(TesterTask::<2>::new(1, NodeResult::Success), |In(_)| 0.2),
             pair_node_scorer_fn(TesterTask::<3>::new(1, NodeResult::Failure), |In(_)| 0.4),
         ]);
-        let _entity = app
-            .world_mut()
-            .spawn(BehaviorTreeBundle::from_root(sequence))
-            .id();
+        let _entity = app.world_mut().spawn(BehaviorTree::new(sequence)).id();
         app.update();
         app.update(); // 3
         app.update(); // 1
@@ -183,10 +177,7 @@ mod tests {
             pair_node_scorer_fn(TesterTask::<2>::new(1, NodeResult::Success), |In(_)| 0.2),
             pair_node_scorer_fn(TesterTask::<3>::new(1, NodeResult::Failure), |In(_)| 0.4),
         ]);
-        let _entity = app
-            .world_mut()
-            .spawn(BehaviorTreeBundle::from_root(sequence))
-            .id();
+        let _entity = app.world_mut().spawn(BehaviorTree::new(sequence)).id();
         app.update();
         app.update(); // 3
         app.update(); // 1
@@ -231,10 +222,7 @@ mod tests {
             pair_node_scorer_fn(TesterTask::<2>::new(1, NodeResult::Success), |In(_)| 0.2),
             pair_node_scorer_fn(TesterTask::<3>::new(1, NodeResult::Failure), |In(_)| 0.4),
         ]);
-        let _entity = app
-            .world_mut()
-            .spawn(BehaviorTreeBundle::from_root(sequence))
-            .id();
+        let _entity = app.world_mut().spawn(BehaviorTree::new(sequence)).id();
         app.update();
         app.update(); // 3, sequence complete
         app.update(); // nop

@@ -42,10 +42,7 @@ mod tests {
         app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let task = TesterTask::<0>::new(1, NodeResult::Success);
         let converter = Invert::new(task);
-        let entity = app
-            .world_mut()
-            .spawn(BehaviorTreeBundle::from_root(converter))
-            .id();
+        let entity = app.world_mut().spawn(BehaviorTree::new(converter)).id();
         app.update();
         app.update();
         let status = app.world().get::<TreeStatus>(entity);
@@ -65,10 +62,7 @@ mod tests {
         app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let task = TesterTask::<0>::new(1, NodeResult::Success);
         let converter = ForceResult::new(task, NodeResult::Failure);
-        let entity = app
-            .world_mut()
-            .spawn(BehaviorTreeBundle::from_root(converter))
-            .id();
+        let entity = app.world_mut().spawn(BehaviorTree::new(converter)).id();
         app.update();
         app.update();
         let status = app.world().get::<TreeStatus>(entity);
