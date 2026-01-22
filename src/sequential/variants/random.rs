@@ -141,10 +141,7 @@ mod tests {
             ],
             Arc::new(Mutex::new(rand::rngs::StdRng::seed_from_u64(224))),
         );
-        let _entity = app
-            .world_mut()
-            .spawn(BehaviorTree::new(sequence))
-            .id();
+        let _entity = app.world_mut().spawn(BehaviorTree::new(sequence)).id();
         app.update();
         app.update(); // 1
         app.update(); // 2
@@ -190,10 +187,7 @@ mod tests {
             ],
             Arc::new(Mutex::new(rand::rngs::StdRng::seed_from_u64(224))),
         );
-        let _entity = app
-            .world_mut()
-            .spawn(BehaviorTree::new(sequence))
-            .id();
+        let _entity = app.world_mut().spawn(BehaviorTree::new(sequence)).id();
         app.update();
         app.update(); // 1
         app.update(); // 2
@@ -239,10 +233,7 @@ mod tests {
             ],
             Arc::new(Mutex::new(rand::rngs::StdRng::seed_from_u64(224))),
         );
-        let _entity = app
-            .world_mut()
-            .spawn(BehaviorTree::new(sequence))
-            .id();
+        let _entity = app.world_mut().spawn(BehaviorTree::new(sequence)).id();
         app.update();
         app.update(); // 1
         app.update(); // 2
@@ -294,10 +285,7 @@ mod tests {
             ],
             Arc::new(Mutex::new(rand::rngs::StdRng::seed_from_u64(224))),
         );
-        let _entity = app
-            .world_mut()
-            .spawn(BehaviorTree::new(sequence))
-            .id();
+        let _entity = app.world_mut().spawn(BehaviorTree::new(sequence)).id();
         app.update();
         app.update(); // 3, sequence complete
         app.update(); // nop

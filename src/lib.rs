@@ -21,9 +21,9 @@ use node::{DelegateNode, Node, NodeStatus};
 /// Module for convenient imports. Use with `use bevior_tree::prelude::*;`.
 pub mod prelude {
     pub use crate::{
-        BehaviorTree, BehaviorTreePlugin, BehaviorTreeSystemSet, Freeze,
-        TreeStatus, conditional::prelude::*, converter::prelude::*, node::prelude::*,
-        parallel::prelude::*, sequential::prelude::*, task::prelude::*,
+        BehaviorTree, BehaviorTreePlugin, BehaviorTreeSystemSet, Freeze, TreeStatus,
+        conditional::prelude::*, converter::prelude::*, node::prelude::*, parallel::prelude::*,
+        sequential::prelude::*, task::prelude::*,
     };
 }
 
@@ -79,7 +79,6 @@ impl DelegateNode for BehaviorTree {
         self.root.as_ref()
     }
 }
-
 
 /// Add to the same entity with the BehaviorTree to temporarily freeze the update.
 /// You may prefer [`conditional::ElseFreeze`] node.
@@ -138,10 +137,7 @@ mod tests {
         let mut app = App::new();
         app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let task = TesterTask::<0>::new(1, NodeResult::Success);
-        let entity = app
-            .world_mut()
-            .spawn(BehaviorTree::new(task))
-            .id();
+        let entity = app.world_mut().spawn(BehaviorTree::new(task)).id();
         app.update();
         app.update();
         let status = app.world().get::<TreeStatus>(entity);
@@ -164,10 +160,7 @@ mod tests {
         let mut app = App::new();
         app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let task = TesterTask::<0>::new(2, NodeResult::Success);
-        let entity = app
-            .world_mut()
-            .spawn(BehaviorTree::new(task))
-            .id();
+        let entity = app.world_mut().spawn(BehaviorTree::new(task)).id();
         app.update();
         app.world_mut().entity_mut(entity).insert(Freeze);
         app.update(); // 0
