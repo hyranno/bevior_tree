@@ -89,7 +89,7 @@ mod tests {
         let conditional = Conditional::new(task, test_marker_exists);
         let _entity = app
             .world_mut()
-            .spawn(BehaviorTreeBundle::from_root(conditional))
+            .spawn(BehaviorTree::new(conditional))
             .id();
         app.update();
         app.update(); // nop
@@ -110,7 +110,7 @@ mod tests {
         let conditional = Conditional::new(task, test_marker_exists);
         let _entity = app
             .world_mut()
-            .spawn((BehaviorTreeBundle::from_root(conditional), TestMarker))
+            .spawn((BehaviorTree::new(conditional), TestMarker))
             .id();
         app.update();
         app.update(); // 0

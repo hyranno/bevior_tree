@@ -1,5 +1,5 @@
 use crate::{
-    BehaviorTreeBundle, BehaviorTreePlugin,
+    BehaviorTree, BehaviorTreePlugin,
     node::{DelegateNode, prelude::*},
     task::{TaskBridge, TaskStatus},
 };
@@ -92,7 +92,7 @@ fn test_enter_tester_task() {
     let task = TesterTask::<0>::new(1, NodeResult::Success);
     let entity = app
         .world_mut()
-        .spawn(BehaviorTreeBundle::from_root(task))
+        .spawn(BehaviorTree::new(task))
         .id();
     app.update();
     assert!(
@@ -110,7 +110,7 @@ fn test_exit_tester_task() {
     let task = TesterTask::<0>::new(1, NodeResult::Success);
     let entity = app
         .world_mut()
-        .spawn(BehaviorTreeBundle::from_root(task))
+        .spawn(BehaviorTree::new(task))
         .id();
     app.update();
     app.update();
@@ -127,7 +127,7 @@ fn test_log_test_task() {
     let task = TesterTask::<0>::new(1, NodeResult::Success);
     let _entity = app
         .world_mut()
-        .spawn(BehaviorTreeBundle::from_root(task))
+        .spawn(BehaviorTree::new(task))
         .id();
     app.update();
     app.update();

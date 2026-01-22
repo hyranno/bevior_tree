@@ -21,7 +21,7 @@ use node::{DelegateNode, Node, NodeStatus};
 /// Module for convenient imports. Use with `use bevior_tree::prelude::*;`.
 pub mod prelude {
     pub use crate::{
-        BehaviorTree, BehaviorTreeBundle, BehaviorTreePlugin, BehaviorTreeSystemSet, Freeze,
+        BehaviorTree, BehaviorTreePlugin, BehaviorTreeSystemSet, Freeze,
         TreeStatus, conditional::prelude::*, converter::prelude::*, node::prelude::*,
         parallel::prelude::*, sequential::prelude::*, task::prelude::*,
     };
@@ -63,6 +63,7 @@ pub enum BehaviorTreeSystemSet {
 /// Behavior tree component.
 /// Nodes of the tree receive the entity with this component.
 #[derive(Component, Clone)]
+#[require(TreeStatus)]
 pub struct BehaviorTree {
     root: Arc<dyn Node>,
 }
@@ -79,23 +80,6 @@ impl DelegateNode for BehaviorTree {
     }
 }
 
-/// Add this bundle to run behavior tree.
-#[derive(Bundle)]
-pub struct BehaviorTreeBundle {
-    pub tree: BehaviorTree,
-    pub status: TreeStatus,
-}
-impl BehaviorTreeBundle {
-    pub fn from_root(root: impl Node) -> Self {
-        Self::from_tree(BehaviorTree::new(root))
-    }
-    pub fn from_tree(tree: BehaviorTree) -> Self {
-        Self {
-            tree,
-            status: TreeStatus(NodeStatus::Beginning),
-        }
-    }
-}
 
 /// Add to the same entity with the BehaviorTree to temporarily freeze the update.
 /// You may prefer [`conditional::ElseFreeze`] node.
@@ -106,6 +90,12 @@ pub struct Freeze;
 /// Represents the state of the tree.
 #[derive(Component)]
 pub struct TreeStatus(NodeStatus);
+
+impl Default for TreeStatus {
+    fn default() -> Self {
+        Self(NodeStatus::Beginning)
+    }
+}
 
 /// The system to update the states of the behavior trees attached to entities.
 fn update(
@@ -150,7 +140,7 @@ mod tests {
         let task = TesterTask::<0>::new(1, NodeResult::Success);
         let entity = app
             .world_mut()
-            .spawn(BehaviorTreeBundle::from_root(task))
+            .spawn(BehaviorTree::new(task))
             .id();
         app.update();
         app.update();
@@ -176,7 +166,7 @@ mod tests {
         let task = TesterTask::<0>::new(2, NodeResult::Success);
         let entity = app
             .world_mut()
-            .spawn(BehaviorTreeBundle::from_root(task))
+            .spawn(BehaviorTree::new(task))
             .id();
         app.update();
         app.world_mut().entity_mut(entity).insert(Freeze);

@@ -44,7 +44,7 @@ mod tests {
         let converter = Invert::new(task);
         let entity = app
             .world_mut()
-            .spawn(BehaviorTreeBundle::from_root(converter))
+            .spawn(BehaviorTree::new(converter))
             .id();
         app.update();
         app.update();
@@ -67,7 +67,7 @@ mod tests {
         let converter = ForceResult::new(task, NodeResult::Failure);
         let entity = app
             .world_mut()
-            .spawn(BehaviorTreeBundle::from_root(converter))
+            .spawn(BehaviorTree::new(converter))
             .id();
         app.update();
         app.update();

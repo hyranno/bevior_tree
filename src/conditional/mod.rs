@@ -270,7 +270,7 @@ mod tests {
             });
         let _entity = app
             .world_mut()
-            .spawn(BehaviorTreeBundle::from_root(repeater))
+            .spawn(BehaviorTree::new(repeater))
             .id();
         app.update();
         app.update(); // 0
@@ -310,7 +310,7 @@ mod tests {
         let task = CheckIf::new(test_marker_exists);
         let entity = app
             .world_mut()
-            .spawn(BehaviorTreeBundle::from_root(task))
+            .spawn(BehaviorTree::new(task))
             .id();
         app.update();
         app.update();
@@ -331,7 +331,7 @@ mod tests {
         let task = CheckIf::new(test_marker_exists);
         let entity = app
             .world_mut()
-            .spawn((BehaviorTreeBundle::from_root(task), TestMarker))
+            .spawn((BehaviorTree::new(task), TestMarker))
             .id();
         app.update();
         app.update();
@@ -355,7 +355,7 @@ mod tests {
         });
         let _entity = app
             .world_mut()
-            .spawn(BehaviorTreeBundle::from_root(root))
+            .spawn(BehaviorTree::new(root))
             .id();
         app.init_state::<TestStates>();
         app.update();

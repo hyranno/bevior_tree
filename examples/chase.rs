@@ -37,7 +37,7 @@ fn init(mut commands: Commands, asset_server: Res<AssetServer>) {
         },
         Transform::from_xyz(500., 0., 0.),
         // This behavior tree handles the enemy's behavior.
-        BehaviorTreeBundle::from_root(ConditionalLoop::new(
+        BehaviorTree::new(ConditionalLoop::new(
             Sequence::new(vec![
                 // Task to wait until player get near.
                 Box::new(NearTask::new(player, 300.)),

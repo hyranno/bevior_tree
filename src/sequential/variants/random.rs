@@ -143,7 +143,7 @@ mod tests {
         );
         let _entity = app
             .world_mut()
-            .spawn(BehaviorTreeBundle::from_root(sequence))
+            .spawn(BehaviorTree::new(sequence))
             .id();
         app.update();
         app.update(); // 1
@@ -192,7 +192,7 @@ mod tests {
         );
         let _entity = app
             .world_mut()
-            .spawn(BehaviorTreeBundle::from_root(sequence))
+            .spawn(BehaviorTree::new(sequence))
             .id();
         app.update();
         app.update(); // 1
@@ -241,7 +241,7 @@ mod tests {
         );
         let _entity = app
             .world_mut()
-            .spawn(BehaviorTreeBundle::from_root(sequence))
+            .spawn(BehaviorTree::new(sequence))
             .id();
         app.update();
         app.update(); // 1
@@ -296,7 +296,7 @@ mod tests {
         );
         let _entity = app
             .world_mut()
-            .spawn(BehaviorTreeBundle::from_root(sequence))
+            .spawn(BehaviorTree::new(sequence))
             .id();
         app.update();
         app.update(); // 3, sequence complete
