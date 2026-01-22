@@ -1,7 +1,7 @@
 [workspace]
 
 [workspace.package]
-version = "0.9.0"
+version = "0.10.0"
 description = "Behavior tree plugin for Bevy."
 repository = "https://github.com/hyranno/bevior_tree"
 license = "MIT OR Apache-2.0"
@@ -27,9 +27,9 @@ bevy = { version = "0.18", default-features = false }
 ordered-float = { version = "5.0" }
 rand = { version = "0.9", optional = true}
 # macro packages
-derive-nodestate = { version = "0.9", path = "libs/derive-nodestate" }
-macro-withstate = { version = "0.9", path = "libs/macro-withstate" }
-macro-delegatenode = { version = "0.9", path = "libs/macro-delegatenode" }
+derive-nodestate = { version = "0.10", path = "libs/derive-nodestate" }
+macro-withstate = { version = "0.10", path = "libs/macro-withstate" }
+macro-delegatenode = { version = "0.10", path = "libs/macro-delegatenode" }
 
 [dev-dependencies]
 bevy = "0.18"
