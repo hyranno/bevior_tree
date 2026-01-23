@@ -124,33 +124,22 @@ impl Default for TreeStatus {
 /// The system to update the states of the behavior trees attached to entities.
 fn update(
     world: &mut World,
-    query: &mut QueryState<(Entity, &BehaviorTree, &mut TreeStatus), Without<Freeze>>,
+    query: &mut QueryState<(Entity, &BehaviorTree), (With<TreeStatus>, Without<Freeze>)>,
 ) {
-    let trees: Vec<(Entity, BehaviorTree, NodeStatus)> = query
-        .iter_mut(world)
-        .map(|(entity, tree, mut status)| {
-            let mut status_swap = TreeStatus(NodeStatus::Beginning);
-            std::mem::swap(status.as_mut(), &mut status_swap);
-            (entity, tree.clone(), status_swap.0)
-        })
-        .collect();
-
-    let statuses_new: Vec<NodeStatus> = trees
-        .into_iter()
-        .map(|(entity, root, status)| match status {
-            NodeStatus::Beginning => root.begin(world, entity),
-            NodeStatus::Pending(state) => root.resume(world, entity, state),
-            NodeStatus::Complete(_) => status,
-        })
-        .collect();
-
-    query
-        .iter_mut(world)
-        .zip(statuses_new)
-        .for_each(|((_, _, mut state), state_new)| {
-            let mut state_new_swap = TreeStatus(state_new);
-            std::mem::swap(state.as_mut(), &mut state_new_swap);
-        });
+    let targets = query
+        .iter(world)
+        .map(|(entity, tree)| (entity, tree.clone()))
+        .collect::<Vec<_>>();
+    targets.into_iter().for_each(|(entity, tree)| {
+        if let Some(TreeStatus(status)) = world.entity_mut(entity).take::<TreeStatus>() {
+            let new_status = match status {
+                NodeStatus::Beginning => tree.begin(world, entity),
+                NodeStatus::Pending(state) => tree.resume(world, entity, state),
+                NodeStatus::Complete(_) => status,
+            };
+            world.entity_mut(entity).insert(TreeStatus(new_status));
+        }
+    });
 }
 
 #[cfg(test)]
