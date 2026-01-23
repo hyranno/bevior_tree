@@ -4,7 +4,6 @@ use bevy::{
     ecs::{intern::Interned, schedule::ScheduleLabel},
     prelude::*,
 };
-use std::sync::Arc;
 
 pub mod conditional;
 pub mod converter;
@@ -16,14 +15,14 @@ pub mod task;
 #[cfg(test)]
 mod tester_util;
 
-use node::{DelegateNode, Node, NodeStatus};
+use node::{Node, NodeStatus};
 
 /// Module for convenient imports. Use with `use bevior_tree::prelude::*;`.
 pub mod prelude {
     pub use crate::{
-        BehaviorTree, BehaviorTreePlugin, BehaviorTreeSystemSet, Freeze, TreeStatus,
-        conditional::prelude::*, converter::prelude::*, node::prelude::*, parallel::prelude::*,
-        sequential::prelude::*, task::prelude::*,
+        BehaviorTree, BehaviorTreePlugin, BehaviorTreeRoot, BehaviorTreeSystemSet, Freeze,
+        TreeStatus, conditional::prelude::*, converter::prelude::*, node::prelude::*,
+        parallel::prelude::*, sequential::prelude::*, task::prelude::*,
     };
 }
 
@@ -47,7 +46,7 @@ impl Default for BehaviorTreePlugin {
 }
 impl Plugin for BehaviorTreePlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
+        app.init_resource::<Assets<BehaviorTreeRoot>>().add_systems(
             self.schedule,
             (update).in_set(BehaviorTreeSystemSet::Update),
         );
@@ -60,23 +59,49 @@ pub enum BehaviorTreeSystemSet {
     Update,
 }
 
+/// Asset representing behavior tree root node.
+#[derive(Asset, TypePath)]
+pub struct BehaviorTreeRoot {
+    node: Box<dyn Node>,
+}
+
 /// Behavior tree component.
 /// Nodes of the tree receive the entity with this component.
 #[derive(Component, Clone)]
 #[require(TreeStatus)]
 pub struct BehaviorTree {
-    root: Arc<dyn Node>,
+    root: Handle<BehaviorTreeRoot>,
 }
 impl BehaviorTree {
-    pub fn new(root: impl Node) -> Self {
-        Self {
-            root: Arc::new(root),
-        }
+    pub fn new(root: Handle<BehaviorTreeRoot>) -> Self {
+        Self { root }
     }
-}
-impl DelegateNode for BehaviorTree {
-    fn delegate_node(&self) -> &dyn Node {
-        self.root.as_ref()
+    pub fn from_node<N: Node>(node: N, asset_server: &mut Assets<BehaviorTreeRoot>) -> Self {
+        let handle = asset_server.add(BehaviorTreeRoot {
+            node: Box::new(node),
+        });
+        Self { root: handle }
+    }
+    pub fn begin(&self, world: &mut World, entity: Entity) -> NodeStatus {
+        world.resource_scope(|world, assets: Mut<Assets<BehaviorTreeRoot>>| {
+            assets
+                .get(&self.root)
+                .map(|root| root.node.as_ref().begin(world, entity))
+                .unwrap_or(NodeStatus::Beginning)
+        })
+    }
+    pub fn resume(
+        &self,
+        world: &mut World,
+        entity: Entity,
+        state: Box<dyn node::NodeState>,
+    ) -> NodeStatus {
+        world.resource_scope(|world, assets: Mut<Assets<BehaviorTreeRoot>>| {
+            match assets.get(&self.root) {
+                None => NodeStatus::Pending(state),
+                Some(root) => root.node.as_ref().resume(world, entity, state),
+            }
+        })
     }
 }
 
@@ -101,12 +126,12 @@ fn update(
     world: &mut World,
     query: &mut QueryState<(Entity, &BehaviorTree, &mut TreeStatus), Without<Freeze>>,
 ) {
-    let trees: Vec<(Entity, Arc<dyn Node>, NodeStatus)> = query
+    let trees: Vec<(Entity, BehaviorTree, NodeStatus)> = query
         .iter_mut(world)
         .map(|(entity, tree, mut status)| {
             let mut status_swap = TreeStatus(NodeStatus::Beginning);
             std::mem::swap(status.as_mut(), &mut status_swap);
-            (entity, tree.root.clone(), status_swap.0)
+            (entity, tree.clone(), status_swap.0)
         })
         .collect();
 
@@ -137,7 +162,11 @@ mod tests {
         let mut app = App::new();
         app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let task = TesterTask::<0>::new(1, NodeResult::Success);
-        let entity = app.world_mut().spawn(BehaviorTree::new(task)).id();
+        let tree = BehaviorTree::from_node(
+            task,
+            &mut app.world_mut().resource_mut::<Assets<BehaviorTreeRoot>>(),
+        );
+        let entity = app.world_mut().spawn(tree).id();
         app.update();
         app.update();
         let status = app.world().get::<TreeStatus>(entity);
@@ -160,7 +189,11 @@ mod tests {
         let mut app = App::new();
         app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let task = TesterTask::<0>::new(2, NodeResult::Success);
-        let entity = app.world_mut().spawn(BehaviorTree::new(task)).id();
+        let tree = BehaviorTree::from_node(
+            task,
+            &mut app.world_mut().resource_mut::<Assets<BehaviorTreeRoot>>(),
+        );
+        let entity = app.world_mut().spawn(tree).id();
         app.update();
         app.world_mut().entity_mut(entity).insert(Freeze);
         app.update(); // 0

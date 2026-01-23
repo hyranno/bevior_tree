@@ -126,7 +126,11 @@ mod tests {
             Box::new(TesterTask::<2>::new(1, NodeResult::Failure)),
             Box::new(TesterTask::<3>::new(1, NodeResult::Success)),
         ]);
-        let _entity = app.world_mut().spawn(BehaviorTree::new(sequence)).id();
+        let tree = BehaviorTree::from_node(
+            sequence,
+            &mut app.world_mut().resource_mut::<Assets<BehaviorTreeRoot>>(),
+        );
+        let _entity = app.world_mut().spawn(tree).id();
         app.update();
         app.update(); // 0
         app.update(); // 1
@@ -169,7 +173,11 @@ mod tests {
             Box::new(TesterTask::<2>::new(1, NodeResult::Success)),
             Box::new(TesterTask::<3>::new(1, NodeResult::Failure)),
         ]);
-        let _entity = app.world_mut().spawn(BehaviorTree::new(sequence)).id();
+        let tree = BehaviorTree::from_node(
+            sequence,
+            &mut app.world_mut().resource_mut::<Assets<BehaviorTreeRoot>>(),
+        );
+        let _entity = app.world_mut().spawn(tree).id();
         app.update();
         app.update(); // 0
         app.update(); // 1
@@ -212,7 +220,11 @@ mod tests {
             Box::new(TesterTask::<2>::new(1, NodeResult::Success)),
             Box::new(TesterTask::<3>::new(1, NodeResult::Failure)),
         ]);
-        let _entity = app.world_mut().spawn(BehaviorTree::new(sequence)).id();
+        let tree = BehaviorTree::from_node(
+            sequence,
+            &mut app.world_mut().resource_mut::<Assets<BehaviorTreeRoot>>(),
+        );
+        let _entity = app.world_mut().spawn(tree).id();
         app.update();
         app.update(); // 0
         app.update(); // 1

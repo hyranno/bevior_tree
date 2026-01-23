@@ -23,7 +23,7 @@ default = ["random"]
 random = ["dep:rand"]
 
 [dependencies]
-bevy = { version = "0.18", default-features = false }
+bevy = { version = "0.18", default-features = false, features = ["bevy_asset"] }
 ordered-float = { version = "5.0" }
 rand = { version = "0.9", optional = true}
 # macro packages

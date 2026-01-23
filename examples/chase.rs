@@ -15,7 +15,11 @@ fn main() {
 }
 
 // Setup the game
-fn init(mut commands: Commands, asset_server: Res<AssetServer>) {
+fn init(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    mut tree_assets: ResMut<Assets<BehaviorTreeRoot>>,
+) {
     commands.spawn(Camera2d::default());
 
     // Simple player entity
@@ -37,15 +41,18 @@ fn init(mut commands: Commands, asset_server: Res<AssetServer>) {
         },
         Transform::from_xyz(500., 0., 0.),
         // This behavior tree handles the enemy's behavior.
-        BehaviorTree::new(ConditionalLoop::new(
-            Sequence::new(vec![
-                // Task to wait until player get near.
-                Box::new(NearTask::new(player, 300.)),
-                // Task to follow the player.
-                Box::new(FollowTask::new(player, 300., 100.)),
-            ]),
-            |In(_)| true,
-        )),
+        BehaviorTree::from_node(
+            ConditionalLoop::new(
+                Sequence::new(vec![
+                    // Task to wait until player get near.
+                    Box::new(NearTask::new(player, 300.)),
+                    // Task to follow the player.
+                    Box::new(FollowTask::new(player, 300., 100.)),
+                ]),
+                |In(_)| true,
+            ),
+            &mut tree_assets,
+        ),
     ));
 }
 

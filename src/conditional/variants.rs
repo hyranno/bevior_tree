@@ -87,7 +87,11 @@ mod tests {
         app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let task = TesterTask::<0>::new(1, NodeResult::Success);
         let conditional = Conditional::new(task, test_marker_exists);
-        let _entity = app.world_mut().spawn(BehaviorTree::new(conditional)).id();
+        let tree = BehaviorTree::from_node(
+            conditional,
+            &mut app.world_mut().resource_mut::<Assets<BehaviorTreeRoot>>(),
+        );
+        let _entity = app.world_mut().spawn(tree).id();
         app.update();
         app.update(); // nop
         let expected = TestLog { log: vec![] };
@@ -105,10 +109,11 @@ mod tests {
         app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let task = TesterTask::<0>::new(1, NodeResult::Success);
         let conditional = Conditional::new(task, test_marker_exists);
-        let _entity = app
-            .world_mut()
-            .spawn((BehaviorTree::new(conditional), TestMarker))
-            .id();
+        let tree = BehaviorTree::from_node(
+            conditional,
+            &mut app.world_mut().resource_mut::<Assets<BehaviorTreeRoot>>(),
+        );
+        let _entity = app.world_mut().spawn((tree, TestMarker)).id();
         app.update();
         app.update(); // 0
         app.update(); // nop

@@ -1,5 +1,5 @@
 use crate::{
-    BehaviorTree, BehaviorTreePlugin,
+    BehaviorTree, BehaviorTreePlugin, BehaviorTreeRoot,
     node::{DelegateNode, prelude::*},
     task::{TaskBridge, TaskStatus},
 };
@@ -90,7 +90,11 @@ fn test_enter_tester_task() {
     let mut app = App::new();
     app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
     let task = TesterTask::<0>::new(1, NodeResult::Success);
-    let entity = app.world_mut().spawn(BehaviorTree::new(task)).id();
+    let tree = BehaviorTree::from_node(
+        task,
+        &mut app.world_mut().resource_mut::<Assets<BehaviorTreeRoot>>(),
+    );
+    let entity = app.world_mut().spawn(tree).id();
     app.update();
     assert!(
         app.world().get::<TesterComponent<0>>(entity).is_some(),
@@ -105,7 +109,11 @@ fn test_exit_tester_task() {
     let mut app = App::new();
     app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
     let task = TesterTask::<0>::new(1, NodeResult::Success);
-    let entity = app.world_mut().spawn(BehaviorTree::new(task)).id();
+    let tree = BehaviorTree::from_node(
+        task,
+        &mut app.world_mut().resource_mut::<Assets<BehaviorTreeRoot>>(),
+    );
+    let entity = app.world_mut().spawn(tree).id();
     app.update();
     app.update();
     assert!(
@@ -119,7 +127,11 @@ fn test_log_test_task() {
     let mut app = App::new();
     app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
     let task = TesterTask::<0>::new(1, NodeResult::Success);
-    let _entity = app.world_mut().spawn(BehaviorTree::new(task)).id();
+    let tree = BehaviorTree::from_node(
+        task,
+        &mut app.world_mut().resource_mut::<Assets<BehaviorTreeRoot>>(),
+    );
+    let _entity = app.world_mut().spawn(tree).id();
     app.update();
     app.update();
     let expected = TestLog {

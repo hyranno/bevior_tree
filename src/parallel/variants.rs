@@ -74,7 +74,11 @@ mod tests {
             Box::new(TesterTask::<2>::new(3, NodeResult::Failure)),
             Box::new(TesterTask::<3>::new(4, NodeResult::Success)),
         ]);
-        let _entity = app.world_mut().spawn(BehaviorTree::new(parallel)).id();
+        let tree = BehaviorTree::from_node(
+            parallel,
+            &mut app.world_mut().resource_mut::<Assets<BehaviorTreeRoot>>(),
+        );
+        let _entity = app.world_mut().spawn(tree).id();
         app.update();
         app.update(); // 0, 1, 2, 3
         app.update(); // 1, 2, 3
@@ -155,7 +159,11 @@ mod tests {
             Box::new(TesterTask::<2>::new(3, NodeResult::Success)),
             Box::new(TesterTask::<3>::new(4, NodeResult::Failure)),
         ]);
-        let _entity = app.world_mut().spawn(BehaviorTree::new(parallel)).id();
+        let tree = BehaviorTree::from_node(
+            parallel,
+            &mut app.world_mut().resource_mut::<Assets<BehaviorTreeRoot>>(),
+        );
+        let _entity = app.world_mut().spawn(tree).id();
         app.update();
         app.update(); // 0, 1, 2, 3
         app.update(); // 1, 2, 3
@@ -236,7 +244,11 @@ mod tests {
             Box::new(TesterTask::<2>::new(3, NodeResult::Failure)),
             Box::new(TesterTask::<3>::new(4, NodeResult::Success)),
         ]);
-        let _entity = app.world_mut().spawn(BehaviorTree::new(parallel)).id();
+        let tree = BehaviorTree::from_node(
+            parallel,
+            &mut app.world_mut().resource_mut::<Assets<BehaviorTreeRoot>>(),
+        );
+        let _entity = app.world_mut().spawn(tree).id();
         app.update();
         app.update(); // 0, 1, 2, 3
         app.update(); // 1, 2, 3
