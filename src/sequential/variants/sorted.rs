@@ -1,5 +1,7 @@
 use std::{cmp::Reverse, sync::Mutex};
 
+use bevy::ecs::entity::Entity;
+use bevy::ecs::system::In;
 use ordered_float::OrderedFloat;
 
 use super::{ScoredSequence, Scorer, result_and, result_forced, result_last, result_or};
@@ -14,12 +16,12 @@ pub mod prelude {
 }
 
 /// Sort descending by score.
-pub fn pick_sorted(scores: Vec<f32>) -> Vec<usize> {
+pub fn pick_sorted(In((scores, _entity)): In<(Vec<f32>, Entity)>) -> Vec<usize> {
     let mut enumerated: Vec<(usize, f32)> = scores.into_iter().enumerate().collect();
     enumerated.sort_by_key(|(_, score)| Reverse(OrderedFloat(*score)));
     enumerated.into_iter().map(|(index, _)| index).collect()
 }
-pub fn pick_max(scores: Vec<f32>) -> Vec<usize> {
+pub fn pick_max(In((scores, _entity)): In<(Vec<f32>, Entity)>) -> Vec<usize> {
     scores
         .into_iter()
         .enumerate()

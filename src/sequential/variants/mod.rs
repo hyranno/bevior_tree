@@ -34,7 +34,7 @@ pub fn score_uniform(nodes: Vec<Box<dyn Node>>) -> Vec<(Box<dyn Node>, Mutex<Box
         .collect()
 }
 
-pub fn pick_identity(scores: Vec<f32>) -> Vec<usize> {
+pub fn pick_identity(In((scores, _entity)): In<(Vec<f32>, Entity)>) -> Vec<usize> {
     (0..scores.len()).collect()
 }
 
