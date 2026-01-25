@@ -4,7 +4,7 @@ use std::sync::Mutex;
 
 use bevy::ecs::{
     entity::Entity,
-    system::{In, IntoSystem, ReadOnlySystem},
+    system::{In, IntoSystem, ReadOnlySystem, System},
     world::World,
 };
 
@@ -22,8 +22,8 @@ pub mod prelude {
 pub trait Scorer: ReadOnlySystem<In = In<Entity>, Out = f32> {}
 impl<S> Scorer for S where S: ReadOnlySystem<In = In<Entity>, Out = f32> {}
 
-pub trait Picker: Fn(Vec<f32>) -> Vec<usize> + 'static + Send + Sync {}
-impl<F> Picker for F where F: Fn(Vec<f32>) -> Vec<usize> + 'static + Send + Sync {}
+pub trait Picker: System<In = In<(Vec<f32>, Entity)>, Out = Vec<usize>> {}
+impl<S> Picker for S where S: System<In = In<(Vec<f32>, Entity)>, Out = Vec<usize>> {}
 
 pub trait ResultConstructor:
     Fn(Vec<Option<NodeResult>>) -> Option<NodeResult> + 'static + Send + Sync
@@ -38,18 +38,22 @@ impl<F> ResultConstructor for F where
 #[with_state(ScoredSequenceState)]
 pub struct ScoredSequence {
     nodes: Vec<(Box<dyn Node>, Mutex<Box<dyn Scorer>>)>,
-    picker: Box<dyn Picker>,
+    picker: Mutex<Box<dyn Picker>>,
     result_constructor: Box<dyn ResultConstructor>,
 }
 impl ScoredSequence {
-    pub fn new(
+    pub fn new<P, Marker>(
         nodes: Vec<(Box<dyn Node>, Mutex<Box<dyn Scorer>>)>,
-        picker: impl Picker,
+        picker: P,
         result_constructor: impl ResultConstructor,
-    ) -> Self {
+    ) -> Self
+    where
+        P: IntoSystem<In<(Vec<f32>, Entity)>, Vec<usize>, Marker>,
+        <P as IntoSystem<In<(Vec<f32>, Entity)>, Vec<usize>, Marker>>::System: Picker,
+    {
         Self {
             nodes,
-            picker: Box::new(picker),
+            picker: Mutex::new(Box::new(IntoSystem::into_system(picker))),
             result_constructor: Box::new(result_constructor),
         }
     }
@@ -65,7 +69,9 @@ impl Node for ScoredSequence {
                 scorer.run(entity, world).expect("Scorer failed")
             })
             .collect();
-        let indices = (*self.picker)(scores);
+        let mut picker = self.picker.lock().expect("Failed to lock");
+        picker.initialize(world);
+        let indices = picker.run((scores, entity), world).expect("Picker failed");
         let state = Box::new(ScoredSequenceState::new(indices));
         self.resume(world, entity, state)
     }

@@ -268,7 +268,11 @@ mod tests {
             ConditionalLoop::new(task, |In((_, loop_state)): In<(Entity, LoopState)>| {
                 loop_state.count < 3
             });
-        let _entity = app.world_mut().spawn(BehaviorTree::new(repeater)).id();
+        let tree = BehaviorTree::from_node(
+            repeater,
+            &mut app.world_mut().resource_mut::<Assets<BehaviorTreeRoot>>(),
+        );
+        let _entity = app.world_mut().spawn(tree).id();
         app.update();
         app.update(); // 0
         app.update(); // 1
@@ -305,7 +309,11 @@ mod tests {
         let mut app = App::new();
         app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let task = CheckIf::new(test_marker_exists);
-        let entity = app.world_mut().spawn(BehaviorTree::new(task)).id();
+        let tree = BehaviorTree::from_node(
+            task,
+            &mut app.world_mut().resource_mut::<Assets<BehaviorTreeRoot>>(),
+        );
+        let entity = app.world_mut().spawn(tree).id();
         app.update();
         app.update();
         let tree_status = app.world().get::<TreeStatus>(entity);
@@ -323,10 +331,11 @@ mod tests {
         let mut app = App::new();
         app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let task = CheckIf::new(test_marker_exists);
-        let entity = app
-            .world_mut()
-            .spawn((BehaviorTree::new(task), TestMarker))
-            .id();
+        let tree = BehaviorTree::from_node(
+            task,
+            &mut app.world_mut().resource_mut::<Assets<BehaviorTreeRoot>>(),
+        );
+        let entity = app.world_mut().spawn((tree, TestMarker)).id();
         app.update();
         app.update();
         let tree_status = app.world().get::<TreeStatus>(entity);
@@ -347,7 +356,11 @@ mod tests {
         let root = ElseFreeze::new(task, |In(_), state: Res<State<TestStates>>| {
             *state.get() == TestStates::MainState
         });
-        let _entity = app.world_mut().spawn(BehaviorTree::new(root)).id();
+        let tree = BehaviorTree::from_node(
+            root,
+            &mut app.world_mut().resource_mut::<Assets<BehaviorTreeRoot>>(),
+        );
+        let _entity = app.world_mut().spawn(tree).id();
         app.init_state::<TestStates>();
         app.update();
         app.update(); // 0

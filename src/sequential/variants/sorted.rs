@@ -1,5 +1,7 @@
 use std::{cmp::Reverse, sync::Mutex};
 
+use bevy::ecs::entity::Entity;
+use bevy::ecs::system::In;
 use ordered_float::OrderedFloat;
 
 use super::{ScoredSequence, Scorer, result_and, result_forced, result_last, result_or};
@@ -14,12 +16,12 @@ pub mod prelude {
 }
 
 /// Sort descending by score.
-pub fn pick_sorted(scores: Vec<f32>) -> Vec<usize> {
+pub fn pick_sorted(In((scores, _entity)): In<(Vec<f32>, Entity)>) -> Vec<usize> {
     let mut enumerated: Vec<(usize, f32)> = scores.into_iter().enumerate().collect();
     enumerated.sort_by_key(|(_, score)| Reverse(OrderedFloat(*score)));
     enumerated.into_iter().map(|(index, _)| index).collect()
 }
-pub fn pick_max(scores: Vec<f32>) -> Vec<usize> {
+pub fn pick_max(In((scores, _entity)): In<(Vec<f32>, Entity)>) -> Vec<usize> {
     scores
         .into_iter()
         .enumerate()
@@ -99,7 +101,11 @@ mod tests {
             pair_node_scorer_fn(TesterTask::<2>::new(1, NodeResult::Failure), |In(_)| 0.2),
             pair_node_scorer_fn(TesterTask::<3>::new(1, NodeResult::Success), |In(_)| 0.4),
         ]);
-        let _entity = app.world_mut().spawn(BehaviorTree::new(sequence)).id();
+        let tree = BehaviorTree::from_node(
+            sequence,
+            &mut app.world_mut().resource_mut::<Assets<BehaviorTreeRoot>>(),
+        );
+        let _entity = app.world_mut().spawn(tree).id();
         app.update();
         app.update(); // 3
         app.update(); // 1
@@ -138,7 +144,11 @@ mod tests {
             pair_node_scorer_fn(TesterTask::<2>::new(1, NodeResult::Success), |In(_)| 0.2),
             pair_node_scorer_fn(TesterTask::<3>::new(1, NodeResult::Failure), |In(_)| 0.4),
         ]);
-        let _entity = app.world_mut().spawn(BehaviorTree::new(sequence)).id();
+        let tree = BehaviorTree::from_node(
+            sequence,
+            &mut app.world_mut().resource_mut::<Assets<BehaviorTreeRoot>>(),
+        );
+        let _entity = app.world_mut().spawn(tree).id();
         app.update();
         app.update(); // 3
         app.update(); // 1
@@ -177,7 +187,11 @@ mod tests {
             pair_node_scorer_fn(TesterTask::<2>::new(1, NodeResult::Success), |In(_)| 0.2),
             pair_node_scorer_fn(TesterTask::<3>::new(1, NodeResult::Failure), |In(_)| 0.4),
         ]);
-        let _entity = app.world_mut().spawn(BehaviorTree::new(sequence)).id();
+        let tree = BehaviorTree::from_node(
+            sequence,
+            &mut app.world_mut().resource_mut::<Assets<BehaviorTreeRoot>>(),
+        );
+        let _entity = app.world_mut().spawn(tree).id();
         app.update();
         app.update(); // 3
         app.update(); // 1
@@ -222,7 +236,11 @@ mod tests {
             pair_node_scorer_fn(TesterTask::<2>::new(1, NodeResult::Success), |In(_)| 0.2),
             pair_node_scorer_fn(TesterTask::<3>::new(1, NodeResult::Failure), |In(_)| 0.4),
         ]);
-        let _entity = app.world_mut().spawn(BehaviorTree::new(sequence)).id();
+        let tree = BehaviorTree::from_node(
+            sequence,
+            &mut app.world_mut().resource_mut::<Assets<BehaviorTreeRoot>>(),
+        );
+        let _entity = app.world_mut().spawn(tree).id();
         app.update();
         app.update(); // 3, sequence complete
         app.update(); // nop
