@@ -45,9 +45,9 @@ fn init(
             ConditionalLoop::new(
                 Sequence::new(vec![
                     // Task to wait until player get near.
-                    Box::new(NearTask::new(player, 300.)),
+                    Box::new(TaskBridge::new(Box::new(NearTaskDefinition { target: player, range: 300. }))),
                     // Task to follow the player.
-                    Box::new(FollowTask::new(player, 300., 100.)),
+                    Box::new(TaskBridge::new(Box::new(FollowTaskDefinition { target: player, range: 300., speed: 100. }))),
                 ]),
                 |In(_)| true,
             ),
@@ -65,54 +65,63 @@ fn get_distance(entity0: Entity, entity1: Entity, param: Query<&Transform>) -> f
         .distance(param.get(entity1).unwrap().translation.truncate())
 }
 
-// Task to wait until player get near.
-// Task trait is available for making your task, delegating core methods to TaskImpl.
-#[delegate_node(delegate)]
-struct NearTask {
-    delegate: TaskBridge,
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+struct NearTaskDefinition {
+    target: Entity,
+    range: f32,
 }
-impl NearTask {
-    pub fn new(target: Entity, range: f32) -> Self {
-        let checker = move |In(entity): In<Entity>, param: Query<&Transform>| {
+#[cfg_attr(feature = "serde", typetag::serde)]
+impl TaskDefinition for NearTaskDefinition {
+    fn build_checker(&self) -> Box<dyn TaskChecker> {
+        let target = self.target;
+        let range = self.range;
+        Box::new(IntoSystem::into_system(move |In(entity): In<Entity>, param: Query<&Transform>| {
             let distance = get_distance(entity, target, param);
             // Check whether the target is within range. If it is, return `Success`.
             match distance <= range {
                 true => TaskStatus::Complete(NodeResult::Success),
                 false => TaskStatus::Running,
             }
-        };
-        Self {
-            delegate: TaskBridge::new(checker),
-        }
+        }))
+    }
+    fn build_event_listeners(&self) -> Vec<(TaskEvent, Box<dyn TaskEventListener>)> {
+        vec![]
     }
 }
 
-// Task node to follow the target.
-#[delegate_node(delegate)]
-struct FollowTask {
-    delegate: TaskBridge,
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+struct FollowTaskDefinition {
+    target: Entity,
+    range: f32,
+    speed: f32,
 }
-impl FollowTask {
-    pub fn new(target: Entity, range: f32, speed: f32) -> Self {
-        let checker = move |In(entity): In<Entity>, param: Query<&Transform>| {
+#[cfg_attr(feature = "serde", typetag::serde)]
+impl TaskDefinition for FollowTaskDefinition {
+    fn build_checker(&self) -> Box<dyn TaskChecker> {
+        let target = self.target;
+        let range = self.range;
+        Box::new(IntoSystem::into_system(move |In(entity): In<Entity>, param: Query<&Transform>| {
             let distance = get_distance(entity, target, param);
             // Return `Failure` if target is out of range.
             match distance <= range {
                 true => TaskStatus::Running,
                 false => TaskStatus::Complete(NodeResult::Failure),
             }
-        };
-        let task = TaskBridge::new(checker)
-            // Task inserts some components to the entity while running.
-            .insert_while_running(Follow { target, speed })
+        }))
+    }
+    fn build_event_listeners(&self) -> Vec<(TaskEvent, Box<dyn TaskEventListener>)> {
+        // Task inserts some components to the entity while running.
+        let mut listeners = insert_while_running(Follow { target: self.target, speed: self.speed });
+        listeners.push(
             // Or run some commands on enter/exit.
-            .on_event(
+            (
                 TaskEvent::Enter,
-                |_entity: In<Entity>, mut _commands: Commands| {
+                Box::new(IntoSystem::into_system(move |In(_entity): In<Entity>, mut _commands: Commands| {
                     info!("Beginning to follow.");
-                },
-            );
-        Self { delegate: task }
+                }))
+            )
+        );
+        listeners
     }
 }
 

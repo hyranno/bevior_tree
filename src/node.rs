@@ -17,6 +17,7 @@ pub trait NodeState: 'static + Send + Sync {
 }
 
 /// Result of completed nodes.
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NodeResult {
     Success,
