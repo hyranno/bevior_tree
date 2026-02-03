@@ -85,7 +85,7 @@ mod tests {
     fn test_conditional_false() {
         let mut app = App::new();
         app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
-        let task = TesterTask::<0>::new(1, NodeResult::Success);
+        let task = TesterTask0::new(1, NodeResult::Success);
         let conditional = Conditional::new(task, test_marker_exists);
         let tree = BehaviorTree::from_node(
             conditional,
@@ -107,7 +107,7 @@ mod tests {
     fn test_conditional_true() {
         let mut app = App::new();
         app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
-        let task = TesterTask::<0>::new(1, NodeResult::Success);
+        let task = TesterTask0::new(1, NodeResult::Success);
         let conditional = Conditional::new(task, test_marker_exists);
         let tree = BehaviorTree::from_node(
             conditional,

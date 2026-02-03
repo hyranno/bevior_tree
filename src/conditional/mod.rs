@@ -263,7 +263,7 @@ mod tests {
     fn test_repeat_count() {
         let mut app = App::new();
         app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
-        let task = TesterTask::<0>::new(1, NodeResult::Success);
+        let task = TesterTask0::new(1, NodeResult::Success);
         let repeater =
             ConditionalLoop::new(task, |In((_, loop_state)): In<(Entity, LoopState)>| {
                 loop_state.count < 3
@@ -352,7 +352,7 @@ mod tests {
     fn test_conditional_freeze() {
         let mut app = App::new();
         app.add_plugins((StatesPlugin, BehaviorTreePlugin::default(), TesterPlugin));
-        let task = TesterTask::<0>::new(2, NodeResult::Success);
+        let task = TesterTask0::new(2, NodeResult::Success);
         let root = ElseFreeze::new(task, |In(_), state: Res<State<TestStates>>| {
             *state.get() == TestStates::MainState
         });

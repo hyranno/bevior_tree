@@ -96,10 +96,10 @@ mod tests {
         let mut app = App::new();
         app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let sequence = ScoreOrderedSequentialAnd::new(vec![
-            pair_node_scorer_fn(TesterTask::<0>::new(1, NodeResult::Success), |In(_)| 0.1),
-            pair_node_scorer_fn(TesterTask::<1>::new(1, NodeResult::Success), |In(_)| 0.3),
-            pair_node_scorer_fn(TesterTask::<2>::new(1, NodeResult::Failure), |In(_)| 0.2),
-            pair_node_scorer_fn(TesterTask::<3>::new(1, NodeResult::Success), |In(_)| 0.4),
+            pair_node_scorer_fn(TesterTask0::new(1, NodeResult::Success), |In(_)| 0.1),
+            pair_node_scorer_fn(TesterTask1::new(1, NodeResult::Success), |In(_)| 0.3),
+            pair_node_scorer_fn(TesterTask2::new(1, NodeResult::Failure), |In(_)| 0.2),
+            pair_node_scorer_fn(TesterTask3::new(1, NodeResult::Success), |In(_)| 0.4),
         ]);
         let tree = BehaviorTree::from_node(
             sequence,
@@ -139,10 +139,10 @@ mod tests {
         let mut app = App::new();
         app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let sequence = ScoreOrderedSequentialOr::new(vec![
-            pair_node_scorer_fn(TesterTask::<0>::new(1, NodeResult::Failure), |In(_)| 0.1),
-            pair_node_scorer_fn(TesterTask::<1>::new(1, NodeResult::Failure), |In(_)| 0.3),
-            pair_node_scorer_fn(TesterTask::<2>::new(1, NodeResult::Success), |In(_)| 0.2),
-            pair_node_scorer_fn(TesterTask::<3>::new(1, NodeResult::Failure), |In(_)| 0.4),
+            pair_node_scorer_fn(TesterTask0::new(1, NodeResult::Failure), |In(_)| 0.1),
+            pair_node_scorer_fn(TesterTask1::new(1, NodeResult::Failure), |In(_)| 0.3),
+            pair_node_scorer_fn(TesterTask2::new(1, NodeResult::Success), |In(_)| 0.2),
+            pair_node_scorer_fn(TesterTask3::new(1, NodeResult::Failure), |In(_)| 0.4),
         ]);
         let tree = BehaviorTree::from_node(
             sequence,
@@ -182,10 +182,10 @@ mod tests {
         let mut app = App::new();
         app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let sequence = ScoreOrderedForcedSequence::new(vec![
-            pair_node_scorer_fn(TesterTask::<0>::new(1, NodeResult::Failure), |In(_)| 0.1),
-            pair_node_scorer_fn(TesterTask::<1>::new(1, NodeResult::Failure), |In(_)| 0.3),
-            pair_node_scorer_fn(TesterTask::<2>::new(1, NodeResult::Success), |In(_)| 0.2),
-            pair_node_scorer_fn(TesterTask::<3>::new(1, NodeResult::Failure), |In(_)| 0.4),
+            pair_node_scorer_fn(TesterTask0::new(1, NodeResult::Failure), |In(_)| 0.1),
+            pair_node_scorer_fn(TesterTask1::new(1, NodeResult::Failure), |In(_)| 0.3),
+            pair_node_scorer_fn(TesterTask2::new(1, NodeResult::Success), |In(_)| 0.2),
+            pair_node_scorer_fn(TesterTask3::new(1, NodeResult::Failure), |In(_)| 0.4),
         ]);
         let tree = BehaviorTree::from_node(
             sequence,
@@ -231,10 +231,10 @@ mod tests {
         let mut app = App::new();
         app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let sequence = ScoredForcedSelector::new(vec![
-            pair_node_scorer_fn(TesterTask::<0>::new(1, NodeResult::Failure), |In(_)| 0.1),
-            pair_node_scorer_fn(TesterTask::<1>::new(1, NodeResult::Failure), |In(_)| 0.3),
-            pair_node_scorer_fn(TesterTask::<2>::new(1, NodeResult::Success), |In(_)| 0.2),
-            pair_node_scorer_fn(TesterTask::<3>::new(1, NodeResult::Failure), |In(_)| 0.4),
+            pair_node_scorer_fn(TesterTask0::new(1, NodeResult::Failure), |In(_)| 0.1),
+            pair_node_scorer_fn(TesterTask1::new(1, NodeResult::Failure), |In(_)| 0.3),
+            pair_node_scorer_fn(TesterTask2::new(1, NodeResult::Success), |In(_)| 0.2),
+            pair_node_scorer_fn(TesterTask3::new(1, NodeResult::Failure), |In(_)| 0.4),
         ]);
         let tree = BehaviorTree::from_node(
             sequence,

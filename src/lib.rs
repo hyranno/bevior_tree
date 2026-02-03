@@ -150,7 +150,7 @@ mod tests {
     fn test_tree_end_with_result() {
         let mut app = App::new();
         app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
-        let task = TesterTask::<0>::new(1, NodeResult::Success);
+        let task = TesterTask0::new(1, NodeResult::Success);
         let tree = BehaviorTree::from_node(
             task,
             &mut app.world_mut().resource_mut::<Assets<BehaviorTreeRoot>>(),
@@ -177,7 +177,7 @@ mod tests {
     fn test_freeze() {
         let mut app = App::new();
         app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
-        let task = TesterTask::<0>::new(2, NodeResult::Success);
+        let task = TesterTask0::new(2, NodeResult::Success);
         let tree = BehaviorTree::from_node(
             task,
             &mut app.world_mut().resource_mut::<Assets<BehaviorTreeRoot>>(),

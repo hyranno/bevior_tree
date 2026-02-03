@@ -121,10 +121,10 @@ mod tests {
         let mut app = App::new();
         app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let sequence = Sequence::new(vec![
-            Box::new(TesterTask::<0>::new(1, NodeResult::Success)),
-            Box::new(TesterTask::<1>::new(1, NodeResult::Success)),
-            Box::new(TesterTask::<2>::new(1, NodeResult::Failure)),
-            Box::new(TesterTask::<3>::new(1, NodeResult::Success)),
+            Box::new(TesterTask0::new(1, NodeResult::Success)),
+            Box::new(TesterTask1::new(1, NodeResult::Success)),
+            Box::new(TesterTask2::new(1, NodeResult::Failure)),
+            Box::new(TesterTask3::new(1, NodeResult::Success)),
         ]);
         let tree = BehaviorTree::from_node(
             sequence,
@@ -168,10 +168,10 @@ mod tests {
         let mut app = App::new();
         app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let sequence = Selector::new(vec![
-            Box::new(TesterTask::<0>::new(1, NodeResult::Failure)),
-            Box::new(TesterTask::<1>::new(1, NodeResult::Failure)),
-            Box::new(TesterTask::<2>::new(1, NodeResult::Success)),
-            Box::new(TesterTask::<3>::new(1, NodeResult::Failure)),
+            Box::new(TesterTask0::new(1, NodeResult::Failure)),
+            Box::new(TesterTask1::new(1, NodeResult::Failure)),
+            Box::new(TesterTask2::new(1, NodeResult::Success)),
+            Box::new(TesterTask3::new(1, NodeResult::Failure)),
         ]);
         let tree = BehaviorTree::from_node(
             sequence,
@@ -215,10 +215,10 @@ mod tests {
         let mut app = App::new();
         app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let sequence = ForcedSequence::new(vec![
-            Box::new(TesterTask::<0>::new(1, NodeResult::Success)),
-            Box::new(TesterTask::<1>::new(1, NodeResult::Failure)),
-            Box::new(TesterTask::<2>::new(1, NodeResult::Success)),
-            Box::new(TesterTask::<3>::new(1, NodeResult::Failure)),
+            Box::new(TesterTask0::new(1, NodeResult::Success)),
+            Box::new(TesterTask1::new(1, NodeResult::Failure)),
+            Box::new(TesterTask2::new(1, NodeResult::Success)),
+            Box::new(TesterTask3::new(1, NodeResult::Failure)),
         ]);
         let tree = BehaviorTree::from_node(
             sequence,

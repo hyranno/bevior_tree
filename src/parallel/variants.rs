@@ -69,10 +69,10 @@ mod tests {
         let mut app = App::new();
         app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let parallel = ParallelAnd::new(vec![
-            Box::new(TesterTask::<0>::new(1, NodeResult::Success)),
-            Box::new(TesterTask::<1>::new(2, NodeResult::Success)),
-            Box::new(TesterTask::<2>::new(3, NodeResult::Failure)),
-            Box::new(TesterTask::<3>::new(4, NodeResult::Success)),
+            Box::new(TesterTask0::new(1, NodeResult::Success)),
+            Box::new(TesterTask1::new(2, NodeResult::Success)),
+            Box::new(TesterTask2::new(3, NodeResult::Failure)),
+            Box::new(TesterTask3::new(4, NodeResult::Success)),
         ]);
         let tree = BehaviorTree::from_node(
             parallel,
@@ -154,10 +154,10 @@ mod tests {
         let mut app = App::new();
         app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let parallel = ParallelOr::new(vec![
-            Box::new(TesterTask::<0>::new(1, NodeResult::Failure)),
-            Box::new(TesterTask::<1>::new(2, NodeResult::Failure)),
-            Box::new(TesterTask::<2>::new(3, NodeResult::Success)),
-            Box::new(TesterTask::<3>::new(4, NodeResult::Failure)),
+            Box::new(TesterTask0::new(1, NodeResult::Failure)),
+            Box::new(TesterTask1::new(2, NodeResult::Failure)),
+            Box::new(TesterTask2::new(3, NodeResult::Success)),
+            Box::new(TesterTask3::new(4, NodeResult::Failure)),
         ]);
         let tree = BehaviorTree::from_node(
             parallel,
@@ -239,10 +239,10 @@ mod tests {
         let mut app = App::new();
         app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let parallel = Join::new(vec![
-            Box::new(TesterTask::<0>::new(1, NodeResult::Success)),
-            Box::new(TesterTask::<1>::new(2, NodeResult::Success)),
-            Box::new(TesterTask::<2>::new(3, NodeResult::Failure)),
-            Box::new(TesterTask::<3>::new(4, NodeResult::Success)),
+            Box::new(TesterTask0::new(1, NodeResult::Success)),
+            Box::new(TesterTask1::new(2, NodeResult::Success)),
+            Box::new(TesterTask2::new(3, NodeResult::Failure)),
+            Box::new(TesterTask3::new(4, NodeResult::Success)),
         ]);
         let tree = BehaviorTree::from_node(
             parallel,
