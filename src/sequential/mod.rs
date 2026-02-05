@@ -4,7 +4,7 @@ use std::sync::Mutex;
 
 use bevy::ecs::{
     entity::Entity,
-    system::{In, IntoSystem, ReadOnlySystem, System},
+    system::{In, ReadOnlySystem, System},
     world::World,
 };
 
@@ -14,7 +14,7 @@ pub mod variants;
 
 pub mod prelude {
     pub use super::{
-        Picker, ResultConstructor, ScoredSequence, Scorer, pair_node_scorer_fn,
+        Picker, PickerBuilder, ResultStrategy, ScoredSequence, Scorer, ScorerBuilder,
         variants::prelude::*,
     };
 }
@@ -22,56 +22,80 @@ pub mod prelude {
 pub trait Scorer: ReadOnlySystem<In = In<Entity>, Out = f32> {}
 impl<S> Scorer for S where S: ReadOnlySystem<In = In<Entity>, Out = f32> {}
 
+#[cfg_attr(feature = "serde", typetag::serde(tag = "type"))]
+pub trait ScorerBuilder: Send + Sync {
+    fn build(&self) -> Box<dyn Scorer>;
+}
+
 pub trait Picker: System<In = In<(Vec<f32>, Entity)>, Out = Vec<usize>> {}
 impl<S> Picker for S where S: System<In = In<(Vec<f32>, Entity)>, Out = Vec<usize>> {}
 
-pub trait ResultConstructor:
-    Fn(Vec<Option<NodeResult>>) -> Option<NodeResult> + 'static + Send + Sync
-{
+#[cfg_attr(feature = "serde", typetag::serde(tag = "type"))]
+pub trait PickerBuilder: 'static + Send + Sync {
+    fn build(&self) -> Box<dyn Picker>;
 }
-impl<F> ResultConstructor for F where
-    F: Fn(Vec<Option<NodeResult>>) -> Option<NodeResult> + 'static + Send + Sync
-{
+
+#[cfg_attr(feature = "serde", typetag::serde(tag = "type"))]
+pub trait ResultStrategy: 'static + Send + Sync {
+    fn construct(&self, results: Vec<Option<NodeResult>>) -> Option<NodeResult>;
 }
 
 /// Composite nodes that run children in sequence.
 #[with_state(ScoredSequenceState)]
 pub struct ScoredSequence {
-    nodes: Vec<(Box<dyn Node>, Mutex<Box<dyn Scorer>>)>,
-    picker: Mutex<Box<dyn Picker>>,
-    result_constructor: Box<dyn ResultConstructor>,
+    children: Vec<(Box<dyn Node>, Box<dyn ScorerBuilder>)>,
+    picker: Box<dyn PickerBuilder>,
+    result_strategy: Box<dyn ResultStrategy>,
+    // #[cfg_attr(feature = "serde", serde(skip))]
+    scorers_runtime: Mutex<Vec<Box<dyn Scorer>>>,
+    // #[cfg_attr(feature = "serde", serde(skip))]
+    picker_runtime: Mutex<Option<Box<dyn Picker>>>,
 }
 impl ScoredSequence {
-    pub fn new<P, Marker>(
-        nodes: Vec<(Box<dyn Node>, Mutex<Box<dyn Scorer>>)>,
-        picker: P,
-        result_constructor: impl ResultConstructor,
-    ) -> Self
-    where
-        P: IntoSystem<In<(Vec<f32>, Entity)>, Vec<usize>, Marker>,
-        <P as IntoSystem<In<(Vec<f32>, Entity)>, Vec<usize>, Marker>>::System: Picker,
-    {
+    pub fn new(
+        children: Vec<(Box<dyn Node>, Box<dyn ScorerBuilder>)>,
+        picker: impl PickerBuilder,
+        result_strategy: impl ResultStrategy,
+    ) -> Self {
         Self {
-            nodes,
-            picker: Mutex::new(Box::new(IntoSystem::into_system(picker))),
-            result_constructor: Box::new(result_constructor),
+            children,
+            picker: Box::new(picker),
+            result_strategy: Box::new(result_strategy),
+            scorers_runtime: Mutex::new(Vec::new()),
+            picker_runtime: Mutex::new(None),
+        }
+    }
+    fn init(&self, world: &mut World) {
+        let mut scorers_runtime = self.scorers_runtime.lock().expect("Failed to lock");
+        if scorers_runtime.is_empty() {
+            *scorers_runtime = self.children.iter().map(|(_, builder)| {
+                let mut scorer = builder.build();
+                scorer.initialize(world);
+                scorer
+            }).collect();
+        }
+        let mut picker_runtime = self.picker_runtime.lock().expect("Failed to lock");
+        if picker_runtime.is_none() {
+            let mut picker = self.picker.build();
+            picker.initialize(world);
+            *picker_runtime = Some(picker);
         }
     }
 }
 impl Node for ScoredSequence {
     fn begin(&self, world: &mut World, entity: Entity) -> NodeStatus {
+        self.init(world);
         let scores = self
-            .nodes
-            .iter()
-            .map(|(_, scorer)| {
-                let mut scorer = scorer.lock().expect("Failed to lock");
-                scorer.initialize(world);
+            .scorers_runtime
+            .lock().expect("Failed to lock")
+            .iter_mut()
+            .map(|scorer| {
                 scorer.run(entity, world).expect("Scorer failed")
             })
             .collect();
-        let mut picker = self.picker.lock().expect("Failed to lock");
-        picker.initialize(world);
-        let indices = picker.run((scores, entity), world).expect("Picker failed");
+        let mut picker_lock = self.picker_runtime.lock().expect("Failed to lock");
+        let indices = picker_lock.as_mut().expect("Picker not initialized")
+            .run((scores, entity), world).expect("Picker failed");
         let state = Box::new(ScoredSequenceState::new(indices));
         self.resume(world, entity, state)
     }
@@ -85,13 +109,13 @@ impl Node for ScoredSequence {
         let state = Self::downcast(state).expect("Invalid state.");
         let Some(&index) = state.indices.iter().skip(state.count).next() else {
             // All the nodes are completed.
-            let Some(result) = (*self.result_constructor)(state.results) else {
+            let Some(result) = self.result_strategy.construct(state.results) else {
                 panic!("Result constructor returned None on the end.");
             };
             return NodeStatus::Complete(result);
         };
         let (state, child_state) = state.extract_child_state();
-        let node = &self.nodes[index].0;
+        let node = &self.children[index].0;
         let child_status = match child_state {
             None => node.begin(world, entity),
             Some(s) => node.resume(world, entity, s),
@@ -102,7 +126,7 @@ impl Node for ScoredSequence {
             }
             NodeStatus::Complete(child_result) => {
                 let state = state.update_result(child_result);
-                let result = (*self.result_constructor)(state.results.clone());
+                let result = self.result_strategy.construct(state.results.clone());
                 match result {
                     Some(result) => NodeStatus::Complete(result),
                     None => self.resume(world, entity, Box::new(state)),
@@ -120,7 +144,7 @@ impl Node for ScoredSequence {
         let (_, Some(child_state)) = state.extract_child_state() else {
             return;
         };
-        let node = &self.nodes[index].0;
+        let node = &self.children[index].0;
         node.force_exit(world, entity, child_state)
     }
 }
@@ -176,18 +200,4 @@ impl ScoredSequenceState {
             self.child_state,
         )
     }
-}
-
-pub fn pair_node_scorer_fn<F, Marker>(
-    node: impl Node,
-    scorer: F,
-) -> (Box<dyn Node>, Mutex<Box<dyn Scorer>>)
-where
-    F: IntoSystem<In<Entity>, f32, Marker>,
-    <F as IntoSystem<In<Entity>, f32, Marker>>::System: Scorer,
-{
-    (
-        Box::new(node),
-        Mutex::new(Box::new(IntoSystem::into_system(scorer))),
-    )
 }

@@ -1,35 +1,55 @@
-use std::{cmp::Reverse, sync::Mutex};
+use std::cmp::Reverse;
 
 use bevy::ecs::entity::Entity;
-use bevy::ecs::system::In;
+use bevy::ecs::system::{In, IntoSystem};
 use ordered_float::OrderedFloat;
 
-use super::{ScoredSequence, Scorer, result_and, result_forced, result_last, result_or};
+use super::{ScoredSequence, ScorerBuilder, Picker, PickerBuilder, AndResultStrategy, ForcedResultStrategy, LastResultStrategy, OrResultStrategy};
 use crate as bevior_tree;
 use crate::node::prelude::*;
 
 pub mod prelude {
     pub use super::{
         ScoreOrderedForcedSequence, ScoreOrderedSequentialAnd, ScoreOrderedSequentialOr,
-        ScoredForcedSelector, pick_max, pick_sorted,
+        ScoredForcedSelector, MaxPickerBuilder, SortedPickerBuilder,
     };
 }
 
 /// Sort descending by score.
-pub fn pick_sorted(In((scores, _entity)): In<(Vec<f32>, Entity)>) -> Vec<usize> {
-    let mut enumerated: Vec<(usize, f32)> = scores.into_iter().enumerate().collect();
-    enumerated.sort_by_key(|(_, score)| Reverse(OrderedFloat(*score)));
-    enumerated.into_iter().map(|(index, _)| index).collect()
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct SortedPickerBuilder;
+#[cfg_attr(feature = "serde", typetag::serde)]
+impl PickerBuilder for SortedPickerBuilder {
+    fn build(&self) -> Box<dyn Picker> {
+        Box::new(IntoSystem::into_system(
+            |In((scores, _entity)): In<(Vec<f32>, Entity)>| -> Vec<usize> {
+                let mut enumerated: Vec<(usize, f32)> = scores.into_iter().enumerate().collect();
+                enumerated.sort_by_key(|(_, score)| Reverse(OrderedFloat(*score)));
+                enumerated.into_iter().map(|(index, _)| index).collect()
+            }
+        ))
+    }
 }
-pub fn pick_max(In((scores, _entity)): In<(Vec<f32>, Entity)>) -> Vec<usize> {
-    scores
-        .into_iter()
-        .enumerate()
-        .max_by_key(|(_, score)| OrderedFloat(*score))
-        .map(|(index, _)| index)
-        .into_iter()
-        .collect()
+
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct MaxPickerBuilder;
+#[cfg_attr(feature = "serde", typetag::serde)]
+impl PickerBuilder for MaxPickerBuilder {
+    fn build(&self) -> Box<dyn Picker> {
+        Box::new(IntoSystem::into_system(
+            |In((scores, _entity)): In<(Vec<f32>, Entity)>| -> Vec<usize> {
+                scores
+                    .into_iter()
+                    .enumerate()
+                    .max_by_key(|(_, score)| OrderedFloat(*score))
+                    .map(|(index, _)| index)
+                    .into_iter()
+                    .collect()
+            }
+        ))
+    }
 }
+
 
 /// Node that runs children while their result is Success.
 /// Children are sorted descending by score on enter the node.
@@ -38,9 +58,9 @@ pub struct ScoreOrderedSequentialAnd {
     delegate: ScoredSequence,
 }
 impl ScoreOrderedSequentialAnd {
-    pub fn new(nodes: Vec<(Box<dyn Node>, Mutex<Box<dyn Scorer>>)>) -> Self {
+    pub fn new(nodes: Vec<(Box<dyn Node>, Box<dyn ScorerBuilder>)>) -> Self {
         Self {
-            delegate: ScoredSequence::new(nodes, pick_sorted, result_and),
+            delegate: ScoredSequence::new(nodes, SortedPickerBuilder, AndResultStrategy),
         }
     }
 }
@@ -52,9 +72,9 @@ pub struct ScoreOrderedSequentialOr {
     delegate: ScoredSequence,
 }
 impl ScoreOrderedSequentialOr {
-    pub fn new(nodes: Vec<(Box<dyn Node>, Mutex<Box<dyn Scorer>>)>) -> Self {
+    pub fn new(nodes: Vec<(Box<dyn Node>, Box<dyn ScorerBuilder>)>) -> Self {
         Self {
-            delegate: ScoredSequence::new(nodes, pick_sorted, result_or),
+            delegate: ScoredSequence::new(nodes, SortedPickerBuilder, OrResultStrategy),
         }
     }
 }
@@ -66,9 +86,9 @@ pub struct ScoreOrderedForcedSequence {
     delegate: ScoredSequence,
 }
 impl ScoreOrderedForcedSequence {
-    pub fn new(nodes: Vec<(Box<dyn Node>, Mutex<Box<dyn Scorer>>)>) -> Self {
+    pub fn new(nodes: Vec<(Box<dyn Node>, Box<dyn ScorerBuilder>)>) -> Self {
         Self {
-            delegate: ScoredSequence::new(nodes, pick_sorted, result_last),
+            delegate: ScoredSequence::new(nodes, SortedPickerBuilder, LastResultStrategy),
         }
     }
 }
@@ -79,9 +99,9 @@ pub struct ScoredForcedSelector {
     delegate: ScoredSequence,
 }
 impl ScoredForcedSelector {
-    pub fn new(nodes: Vec<(Box<dyn Node>, Mutex<Box<dyn Scorer>>)>) -> Self {
+    pub fn new(nodes: Vec<(Box<dyn Node>, Box<dyn ScorerBuilder>)>) -> Self {
         Self {
-            delegate: ScoredSequence::new(nodes, pick_max, result_forced),
+            delegate: ScoredSequence::new(nodes, MaxPickerBuilder, ForcedResultStrategy),
         }
     }
 }
@@ -89,6 +109,7 @@ impl ScoredForcedSelector {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::super::ConstantScorerBuilder;
     use crate::tester_util::prelude::*;
 
     #[test]
@@ -96,10 +117,10 @@ mod tests {
         let mut app = App::new();
         app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let sequence = ScoreOrderedSequentialAnd::new(vec![
-            pair_node_scorer_fn(TesterTask0::new(1, NodeResult::Success), |In(_)| 0.1),
-            pair_node_scorer_fn(TesterTask1::new(1, NodeResult::Success), |In(_)| 0.3),
-            pair_node_scorer_fn(TesterTask2::new(1, NodeResult::Failure), |In(_)| 0.2),
-            pair_node_scorer_fn(TesterTask3::new(1, NodeResult::Success), |In(_)| 0.4),
+            (Box::new(TesterTask0::new(1, NodeResult::Success)), Box::new(ConstantScorerBuilder { score: 0.1 })),
+            (Box::new(TesterTask1::new(1, NodeResult::Success)), Box::new(ConstantScorerBuilder { score: 0.3 })),
+            (Box::new(TesterTask2::new(1, NodeResult::Failure)), Box::new(ConstantScorerBuilder { score: 0.2 })),
+            (Box::new(TesterTask3::new(1, NodeResult::Success)), Box::new(ConstantScorerBuilder { score: 0.4 })),
         ]);
         let tree = BehaviorTree::from_node(
             sequence,
@@ -139,10 +160,10 @@ mod tests {
         let mut app = App::new();
         app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let sequence = ScoreOrderedSequentialOr::new(vec![
-            pair_node_scorer_fn(TesterTask0::new(1, NodeResult::Failure), |In(_)| 0.1),
-            pair_node_scorer_fn(TesterTask1::new(1, NodeResult::Failure), |In(_)| 0.3),
-            pair_node_scorer_fn(TesterTask2::new(1, NodeResult::Success), |In(_)| 0.2),
-            pair_node_scorer_fn(TesterTask3::new(1, NodeResult::Failure), |In(_)| 0.4),
+            (Box::new(TesterTask0::new(1, NodeResult::Failure)), Box::new(ConstantScorerBuilder { score: 0.1 })),
+            (Box::new(TesterTask1::new(1, NodeResult::Failure)), Box::new(ConstantScorerBuilder { score: 0.3 })),
+            (Box::new(TesterTask2::new(1, NodeResult::Success)), Box::new(ConstantScorerBuilder { score: 0.2 })),
+            (Box::new(TesterTask3::new(1, NodeResult::Failure)), Box::new(ConstantScorerBuilder { score: 0.4 })),
         ]);
         let tree = BehaviorTree::from_node(
             sequence,
@@ -182,10 +203,10 @@ mod tests {
         let mut app = App::new();
         app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let sequence = ScoreOrderedForcedSequence::new(vec![
-            pair_node_scorer_fn(TesterTask0::new(1, NodeResult::Failure), |In(_)| 0.1),
-            pair_node_scorer_fn(TesterTask1::new(1, NodeResult::Failure), |In(_)| 0.3),
-            pair_node_scorer_fn(TesterTask2::new(1, NodeResult::Success), |In(_)| 0.2),
-            pair_node_scorer_fn(TesterTask3::new(1, NodeResult::Failure), |In(_)| 0.4),
+            (Box::new(TesterTask0::new(1, NodeResult::Failure)), Box::new(ConstantScorerBuilder { score: 0.1 })),
+            (Box::new(TesterTask1::new(1, NodeResult::Failure)), Box::new(ConstantScorerBuilder { score: 0.3 })),
+            (Box::new(TesterTask2::new(1, NodeResult::Success)), Box::new(ConstantScorerBuilder { score: 0.2 })),
+            (Box::new(TesterTask3::new(1, NodeResult::Failure)), Box::new(ConstantScorerBuilder { score: 0.4 })),
         ]);
         let tree = BehaviorTree::from_node(
             sequence,
@@ -231,10 +252,10 @@ mod tests {
         let mut app = App::new();
         app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let sequence = ScoredForcedSelector::new(vec![
-            pair_node_scorer_fn(TesterTask0::new(1, NodeResult::Failure), |In(_)| 0.1),
-            pair_node_scorer_fn(TesterTask1::new(1, NodeResult::Failure), |In(_)| 0.3),
-            pair_node_scorer_fn(TesterTask2::new(1, NodeResult::Success), |In(_)| 0.2),
-            pair_node_scorer_fn(TesterTask3::new(1, NodeResult::Failure), |In(_)| 0.4),
+            (Box::new(TesterTask0::new(1, NodeResult::Failure)), Box::new(ConstantScorerBuilder { score: 0.1 })),
+            (Box::new(TesterTask1::new(1, NodeResult::Failure)), Box::new(ConstantScorerBuilder { score: 0.3 })),
+            (Box::new(TesterTask2::new(1, NodeResult::Success)), Box::new(ConstantScorerBuilder { score: 0.2 })),
+            (Box::new(TesterTask3::new(1, NodeResult::Failure)), Box::new(ConstantScorerBuilder { score: 0.4 })),
         ]);
         let tree = BehaviorTree::from_node(
             sequence,

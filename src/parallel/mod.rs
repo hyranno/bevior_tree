@@ -3,7 +3,7 @@
 use bevy::ecs::{entity::Entity, world::World};
 
 use crate::node::prelude::*;
-use crate::sequential::ResultConstructor;
+use crate::sequential::ResultStrategy;
 
 pub mod variants;
 
@@ -15,18 +15,18 @@ pub mod prelude {
 #[with_state(ParallelState)]
 pub struct Parallel {
     children: Vec<Box<dyn Node>>,
-    result_constructor: Box<dyn ResultConstructor>,
+    result_strategy: Box<dyn ResultStrategy>,
 }
 impl Parallel {
     /// Creates new [`Parallel`] node.
     ///
     /// # Arguments
     /// * children - Children nodes that this node runs.
-    /// * result_constructor - Take results of children, then return the result of this node if available.
-    pub fn new(children: Vec<Box<dyn Node>>, result_constructor: impl ResultConstructor) -> Self {
+    /// * result_strategy - Strategy to determine the result of this node based on results of children.
+    pub fn new(children: Vec<Box<dyn Node>>, result_strategy: impl ResultStrategy) -> Self {
         Self {
             children,
-            result_constructor: Box::new(result_constructor),
+            result_strategy: Box::new(result_strategy),
         }
     }
 }
@@ -44,7 +44,7 @@ impl Node for Parallel {
 
     fn resume(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) -> NodeStatus {
         let state = Self::downcast(state).expect("Invalid state.");
-        if let Some(result) = (*self.result_constructor)(state.results()) {
+        if let Some(result) = self.result_strategy.construct(state.results()) {
             self.force_exit(world, entity, Box::new(state));
             return NodeStatus::Complete(result);
         }
@@ -59,7 +59,7 @@ impl Node for Parallel {
             })
             .collect();
         let state = ParallelState { children_status };
-        if let Some(result) = (*self.result_constructor)(state.results()) {
+        if let Some(result) = self.result_strategy.construct(state.results()) {
             self.force_exit(world, entity, Box::new(state));
             NodeStatus::Complete(result)
         } else {

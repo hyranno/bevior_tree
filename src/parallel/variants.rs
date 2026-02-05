@@ -2,7 +2,7 @@ use crate as bevior_tree;
 use crate::node::prelude::*;
 
 use super::Parallel;
-use crate::sequential::variants::{result_and, result_or};
+use crate::sequential::variants::{AndResultStrategy, OrResultStrategy};
 
 pub mod prelude {
     pub use super::{Join, ParallelAnd, ParallelOr};
@@ -18,7 +18,7 @@ pub struct ParallelAnd {
 impl ParallelAnd {
     pub fn new(nodes: Vec<Box<dyn Node>>) -> Self {
         Self {
-            delegate: Parallel::new(nodes, result_and),
+            delegate: Parallel::new(nodes, AndResultStrategy),
         }
     }
 }
@@ -33,7 +33,20 @@ pub struct ParallelOr {
 impl ParallelOr {
     pub fn new(nodes: Vec<Box<dyn Node>>) -> Self {
         Self {
-            delegate: Parallel::new(nodes, result_or),
+            delegate: Parallel::new(nodes, OrResultStrategy),
+        }
+    }
+}
+
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct JoinResultStrategy;
+#[cfg_attr(feature = "serde", typetag::serde)]
+impl crate::sequential::ResultStrategy for JoinResultStrategy {
+    fn construct(&self, results: Vec<Option<NodeResult>>) -> Option<NodeResult> {
+        if results.contains(&None) {
+            None
+        } else {
+            Some(NodeResult::Success)
         }
     }
 }
@@ -47,13 +60,7 @@ pub struct Join {
 impl Join {
     pub fn new(nodes: Vec<Box<dyn Node>>) -> Self {
         Self {
-            delegate: Parallel::new(nodes, |results: Vec<Option<NodeResult>>| {
-                if results.contains(&None) {
-                    None
-                } else {
-                    Some(NodeResult::Success)
-                }
-            }),
+            delegate: Parallel::new(nodes, JoinResultStrategy),
         }
     }
 }
