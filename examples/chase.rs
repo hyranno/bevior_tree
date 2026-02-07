@@ -42,14 +42,13 @@ fn init(
         Transform::from_xyz(500., 0., 0.),
         // This behavior tree handles the enemy's behavior.
         BehaviorTree::from_node(
-            ConditionalLoop::new(
+            InfiniteLoop::new(
                 Sequence::new(vec![
                     // Task to wait until player get near.
                     Box::new(TaskBridge::new(Box::new(NearTaskDefinition { target: player, range: 300. }))),
                     // Task to follow the player.
                     Box::new(TaskBridge::new(Box::new(FollowTaskDefinition { target: player, range: 300., speed: 100. }))),
                 ]),
-                |In(_)| true,
             ),
             &mut tree_assets,
         ),

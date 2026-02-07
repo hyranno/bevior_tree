@@ -2,45 +2,51 @@ use bevy::{
     ecs::{
         entity::Entity,
         system::{
-            CombinatorSystem, Combine, In, IntoSystem, ReadOnlySystem, RunSystemError, System,
-            SystemInput,
+            In, IntoSystem,
         },
+        world::World,
     },
-    utils::prelude::DebugName,
 };
 
-use super::{ConditionalLoop, LoopState};
+use super::{ConditionalLoop, LoopState, LoopCondCheckerBuilder, LoopCondChecker, CondCheckerBuilder,};
 use crate as bevior_tree;
 use crate::node::prelude::*;
 
 pub mod prelude {
-    pub use super::{Conditional, SeparableConditionChecker};
+    pub use super::{Conditional, InfiniteLoop};
 }
 
-pub type SeparableConditionChecker<A, B> = CombinatorSystem<SeparableConditionCheckerMarker, A, B>;
-pub struct SeparableConditionCheckerMarker;
-impl<A, B> Combine<A, B> for SeparableConditionCheckerMarker
-where
-    A: System<In = In<Entity>, Out = bool>,
-    B: System<In = In<LoopState>, Out = bool>,
-{
-    type In = In<(Entity, LoopState)>;
-    type Out = bool;
-    fn combine<T>(
-        (entity, loop_state): <Self::In as SystemInput>::Inner<'_>,
-        data: &mut T,
-        a: impl FnOnce(
-            <<A as System>::In as SystemInput>::Inner<'_>,
-            &mut T,
-        ) -> Result<A::Out, RunSystemError>,
-        b: impl FnOnce(
-            <<B as System>::In as SystemInput>::Inner<'_>,
-            &mut T,
-        ) -> Result<A::Out, RunSystemError>,
-    ) -> Result<Self::Out, RunSystemError> {
-        Ok(b(loop_state, data)? && a(entity, data)?)
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct OnceLoopCondCheckerBuilder {
+    checker_builder: Box<dyn CondCheckerBuilder>,
+}
+impl OnceLoopCondCheckerBuilder {
+    pub fn new(checker_builder: impl CondCheckerBuilder) -> Self {
+        Self {
+            checker_builder: Box::new(checker_builder),
+        }
     }
 }
+#[cfg_attr(feature = "serde", typetag::serde)]
+impl LoopCondCheckerBuilder for OnceLoopCondCheckerBuilder {
+    fn build(
+        &self,
+    ) -> Box<dyn LoopCondChecker> {
+        let mut checker = self.checker_builder.build();
+        Box::new(IntoSystem::into_system(
+            move |In((entity, loop_state)): In<(Entity, LoopState)>, world: &mut World| {
+                if loop_state.count < 1 && loop_state.last_result.is_none() {
+                    checker.initialize(world);
+                    checker.run(entity, world).expect("Failed to run checker")
+                } else {
+                    false
+                }
+            }
+        ))
+    }
+}
+
+
 
 /// Node that runs the child once if condition is matched.
 #[delegate_node(delegate)]
@@ -48,37 +54,68 @@ pub struct Conditional {
     delegate: ConditionalLoop,
 }
 impl Conditional {
-    pub fn new<F, Marker>(child: impl Node, checker: F) -> Self
-    where
-        F: IntoSystem<In<Entity>, bool, Marker>,
-        <F as IntoSystem<In<Entity>, bool, Marker>>::System: ReadOnlySystem,
+    pub fn new(child: impl Node, checker_builder: impl CondCheckerBuilder) -> Self
     {
         Self {
             delegate: ConditionalLoop::new(
                 child,
-                SeparableConditionChecker::new(
-                    IntoSystem::into_system(checker),
-                    IntoSystem::into_system(
-                        |In(loop_state): In<LoopState>| {
-                            loop_state.count < 1 && loop_state.last_result.is_none()
-                        }, // only once
-                    ),
-                    DebugName::borrowed("check cond"),
-                ),
+                OnceLoopCondCheckerBuilder::new(checker_builder),
             ),
         }
     }
 }
 
+
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct AlwaysLoopCondCheckerBuilder;
+#[cfg_attr(feature = "serde", typetag::serde)]
+impl LoopCondCheckerBuilder for AlwaysLoopCondCheckerBuilder {
+    fn build(&self) -> Box<dyn LoopCondChecker> {
+        Box::new(IntoSystem::into_system(
+            |In(_): In<(Entity, LoopState)>| -> bool {
+                true
+            },
+        ))
+    }
+}
+
+/// Node for infinite loop.
+#[delegate_node(delegate)]
+pub struct InfiniteLoop {
+    delegate: ConditionalLoop,
+}
+impl InfiniteLoop {
+    pub fn new(child: impl Node) -> Self
+    {
+        Self {
+            delegate: ConditionalLoop::new(
+                child,
+                AlwaysLoopCondCheckerBuilder,
+            ),
+        }
+    }
+}
+
+
 #[cfg(test)]
 mod tests {
     use crate::tester_util::prelude::*;
+    use super::super::{CondChecker, CondCheckerBuilder};
 
     #[derive(Component)]
     struct TestMarker;
 
-    fn test_marker_exists(In(entity): In<Entity>, world: &World) -> bool {
-        world.entity(entity).contains::<TestMarker>()
+    #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+    struct TestMarkerExistsCondCheckerBuilder;
+    #[cfg_attr(feature = "serde", typetag::serde)]
+    impl CondCheckerBuilder for TestMarkerExistsCondCheckerBuilder {
+        fn build(&self) -> Box<dyn CondChecker> {
+            Box::new(IntoSystem::into_system(
+                |In(entity): In<Entity>, world: &World| -> bool {
+                    world.entity(entity).contains::<TestMarker>()
+                },
+            ))
+        }
     }
 
     #[test]
@@ -86,7 +123,7 @@ mod tests {
         let mut app = App::new();
         app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let task = TesterTask0::new(1, NodeResult::Success);
-        let conditional = Conditional::new(task, test_marker_exists);
+        let conditional = Conditional::new(task, TestMarkerExistsCondCheckerBuilder);
         let tree = BehaviorTree::from_node(
             conditional,
             &mut app.world_mut().resource_mut::<Assets<BehaviorTreeRoot>>(),
@@ -108,7 +145,7 @@ mod tests {
         let mut app = App::new();
         app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
         let task = TesterTask0::new(1, NodeResult::Success);
-        let conditional = Conditional::new(task, test_marker_exists);
+        let conditional = Conditional::new(task, TestMarkerExistsCondCheckerBuilder);
         let tree = BehaviorTree::from_node(
             conditional,
             &mut app.world_mut().resource_mut::<Assets<BehaviorTreeRoot>>(),
@@ -131,4 +168,47 @@ mod tests {
             found
         );
     }
+
+    #[test]
+    fn test_infinite_loop() {
+        let mut app = App::new();
+        app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
+        let task = TesterTask0::new(1, NodeResult::Success);
+        let repeater = InfiniteLoop::new(task);
+        let tree = BehaviorTree::from_node(
+            repeater,
+            &mut app.world_mut().resource_mut::<Assets<BehaviorTreeRoot>>(),
+        );
+        let _entity = app.world_mut().spawn(tree).id();
+        app.update();
+        app.update(); // 0
+        app.update(); // 1
+        app.update(); // 2
+        let expected = TestLog {
+            log: vec![
+                TestLogEntry {
+                    task_id: 0,
+                    updated_count: 0,
+                    frame: 1,
+                },
+                TestLogEntry {
+                    task_id: 0,
+                    updated_count: 0,
+                    frame: 2,
+                },
+                TestLogEntry {
+                    task_id: 0,
+                    updated_count: 0,
+                    frame: 3,
+                },
+            ],
+        };
+        let found = app.world().get_resource::<TestLog>().unwrap();
+        assert!(
+            found == &expected,
+            "InfiniteLoop should repeat the task. found: {:?}",
+            found
+        );
+    }
+
 }
