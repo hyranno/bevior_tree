@@ -150,6 +150,7 @@ impl Node for ScoredSequence {
 }
 
 /// State for [`ScoredSequence`]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(NodeState)]
 struct ScoredSequenceState {
     count: usize,

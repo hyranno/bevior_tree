@@ -136,6 +136,7 @@ impl LoopState {
 }
 
 /// State for [`ConditionalLoop`]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(NodeState)]
 struct ConditionalLoopState {
     loop_state: LoopState,
@@ -271,6 +272,7 @@ impl Node for ElseFreeze {
 }
 
 /// State for [`ElseFreeze`]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(NodeState)]
 struct ElseFreezeState {
     child_status: NodeStatus,

@@ -80,6 +80,7 @@ impl Node for Parallel {
 }
 
 /// State for [`Parallel`]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(NodeState)]
 struct ParallelState {
     children_status: Vec<NodeStatus>,

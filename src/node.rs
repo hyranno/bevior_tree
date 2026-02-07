@@ -12,6 +12,7 @@ pub mod prelude {
 
 /// State of pending, work in progress nodes.
 /// `#[derive(NodeState)]` is available.
+#[cfg_attr(feature = "serde", typetag::serde(tag = "type"))]
 pub trait NodeState: 'static + Send + Sync {
     fn into_any(self: Box<Self>) -> Box<dyn Any>;
 }
@@ -34,6 +35,7 @@ impl Not for NodeResult {
 }
 
 /// Status of execution of the node.
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum NodeStatus {
     Beginning,
     Pending(Box<dyn NodeState>),
@@ -71,6 +73,7 @@ pub trait WithState<State: NodeState>: Node {
     }
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NodeStateError {
     InvalidTypeOfState,
