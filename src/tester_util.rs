@@ -1,6 +1,6 @@
 use crate::{
     BehaviorTree, BehaviorTreePlugin, BehaviorTreeRoot,
-    node::{DelegateNode, prelude::*},
+    node::prelude::*,
     task::{TaskBridge, TaskStatus, TaskDefinition, TaskChecker, TaskEventListener, TaskEvent, insert_while_running},
 };
 use bevy::diagnostic::{FrameCount, FrameCountPlugin};
@@ -66,6 +66,18 @@ macro_rules! define_tester_node {
         pub struct $wrapper_name {
             task: TaskBridge,
         }
+        #[cfg_attr(feature = "serde", typetag::serde)]
+        impl crate::node::Node for $wrapper_name {
+            fn begin(&self, world: &mut bevy::ecs::world::World, entity: bevy::ecs::entity::Entity) -> crate::node::NodeStatus {
+                self.task.begin(world, entity)
+            }
+            fn resume(&self, world: &mut bevy::ecs::world::World, entity: bevy::ecs::entity::Entity, state: Box<dyn crate::node::NodeState>) -> crate::node::NodeStatus {
+                self.task.resume(world, entity, state)
+            }
+            fn force_exit(&self, world: &mut bevy::ecs::world::World, entity: bevy::ecs::entity::Entity, state: Box<dyn crate::node::NodeState>) {
+                self.task.force_exit(world, entity, state)
+            }
+        }
 
         impl $wrapper_name {
             pub fn new(count: u32, result: NodeResult) -> Self {
@@ -73,12 +85,6 @@ macro_rules! define_tester_node {
                 Self {
                     task: TaskBridge::new(Box::new(def)),
                 }
-            }
-        }
-
-        impl DelegateNode for $wrapper_name {
-            fn delegate_node(&self) -> &dyn crate::node::Node {
-                &self.task
             }
         }
     };

@@ -16,6 +16,7 @@ pub trait ConverterStrategy: 'static + Send + Sync {
 }
 
 /// Node that converts the result of the child.
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ResultConverter {
     child: Box<dyn Node>,
     converter: Box<dyn ConverterStrategy>,
@@ -37,6 +38,7 @@ impl ResultConverter {
         }
     }
 }
+#[cfg_attr(feature = "serde", typetag::serde)]
 impl Node for ResultConverter {
     fn begin(&self, world: &mut World, entity: Entity) -> NodeStatus {
         self.convert(self.child.begin(world, entity))

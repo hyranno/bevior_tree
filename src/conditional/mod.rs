@@ -42,11 +42,12 @@ impl LoopCondCheckerBuilder for LoopCountCondCheckerBuilder {
 }
 
 /// Node for conditional loop.
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[with_state(ConditionalLoopState)]
 pub struct ConditionalLoop {
     child: Box<dyn Node>,
     checker_builder: Box<dyn LoopCondCheckerBuilder>,
-    // #[cfg_attr(feature = "serde", serde(skip))]
+    #[cfg_attr(feature = "serde", serde(skip))]
     checker_runtime: Mutex<Option<Box<dyn LoopCondChecker>>>,
 }
 impl ConditionalLoop {
@@ -69,6 +70,7 @@ impl ConditionalLoop {
             .expect("Failed to run checker system.")
     }
 }
+#[cfg_attr(feature = "serde", typetag::serde)]
 impl Node for ConditionalLoop {
     fn begin(&self, world: &mut World, entity: Entity) -> NodeStatus {
         let state = ConditionalLoopState {
@@ -157,10 +159,11 @@ pub trait CondCheckerBuilder: 'static + Send + Sync {
 struct CheckIfState;
 
 /// Node that check the condition, then return it as [`NodeResult`].
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[with_state(CheckIfState)]
 pub struct CheckIf {
     checker_builder: Box<dyn CondCheckerBuilder>,
-    // #[cfg_attr(feature = "serde", serde(skip))]
+    #[cfg_attr(feature = "serde", serde(skip))]
     checker_runtime: Mutex<Option<Box<dyn CondChecker>>>,
 }
 impl CheckIf {
@@ -182,6 +185,7 @@ impl CheckIf {
             .expect("Failed to run checker system.")
     }
 }
+#[cfg_attr(feature = "serde", typetag::serde)]
 impl Node for CheckIf {
     fn begin(&self, world: &mut World, entity: Entity) -> NodeStatus {
         self.resume(world, entity, Box::new(CheckIfState))
@@ -201,11 +205,12 @@ impl Node for CheckIf {
 
 /// Node that run the child while condition matched, else freeze.
 /// Freezes transition of the child sub-tree, not running task.
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[with_state(ElseFreezeState)]
 pub struct ElseFreeze {
     child: Box<dyn Node>,
     checker_builder: Box<dyn CondCheckerBuilder>,
-    // #[cfg_attr(feature = "serde", serde(skip))]
+    #[cfg_attr(feature = "serde", serde(skip))]
     checker_runtime: Mutex<Option<Box<dyn CondChecker>>>,
 }
 impl ElseFreeze {
@@ -228,6 +233,7 @@ impl ElseFreeze {
             .expect("Failed to run checker system.")
     }
 }
+#[cfg_attr(feature = "serde", typetag::serde)]
 impl Node for ElseFreeze {
     fn begin(&self, world: &mut World, entity: Entity) -> NodeStatus {
         self.resume(

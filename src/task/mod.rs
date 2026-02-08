@@ -132,6 +132,7 @@ impl TaskBridge {
             });
     }
 }
+#[cfg_attr(feature = "serde", typetag::serde)]
 impl Node for TaskBridge {
     fn begin(&self, world: &mut World, entity: Entity) -> NodeStatus {
         self.trigger_event(world, entity, TaskEvent::Enter);

@@ -41,14 +41,15 @@ pub trait ResultStrategy: 'static + Send + Sync {
 }
 
 /// Composite nodes that run children in sequence.
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[with_state(ScoredSequenceState)]
 pub struct ScoredSequence {
     children: Vec<(Box<dyn Node>, Box<dyn ScorerBuilder>)>,
     picker: Box<dyn PickerBuilder>,
     result_strategy: Box<dyn ResultStrategy>,
-    // #[cfg_attr(feature = "serde", serde(skip))]
+    #[cfg_attr(feature = "serde", serde(skip))]
     scorers_runtime: Mutex<Vec<Box<dyn Scorer>>>,
-    // #[cfg_attr(feature = "serde", serde(skip))]
+    #[cfg_attr(feature = "serde", serde(skip))]
     picker_runtime: Mutex<Option<Box<dyn Picker>>>,
 }
 impl ScoredSequence {
@@ -82,6 +83,7 @@ impl ScoredSequence {
         }
     }
 }
+#[cfg_attr(feature = "serde", typetag::serde)]
 impl Node for ScoredSequence {
     fn begin(&self, world: &mut World, entity: Entity) -> NodeStatus {
         self.init(world);

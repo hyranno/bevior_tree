@@ -15,10 +15,18 @@ pub fn delegate_node(attr: TokenStream, item: TokenStream) -> TokenStream {
     let node = item_input.ident.clone();
 
     let expand = quote! {
+        #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
         #item_input
-        impl bevior_tree::node::DelegateNode for #node {
-            fn delegate_node(&self) -> &dyn bevior_tree::node::Node {
-                &self.#delegate
+        #[cfg_attr(feature = "serde", typetag::serde)]
+        impl bevior_tree::node::Node for #node {
+            fn begin(&self, world: &mut bevy::ecs::world::World, entity: bevy::ecs::entity::Entity) -> bevior_tree::node::NodeStatus {
+                self.#delegate.begin(world, entity)
+            }
+            fn resume(&self, world: &mut bevy::ecs::world::World, entity: bevy::ecs::entity::Entity, state: Box<dyn bevior_tree::node::NodeState>) -> bevior_tree::node::NodeStatus {
+                self.#delegate.resume(world, entity, state)
+            }
+            fn force_exit(&self, world: &mut bevy::ecs::world::World, entity: bevy::ecs::entity::Entity, state: Box<dyn bevior_tree::node::NodeState>) {
+                self.#delegate.force_exit(world, entity, state)
             }
         }
     };

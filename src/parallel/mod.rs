@@ -12,6 +12,7 @@ pub mod prelude {
 }
 
 /// Composite node that run children parallelly.
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[with_state(ParallelState)]
 pub struct Parallel {
     children: Vec<Box<dyn Node>>,
@@ -30,6 +31,7 @@ impl Parallel {
         }
     }
 }
+#[cfg_attr(feature = "serde", typetag::serde)]
 impl Node for Parallel {
     fn begin(&self, world: &mut World, entity: Entity) -> NodeStatus {
         let state = ParallelState {
