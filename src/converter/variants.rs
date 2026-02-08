@@ -1,9 +1,19 @@
 use super::ResultConverter;
 use crate as bevior_tree;
 use crate::node::prelude::*;
+use super::{ConverterStrategy};
 
 pub mod prelude {
     pub use super::{ForceResult, Invert};
+}
+
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+struct InvertStrategy;
+#[cfg_attr(feature = "serde", typetag::serde)]
+impl ConverterStrategy for InvertStrategy {
+    fn convert(&self, result: NodeResult) -> NodeResult {
+        !result
+    }
 }
 
 /// Invert the result of the child.
@@ -14,8 +24,19 @@ pub struct Invert {
 impl Invert {
     pub fn new(child: impl Node) -> Self {
         Self {
-            delegate: ResultConverter::new(child, |res| !res),
+            delegate: ResultConverter::new(child, InvertStrategy),
         }
+    }
+}
+
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+struct ForceResultStrategy {
+    result: NodeResult,
+}
+#[cfg_attr(feature = "serde", typetag::serde)]
+impl ConverterStrategy for ForceResultStrategy {
+    fn convert(&self, _result: NodeResult) -> NodeResult {
+        self.result
     }
 }
 
@@ -27,7 +48,7 @@ pub struct ForceResult {
 impl ForceResult {
     pub fn new(child: impl Node, result: NodeResult) -> Self {
         Self {
-            delegate: ResultConverter::new(child, move |_| result),
+            delegate: ResultConverter::new(child, ForceResultStrategy { result }),
         }
     }
 }
