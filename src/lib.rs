@@ -69,21 +69,21 @@ pub enum BehaviorTreeSystemSet {
 
 /// Asset representing behavior tree root node.
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Asset, TypePath)]
+#[derive(Asset, TypePath, Debug)]
 pub struct BehaviorTreeRoot {
     node: Box<dyn Node>,
 }
 
 /// Component to specify the source path of the behavior tree asset.
 #[cfg(feature = "serde")]
-#[derive(serde::Serialize, serde::Deserialize, Component, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Component, Clone, Debug)]
 pub struct BehaviorTreeSource {
     pub path: String,
 }
 
 /// Behavior tree component.
 /// Nodes of the tree receive the entity with this component.
-#[derive(Component, Clone)]
+#[derive(Component, Clone, Debug)]
 #[require(TreeStatus)]
 pub struct BehaviorTree {
     root: Handle<BehaviorTreeRoot>,
@@ -125,12 +125,12 @@ impl BehaviorTree {
 /// You may prefer [`conditional::ElseFreeze`] node.
 /// Freezes transition of the tree, not running task.
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Component, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Component, Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Freeze;
 
 /// Represents the state of the tree.
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Component)]
+#[derive(Component, Debug)]
 pub struct TreeStatus(NodeStatus);
 
 impl Default for TreeStatus {

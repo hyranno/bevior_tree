@@ -1,6 +1,6 @@
 //! Nodes that depends on the condition of the bevy world().
 
-use std::sync::Mutex;
+use std::{fmt::Debug, sync::Mutex};
 
 use bevy::ecs::{
     entity::Entity,
@@ -21,11 +21,12 @@ pub mod prelude {
 pub type LoopCondChecker = dyn System<In = In<(Entity, LoopState)>, Out = bool>;
 
 #[cfg_attr(feature = "serde", typetag::serde(tag = "type"))]
-pub trait LoopCondCheckerBuilder: 'static + Send + Sync {
+pub trait LoopCondCheckerBuilder: 'static + Debug + Send + Sync {
     fn build(&self) -> Box<LoopCondChecker>;
 }
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug)]
 pub struct LoopCountCondCheckerBuilder {
     max_count: usize,
 }
@@ -41,6 +42,7 @@ impl LoopCondCheckerBuilder for LoopCountCondCheckerBuilder {
 
 /// Node for conditional loop.
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug)]
 #[with_state(ConditionalLoopState)]
 pub struct ConditionalLoop {
     child: Box<dyn Node>,
@@ -139,7 +141,7 @@ impl LoopState {
 
 /// State for [`ConditionalLoop`]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(NodeState)]
+#[derive(NodeState, Debug)]
 struct ConditionalLoopState {
     loop_state: LoopState,
     child_status: NodeStatus,
@@ -148,7 +150,7 @@ struct ConditionalLoopState {
 pub type CondChecker = dyn System<In = In<Entity>, Out = bool>;
 
 #[cfg_attr(feature = "serde", typetag::serde(tag = "type"))]
-pub trait CondCheckerBuilder: 'static + Send + Sync {
+pub trait CondCheckerBuilder: 'static + Debug + Send + Sync {
     fn build(&self) -> Box<CondChecker>;
 }
 
@@ -159,6 +161,7 @@ struct CheckIfState;
 
 /// Node that check the condition, then return it as [`NodeResult`].
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug)]
 #[with_state(CheckIfState)]
 pub struct CheckIf {
     checker_builder: Box<dyn CondCheckerBuilder>,
@@ -207,6 +210,7 @@ impl Node for CheckIf {
 /// Node that run the child while condition matched, else freeze.
 /// Freezes transition of the child sub-tree, not running task.
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug)]
 #[with_state(ElseFreezeState)]
 pub struct ElseFreeze {
     child: Box<dyn Node>,
@@ -282,7 +286,7 @@ impl Node for ElseFreeze {
 
 /// State for [`ElseFreeze`]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(NodeState)]
+#[derive(NodeState, Debug)]
 struct ElseFreezeState {
     child_status: NodeStatus,
 }
@@ -305,6 +309,7 @@ mod tests {
     }
 
     #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+    #[derive(Debug)]
     struct TestMarkerExistsCondCheckerBuilder;
     #[cfg_attr(feature = "serde", typetag::serde)]
     impl CondCheckerBuilder for TestMarkerExistsCondCheckerBuilder {
@@ -318,6 +323,7 @@ mod tests {
     }
 
     #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+    #[derive(Debug)]
     struct TestStateMatcherCondCheckerBuilder {
         target_state: TestStates,
     }

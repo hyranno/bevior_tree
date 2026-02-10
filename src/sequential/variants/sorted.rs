@@ -20,6 +20,7 @@ pub mod prelude {
 
 /// Sort descending by score.
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug)]
 pub struct SortedPickerBuilder;
 #[cfg_attr(feature = "serde", typetag::serde)]
 impl PickerBuilder for SortedPickerBuilder {
@@ -35,6 +36,7 @@ impl PickerBuilder for SortedPickerBuilder {
 }
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug)]
 pub struct MaxPickerBuilder;
 #[cfg_attr(feature = "serde", typetag::serde)]
 impl PickerBuilder for MaxPickerBuilder {

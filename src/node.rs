@@ -1,7 +1,7 @@
 //! Abstract representation of node of behavior tree.
 
 use bevy::prelude::{Entity, World};
-use std::{any::Any, ops::Not};
+use std::{any::Any, fmt::Debug, ops::Not};
 
 pub mod prelude {
     pub use super::{Node, NodeResult, NodeState, NodeStateError, NodeStatus, WithState};
@@ -13,7 +13,7 @@ pub mod prelude {
 /// State of pending, work in progress nodes.
 /// `#[derive(NodeState)]` is available.
 #[cfg_attr(feature = "serde", typetag::serde(tag = "type"))]
-pub trait NodeState: 'static + Send + Sync {
+pub trait NodeState: 'static + Debug + Send + Sync {
     fn into_any(self: Box<Self>) -> Box<dyn Any>;
 }
 
@@ -36,6 +36,7 @@ impl Not for NodeResult {
 
 /// Status of execution of the node.
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug)]
 pub enum NodeStatus {
     Beginning,
     Pending(Box<dyn NodeState>),
@@ -54,7 +55,7 @@ impl NodeStatus {
 /// Nodes should not hold the state of execution.
 /// Nodes take state of execution as argument, do things with it, then return the status of the execution.
 #[cfg_attr(feature = "serde", typetag::serde(tag = "type"))]
-pub trait Node: 'static + Send + Sync {
+pub trait Node: 'static + Debug + Send + Sync {
     fn begin(&self, world: &mut World, entity: Entity) -> NodeStatus;
     fn resume(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>) -> NodeStatus;
     fn force_exit(&self, world: &mut World, entity: Entity, state: Box<dyn NodeState>);

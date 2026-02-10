@@ -1,11 +1,11 @@
 //! Node that represents Task.
 
-use std::{sync::Mutex, vec};
+use std::{fmt::Debug, sync::Mutex, vec};
 
 use bevy::ecs::{
     bundle::Bundle,
     entity::Entity,
-    system::{Commands, In, IntoSystem, ReadOnlySystem, System},
+    system::{Commands, In, IntoSystem, System},
     world::World,
 };
 
@@ -41,12 +41,12 @@ pub enum TaskEvent {
     Failure,
 }
 
-pub type TaskChecker = dyn ReadOnlySystem<In = In<Entity>, Out = TaskStatus>;
+pub type TaskChecker = dyn System<In = In<Entity>, Out = TaskStatus>;
 
 pub type TaskEventListener = dyn System<In = In<Entity>, Out = ()>;
 
 #[cfg_attr(feature = "serde", typetag::serde(tag = "type"))]
-pub trait TaskDefinition: 'static + Send + Sync {
+pub trait TaskDefinition: 'static + Debug + Send + Sync {
     fn build_checker(&self) -> Box<TaskChecker>;
     fn build_event_listeners(&self) -> Vec<(TaskEvent, Box<TaskEventListener>)>;
 }
@@ -86,6 +86,7 @@ pub fn insert_while_running<T: Bundle + 'static + Clone>(
 /// But while processing the behavior trees, various tasks appears in various order.
 /// So the this nodes just marks what to do, expecting other systems does actual updates later.
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug)]
 #[with_state(TaskState)]
 pub struct TaskBridge {
     definition: Box<dyn TaskDefinition>,
@@ -115,7 +116,7 @@ impl TaskBridge {
         checker
             .as_mut()
             .expect("Checker should be some here.")
-            .run_readonly(entity, world)
+            .run(entity, world)
             .expect("Failed to run checker system.")
     }
 

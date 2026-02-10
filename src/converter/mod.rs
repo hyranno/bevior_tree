@@ -1,5 +1,7 @@
 //! Decorator nodes that convert the result of its child.
 
+use std::fmt::Debug;
+
 use bevy::ecs::{entity::Entity, world::World};
 
 use crate::node::prelude::*;
@@ -11,12 +13,13 @@ pub mod prelude {
 }
 
 #[cfg_attr(feature = "serde", typetag::serde(tag = "type"))]
-pub trait ConverterStrategy: 'static + Send + Sync {
+pub trait ConverterStrategy: 'static + Debug + Send + Sync {
     fn convert(&self, result: NodeResult) -> NodeResult;
 }
 
 /// Node that converts the result of the child.
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug)]
 pub struct ResultConverter {
     child: Box<dyn Node>,
     converter: Box<dyn ConverterStrategy>,

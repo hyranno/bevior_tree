@@ -70,6 +70,7 @@ fn get_distance(entity0: Entity, entity1: Entity, param: Query<&Transform>) -> f
 }
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug)]
 struct NearTaskDefinition {
     target: Entity,
     range: f32,
@@ -96,6 +97,7 @@ impl TaskDefinition for NearTaskDefinition {
 }
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug)]
 struct FollowTaskDefinition {
     target: Entity,
     range: f32,

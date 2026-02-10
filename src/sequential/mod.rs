@@ -1,10 +1,10 @@
 //! Composite nodes that run children in sequence.
 
-use std::sync::Mutex;
+use std::{fmt::Debug, sync::Mutex};
 
 use bevy::ecs::{
     entity::Entity,
-    system::{In, ReadOnlySystem, System},
+    system::{In, System},
     world::World,
 };
 
@@ -19,27 +19,28 @@ pub mod prelude {
     };
 }
 
-pub type Scorer = dyn ReadOnlySystem<In = In<Entity>, Out = f32>;
+pub type Scorer = dyn System<In = In<Entity>, Out = f32>;
 
 #[cfg_attr(feature = "serde", typetag::serde(tag = "type"))]
-pub trait ScorerBuilder: Send + Sync {
+pub trait ScorerBuilder: Debug + Send + Sync {
     fn build(&self) -> Box<Scorer>;
 }
 
 pub type Picker = dyn System<In = In<(Vec<f32>, Entity)>, Out = Vec<usize>>;
 
 #[cfg_attr(feature = "serde", typetag::serde(tag = "type"))]
-pub trait PickerBuilder: 'static + Send + Sync {
+pub trait PickerBuilder: 'static + Debug + Send + Sync {
     fn build(&self) -> Box<Picker>;
 }
 
 #[cfg_attr(feature = "serde", typetag::serde(tag = "type"))]
-pub trait ResultStrategy: 'static + Send + Sync {
+pub trait ResultStrategy: 'static + Debug + Send + Sync {
     fn construct(&self, results: Vec<Option<NodeResult>>) -> Option<NodeResult>;
 }
 
 /// Composite nodes that run children in sequence.
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug)]
 #[with_state(ScoredSequenceState)]
 pub struct ScoredSequence {
     children: Vec<(Box<dyn Node>, Box<dyn ScorerBuilder>)>,
@@ -157,7 +158,7 @@ impl Node for ScoredSequence {
 
 /// State for [`ScoredSequence`]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(NodeState)]
+#[derive(NodeState, Debug)]
 struct ScoredSequenceState {
     count: usize,
     indices: Vec<usize>,
