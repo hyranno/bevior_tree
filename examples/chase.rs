@@ -76,7 +76,7 @@ struct NearTaskDefinition {
 }
 #[cfg_attr(feature = "serde", typetag::serde)]
 impl TaskDefinition for NearTaskDefinition {
-    fn build_checker(&self) -> Box<dyn TaskChecker> {
+    fn build_checker(&self) -> Box<TaskChecker> {
         let target = self.target;
         let range = self.range;
         Box::new(IntoSystem::into_system(
@@ -90,7 +90,7 @@ impl TaskDefinition for NearTaskDefinition {
             },
         ))
     }
-    fn build_event_listeners(&self) -> Vec<(TaskEvent, Box<dyn TaskEventListener>)> {
+    fn build_event_listeners(&self) -> Vec<(TaskEvent, Box<TaskEventListener>)> {
         vec![]
     }
 }
@@ -103,7 +103,7 @@ struct FollowTaskDefinition {
 }
 #[cfg_attr(feature = "serde", typetag::serde)]
 impl TaskDefinition for FollowTaskDefinition {
-    fn build_checker(&self) -> Box<dyn TaskChecker> {
+    fn build_checker(&self) -> Box<TaskChecker> {
         let target = self.target;
         let range = self.range;
         Box::new(IntoSystem::into_system(
@@ -117,7 +117,7 @@ impl TaskDefinition for FollowTaskDefinition {
             },
         ))
     }
-    fn build_event_listeners(&self) -> Vec<(TaskEvent, Box<dyn TaskEventListener>)> {
+    fn build_event_listeners(&self) -> Vec<(TaskEvent, Box<TaskEventListener>)> {
         // Task inserts some components to the entity while running.
         let mut listeners = insert_while_running(Follow {
             target: self.target,

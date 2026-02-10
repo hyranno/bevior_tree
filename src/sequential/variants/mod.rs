@@ -23,7 +23,7 @@ pub mod prelude {
 pub struct UniformScorerBuilder;
 #[cfg_attr(feature = "serde", typetag::serde)]
 impl ScorerBuilder for UniformScorerBuilder {
-    fn build(&self) -> Box<dyn Scorer> {
+    fn build(&self) -> Box<Scorer> {
         Box::new(IntoSystem::into_system(|_: In<Entity>| 1.0f32))
     }
 }
@@ -46,7 +46,7 @@ struct ConstantScorerBuilder {
 }
 #[cfg_attr(feature = "serde", typetag::serde)]
 impl ScorerBuilder for ConstantScorerBuilder {
-    fn build(&self) -> Box<dyn Scorer> {
+    fn build(&self) -> Box<Scorer> {
         let score = self.score;
         Box::new(IntoSystem::into_system(
             move |In(_entity): In<Entity>| -> f32 { score },
@@ -58,7 +58,7 @@ impl ScorerBuilder for ConstantScorerBuilder {
 pub struct IdentityPickerBuilder;
 #[cfg_attr(feature = "serde", typetag::serde)]
 impl PickerBuilder for IdentityPickerBuilder {
-    fn build(&self) -> Box<dyn Picker> {
+    fn build(&self) -> Box<Picker> {
         Box::new(IntoSystem::into_system(
             |In((scores, _entity)): In<(Vec<f32>, Entity)>| -> Vec<usize> {
                 let count = scores.len();

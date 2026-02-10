@@ -60,7 +60,7 @@ macro_rules! define_tester_node {
     ) => {
         #[cfg_attr(feature = "serde", typetag::serde(name = $def_tag_name))]
         impl TaskDefinition for TesterTaskDef<$id> {
-            fn build_checker(&self) -> Box<dyn TaskChecker> {
+            fn build_checker(&self) -> Box<TaskChecker> {
                 let count = self.count;
                 let result = self.result;
                 Box::new(IntoSystem::into_system(
@@ -77,7 +77,7 @@ macro_rules! define_tester_node {
                 ))
             }
 
-            fn build_event_listeners(&self) -> Vec<(TaskEvent, Box<dyn TaskEventListener>)> {
+            fn build_event_listeners(&self) -> Vec<(TaskEvent, Box<TaskEventListener>)> {
                 insert_while_running(TesterComponent::<$id> { updated_count: 0 })
             }
         }

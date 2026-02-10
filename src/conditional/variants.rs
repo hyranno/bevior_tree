@@ -27,7 +27,7 @@ impl OnceLoopCondCheckerBuilder {
 }
 #[cfg_attr(feature = "serde", typetag::serde)]
 impl LoopCondCheckerBuilder for OnceLoopCondCheckerBuilder {
-    fn build(&self) -> Box<dyn LoopCondChecker> {
+    fn build(&self) -> Box<LoopCondChecker> {
         let mut checker = self.checker_builder.build();
         Box::new(IntoSystem::into_system(
             move |In((entity, loop_state)): In<(Entity, LoopState)>, world: &mut World| {
@@ -59,7 +59,7 @@ impl Conditional {
 pub struct AlwaysLoopCondCheckerBuilder;
 #[cfg_attr(feature = "serde", typetag::serde)]
 impl LoopCondCheckerBuilder for AlwaysLoopCondCheckerBuilder {
-    fn build(&self) -> Box<dyn LoopCondChecker> {
+    fn build(&self) -> Box<LoopCondChecker> {
         Box::new(IntoSystem::into_system(
             |In(_): In<(Entity, LoopState)>| -> bool { true },
         ))
@@ -91,7 +91,7 @@ mod tests {
     struct TestMarkerExistsCondCheckerBuilder;
     #[cfg_attr(feature = "serde", typetag::serde)]
     impl CondCheckerBuilder for TestMarkerExistsCondCheckerBuilder {
-        fn build(&self) -> Box<dyn CondChecker> {
+        fn build(&self) -> Box<CondChecker> {
             Box::new(IntoSystem::into_system(
                 |In(entity): In<Entity>, world: &World| -> bool {
                     world.entity(entity).contains::<TestMarker>()

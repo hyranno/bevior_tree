@@ -23,7 +23,7 @@ pub mod prelude {
 pub struct SortedPickerBuilder;
 #[cfg_attr(feature = "serde", typetag::serde)]
 impl PickerBuilder for SortedPickerBuilder {
-    fn build(&self) -> Box<dyn Picker> {
+    fn build(&self) -> Box<Picker> {
         Box::new(IntoSystem::into_system(
             |In((scores, _entity)): In<(Vec<f32>, Entity)>| -> Vec<usize> {
                 let mut enumerated: Vec<(usize, f32)> = scores.into_iter().enumerate().collect();
@@ -38,7 +38,7 @@ impl PickerBuilder for SortedPickerBuilder {
 pub struct MaxPickerBuilder;
 #[cfg_attr(feature = "serde", typetag::serde)]
 impl PickerBuilder for MaxPickerBuilder {
-    fn build(&self) -> Box<dyn Picker> {
+    fn build(&self) -> Box<Picker> {
         Box::new(IntoSystem::into_system(
             |In((scores, _entity)): In<(Vec<f32>, Entity)>| -> Vec<usize> {
                 scores

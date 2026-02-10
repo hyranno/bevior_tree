@@ -59,7 +59,7 @@ where
             .collect();
         (scores, entity)
     }
-    pub fn inner_build(&self) -> Box<dyn Picker> {
+    pub fn inner_build(&self) -> Box<Picker> {
         let mut base = self.base.build();
         // Wrap base picker while BoxedSystem does not implement IntoSystem directly.
         let wrapped_base = move |In((scores, entity)): In<(Vec<f32>, Entity)>,
@@ -79,7 +79,7 @@ where
     R: Rng + 'static + Send + Sync,
     Marker: 'static + Send + Sync,
 {
-    fn build(&self) -> Box<dyn Picker> {
+    fn build(&self) -> Box<Picker> {
         self.inner_build()
     }
 }
@@ -92,7 +92,7 @@ mod serde_impls {
         ($rng:ty, $marker:ty) => {
             #[typetag::serde]
             impl PickerBuilder for RandomPickerBuilder<$rng, $marker> {
-                fn build(&self) -> Box<dyn Picker> {
+                fn build(&self) -> Box<Picker> {
                     self.inner_build()
                 }
             }

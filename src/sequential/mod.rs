@@ -19,20 +19,18 @@ pub mod prelude {
     };
 }
 
-pub trait Scorer: ReadOnlySystem<In = In<Entity>, Out = f32> {}
-impl<S> Scorer for S where S: ReadOnlySystem<In = In<Entity>, Out = f32> {}
+pub type Scorer = dyn ReadOnlySystem<In = In<Entity>, Out = f32>;
 
 #[cfg_attr(feature = "serde", typetag::serde(tag = "type"))]
 pub trait ScorerBuilder: Send + Sync {
-    fn build(&self) -> Box<dyn Scorer>;
+    fn build(&self) -> Box<Scorer>;
 }
 
-pub trait Picker: System<In = In<(Vec<f32>, Entity)>, Out = Vec<usize>> {}
-impl<S> Picker for S where S: System<In = In<(Vec<f32>, Entity)>, Out = Vec<usize>> {}
+pub type Picker = dyn System<In = In<(Vec<f32>, Entity)>, Out = Vec<usize>>;
 
 #[cfg_attr(feature = "serde", typetag::serde(tag = "type"))]
 pub trait PickerBuilder: 'static + Send + Sync {
-    fn build(&self) -> Box<dyn Picker>;
+    fn build(&self) -> Box<Picker>;
 }
 
 #[cfg_attr(feature = "serde", typetag::serde(tag = "type"))]
@@ -48,9 +46,9 @@ pub struct ScoredSequence {
     picker: Box<dyn PickerBuilder>,
     result_strategy: Box<dyn ResultStrategy>,
     #[cfg_attr(feature = "serde", serde(skip))]
-    scorers_runtime: Mutex<Vec<Box<dyn Scorer>>>,
+    scorers_runtime: Mutex<Vec<Box<Scorer>>>,
     #[cfg_attr(feature = "serde", serde(skip))]
-    picker_runtime: Mutex<Option<Box<dyn Picker>>>,
+    picker_runtime: Mutex<Option<Box<Picker>>>,
 }
 impl ScoredSequence {
     pub fn new(

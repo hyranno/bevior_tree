@@ -41,22 +41,20 @@ pub enum TaskEvent {
     Failure,
 }
 
-pub trait TaskChecker: ReadOnlySystem<In = In<Entity>, Out = TaskStatus> {}
-impl<S> TaskChecker for S where S: ReadOnlySystem<In = In<Entity>, Out = TaskStatus> {}
+pub type TaskChecker = dyn ReadOnlySystem<In = In<Entity>, Out = TaskStatus>;
 
-pub trait TaskEventListener: System<In = In<Entity>, Out = ()> {}
-impl<S> TaskEventListener for S where S: System<In = In<Entity>, Out = ()> {}
+pub type TaskEventListener = dyn System<In = In<Entity>, Out = ()>;
 
 #[cfg_attr(feature = "serde", typetag::serde(tag = "type"))]
 pub trait TaskDefinition: 'static + Send + Sync {
-    fn build_checker(&self) -> Box<dyn TaskChecker>;
-    fn build_event_listeners(&self) -> Vec<(TaskEvent, Box<dyn TaskEventListener>)>;
+    fn build_checker(&self) -> Box<TaskChecker>;
+    fn build_event_listeners(&self) -> Vec<(TaskEvent, Box<TaskEventListener>)>;
 }
 
 /// Event listeners that add the bundle on entering node then remove it on exiting.
 pub fn insert_while_running<T: Bundle + 'static + Clone>(
     bundle: T,
-) -> Vec<(TaskEvent, Box<dyn TaskEventListener>)> {
+) -> Vec<(TaskEvent, Box<TaskEventListener>)> {
     vec![
         (
             TaskEvent::Enter,
@@ -92,9 +90,9 @@ pub fn insert_while_running<T: Bundle + 'static + Clone>(
 pub struct TaskBridge {
     definition: Box<dyn TaskDefinition>,
     #[cfg_attr(feature = "serde", serde(skip))]
-    checker: Mutex<Option<Box<dyn TaskChecker>>>,
+    checker: Mutex<Option<Box<TaskChecker>>>,
     #[cfg_attr(feature = "serde", serde(skip))]
-    event_listeners: Mutex<Vec<(TaskEvent, Box<dyn TaskEventListener>)>>,
+    event_listeners: Mutex<Vec<(TaskEvent, Box<TaskEventListener>)>>,
 }
 impl TaskBridge {
     pub fn new(definition: Box<dyn TaskDefinition>) -> Self {
