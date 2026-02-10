@@ -1,11 +1,9 @@
-use std::sync::Mutex;
-
 use bevy::ecs::{
     entity::Entity,
     system::{In, IntoSystem},
 };
 
-use super::{ScoredSequence, Scorer};
+use super::{Picker, PickerBuilder, ResultStrategy, ScoredSequence, Scorer, ScorerBuilder};
 use crate as bevior_tree;
 use crate::node::prelude::*;
 
@@ -16,58 +14,113 @@ pub mod random;
 
 pub mod prelude {
     pub use super::{
-        ForcedSequence, Selector, Sequence, SequentialAnd, SequentialOr, pick_identity,
+        ForcedSequence, IdentityPickerBuilder, Selector, Sequence, SequentialAnd, SequentialOr,
         random::prelude::*, score_uniform, sorted::prelude::*,
     };
 }
 
-pub fn score_uniform(nodes: Vec<Box<dyn Node>>) -> Vec<(Box<dyn Node>, Mutex<Box<dyn Scorer>>)> {
-    fn score(_: In<Entity>) -> f32 {
-        1.0
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct UniformScorerBuilder;
+#[cfg_attr(feature = "serde", typetag::serde)]
+impl ScorerBuilder for UniformScorerBuilder {
+    fn build(&self) -> Box<dyn Scorer> {
+        Box::new(IntoSystem::into_system(|_: In<Entity>| 1.0f32))
     }
+}
+
+pub fn score_uniform(nodes: Vec<Box<dyn Node>>) -> Vec<(Box<dyn Node>, Box<dyn ScorerBuilder>)> {
     nodes
         .into_iter()
         .map(|node| {
-            let scorer: Box<dyn Scorer> = Box::new(IntoSystem::into_system(score));
-            (node, Mutex::new(scorer))
+            (
+                node,
+                Box::new(UniformScorerBuilder) as Box<dyn ScorerBuilder>,
+            )
         })
         .collect()
 }
 
-pub fn pick_identity(In((scores, _entity)): In<(Vec<f32>, Entity)>) -> Vec<usize> {
-    (0..scores.len()).collect()
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+struct ConstantScorerBuilder {
+    score: f32,
+}
+#[cfg_attr(feature = "serde", typetag::serde)]
+impl ScorerBuilder for ConstantScorerBuilder {
+    fn build(&self) -> Box<dyn Scorer> {
+        let score = self.score;
+        Box::new(IntoSystem::into_system(
+            move |In(_entity): In<Entity>| -> f32 { score },
+        ))
+    }
 }
 
-pub fn result_and(results: Vec<Option<NodeResult>>) -> Option<NodeResult> {
-    if results.contains(&Some(NodeResult::Failure)) {
-        Some(NodeResult::Failure)
-    } else if results.contains(&None) {
-        None
-    } else {
-        Some(NodeResult::Success)
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct IdentityPickerBuilder;
+#[cfg_attr(feature = "serde", typetag::serde)]
+impl PickerBuilder for IdentityPickerBuilder {
+    fn build(&self) -> Box<dyn Picker> {
+        Box::new(IntoSystem::into_system(
+            |In((scores, _entity)): In<(Vec<f32>, Entity)>| -> Vec<usize> {
+                let count = scores.len();
+                (0..count).collect()
+            },
+        ))
     }
 }
-pub fn result_or(results: Vec<Option<NodeResult>>) -> Option<NodeResult> {
-    if results.contains(&Some(NodeResult::Success)) {
-        Some(NodeResult::Success)
-    } else if results.contains(&None) {
-        None
-    } else {
-        Some(NodeResult::Failure)
-    }
-}
-pub fn result_last(results: Vec<Option<NodeResult>>) -> Option<NodeResult> {
-    if results.contains(&None) {
-        None
-    } else {
-        match results.last() {
-            Some(result) => *result,
-            None => Some(NodeResult::Failure),
+
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct AndResultStrategy;
+#[cfg_attr(feature = "serde", typetag::serde)]
+impl ResultStrategy for AndResultStrategy {
+    fn construct(&self, results: Vec<Option<NodeResult>>) -> Option<NodeResult> {
+        if results.contains(&Some(NodeResult::Failure)) {
+            Some(NodeResult::Failure)
+        } else if results.contains(&None) {
+            None
+        } else {
+            Some(NodeResult::Success)
         }
     }
 }
-pub fn result_forced(results: Vec<Option<NodeResult>>) -> Option<NodeResult> {
-    results.into_iter().find_map(|r| r)
+
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct OrResultStrategy;
+#[cfg_attr(feature = "serde", typetag::serde)]
+impl ResultStrategy for OrResultStrategy {
+    fn construct(&self, results: Vec<Option<NodeResult>>) -> Option<NodeResult> {
+        if results.contains(&Some(NodeResult::Success)) {
+            Some(NodeResult::Success)
+        } else if results.contains(&None) {
+            None
+        } else {
+            Some(NodeResult::Failure)
+        }
+    }
+}
+
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct LastResultStrategy;
+#[cfg_attr(feature = "serde", typetag::serde)]
+impl ResultStrategy for LastResultStrategy {
+    fn construct(&self, results: Vec<Option<NodeResult>>) -> Option<NodeResult> {
+        if results.contains(&None) {
+            None
+        } else {
+            match results.last() {
+                Some(result) => *result,
+                None => Some(NodeResult::Failure),
+            }
+        }
+    }
+}
+
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct ForcedResultStrategy;
+#[cfg_attr(feature = "serde", typetag::serde)]
+impl ResultStrategy for ForcedResultStrategy {
+    fn construct(&self, results: Vec<Option<NodeResult>>) -> Option<NodeResult> {
+        results.into_iter().find_map(|r| r)
+    }
 }
 
 pub type Sequence = SequentialAnd;
@@ -79,7 +132,11 @@ pub struct SequentialAnd {
 impl SequentialAnd {
     pub fn new(nodes: Vec<Box<dyn Node>>) -> Self {
         Self {
-            delegate: ScoredSequence::new(score_uniform(nodes), pick_identity, result_and),
+            delegate: ScoredSequence::new(
+                score_uniform(nodes),
+                IdentityPickerBuilder,
+                AndResultStrategy,
+            ),
         }
     }
 }
@@ -93,7 +150,11 @@ pub struct SequentialOr {
 impl SequentialOr {
     pub fn new(nodes: Vec<Box<dyn Node>>) -> Self {
         Self {
-            delegate: ScoredSequence::new(score_uniform(nodes), pick_identity, result_or),
+            delegate: ScoredSequence::new(
+                score_uniform(nodes),
+                IdentityPickerBuilder,
+                OrResultStrategy,
+            ),
         }
     }
 }
@@ -106,7 +167,11 @@ pub struct ForcedSequence {
 impl ForcedSequence {
     pub fn new(nodes: Vec<Box<dyn Node>>) -> Self {
         Self {
-            delegate: ScoredSequence::new(score_uniform(nodes), pick_identity, result_last),
+            delegate: ScoredSequence::new(
+                score_uniform(nodes),
+                IdentityPickerBuilder,
+                LastResultStrategy,
+            ),
         }
     }
 }
@@ -119,12 +184,12 @@ mod tests {
     #[test]
     fn test_sequential_and() {
         let mut app = App::new();
-        app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
+        app.add_plugins((TesterPlugin, BehaviorTreePlugin::default()));
         let sequence = Sequence::new(vec![
-            Box::new(TesterTask::<0>::new(1, NodeResult::Success)),
-            Box::new(TesterTask::<1>::new(1, NodeResult::Success)),
-            Box::new(TesterTask::<2>::new(1, NodeResult::Failure)),
-            Box::new(TesterTask::<3>::new(1, NodeResult::Success)),
+            Box::new(TesterTask0::new(1, NodeResult::Success)),
+            Box::new(TesterTask1::new(1, NodeResult::Success)),
+            Box::new(TesterTask2::new(1, NodeResult::Failure)),
+            Box::new(TesterTask3::new(1, NodeResult::Success)),
         ]);
         let tree = BehaviorTree::from_node(
             sequence,
@@ -166,12 +231,12 @@ mod tests {
     #[test]
     fn test_sequential_or() {
         let mut app = App::new();
-        app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
+        app.add_plugins((TesterPlugin, BehaviorTreePlugin::default()));
         let sequence = Selector::new(vec![
-            Box::new(TesterTask::<0>::new(1, NodeResult::Failure)),
-            Box::new(TesterTask::<1>::new(1, NodeResult::Failure)),
-            Box::new(TesterTask::<2>::new(1, NodeResult::Success)),
-            Box::new(TesterTask::<3>::new(1, NodeResult::Failure)),
+            Box::new(TesterTask0::new(1, NodeResult::Failure)),
+            Box::new(TesterTask1::new(1, NodeResult::Failure)),
+            Box::new(TesterTask2::new(1, NodeResult::Success)),
+            Box::new(TesterTask3::new(1, NodeResult::Failure)),
         ]);
         let tree = BehaviorTree::from_node(
             sequence,
@@ -213,12 +278,12 @@ mod tests {
     #[test]
     fn test_forced_sequence() {
         let mut app = App::new();
-        app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
+        app.add_plugins((TesterPlugin, BehaviorTreePlugin::default()));
         let sequence = ForcedSequence::new(vec![
-            Box::new(TesterTask::<0>::new(1, NodeResult::Success)),
-            Box::new(TesterTask::<1>::new(1, NodeResult::Failure)),
-            Box::new(TesterTask::<2>::new(1, NodeResult::Success)),
-            Box::new(TesterTask::<3>::new(1, NodeResult::Failure)),
+            Box::new(TesterTask0::new(1, NodeResult::Success)),
+            Box::new(TesterTask1::new(1, NodeResult::Failure)),
+            Box::new(TesterTask2::new(1, NodeResult::Success)),
+            Box::new(TesterTask3::new(1, NodeResult::Failure)),
         ]);
         let tree = BehaviorTree::from_node(
             sequence,

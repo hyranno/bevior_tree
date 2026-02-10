@@ -7,19 +7,22 @@ use crate::node::prelude::*;
 pub mod variants;
 
 pub mod prelude {
-    pub use super::{ResultConverter, variants::prelude::*};
+    pub use super::{ConverterStrategy, ResultConverter, variants::prelude::*};
+}
+
+#[cfg_attr(feature = "serde", typetag::serde(tag = "type"))]
+pub trait ConverterStrategy: 'static + Send + Sync {
+    fn convert(&self, result: NodeResult) -> NodeResult;
 }
 
 /// Node that converts the result of the child.
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ResultConverter {
     child: Box<dyn Node>,
-    converter: Box<dyn Fn(NodeResult) -> NodeResult + 'static + Send + Sync>,
+    converter: Box<dyn ConverterStrategy>,
 }
 impl ResultConverter {
-    pub fn new(
-        child: impl Node,
-        converter: impl Fn(NodeResult) -> NodeResult + 'static + Send + Sync,
-    ) -> Self {
+    pub fn new(child: impl Node, converter: impl ConverterStrategy) -> Self {
         Self {
             child: Box::new(child),
             converter: Box::new(converter),
@@ -27,11 +30,12 @@ impl ResultConverter {
     }
     fn convert(&self, status: NodeStatus) -> NodeStatus {
         match &status {
-            &NodeStatus::Complete(result) => NodeStatus::Complete((*self.converter)(result)),
+            &NodeStatus::Complete(result) => NodeStatus::Complete(self.converter.convert(result)),
             _ => status,
         }
     }
 }
+#[cfg_attr(feature = "serde", typetag::serde)]
 impl Node for ResultConverter {
     fn begin(&self, world: &mut World, entity: Entity) -> NodeStatus {
         self.convert(self.child.begin(world, entity))

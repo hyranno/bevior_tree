@@ -4,7 +4,7 @@ use std::sync::Mutex;
 
 use bevy::ecs::{
     entity::Entity,
-    system::{In, IntoSystem, ReadOnlySystem},
+    system::{In, IntoSystem, System},
     world::World,
 };
 
@@ -18,35 +18,60 @@ pub mod prelude {
     };
 }
 
-pub trait LoopCondChecker: ReadOnlySystem<In = In<(Entity, LoopState)>, Out = bool> {}
-impl<S> LoopCondChecker for S where S: ReadOnlySystem<In = In<(Entity, LoopState)>, Out = bool> {}
+pub trait LoopCondChecker: System<In = In<(Entity, LoopState)>, Out = bool> {}
+impl<S> LoopCondChecker for S where S: System<In = In<(Entity, LoopState)>, Out = bool> {}
+
+#[cfg_attr(feature = "serde", typetag::serde(tag = "type"))]
+pub trait LoopCondCheckerBuilder: 'static + Send + Sync {
+    fn build(&self) -> Box<dyn LoopCondChecker>;
+}
+
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct LoopCountCondCheckerBuilder {
+    max_count: usize,
+}
+#[cfg_attr(feature = "serde", typetag::serde)]
+impl LoopCondCheckerBuilder for LoopCountCondCheckerBuilder {
+    fn build(&self) -> Box<dyn LoopCondChecker> {
+        let max_count = self.max_count;
+        Box::new(IntoSystem::into_system(
+            move |In((_, loop_state)): In<(Entity, LoopState)>| loop_state.count < max_count,
+        ))
+    }
+}
 
 /// Node for conditional loop.
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[with_state(ConditionalLoopState)]
 pub struct ConditionalLoop {
     child: Box<dyn Node>,
-    checker: Mutex<Box<dyn LoopCondChecker>>,
+    checker_builder: Box<dyn LoopCondCheckerBuilder>,
+    #[cfg_attr(feature = "serde", serde(skip))]
+    checker_runtime: Mutex<Option<Box<dyn LoopCondChecker>>>,
 }
 impl ConditionalLoop {
-    pub fn new<S, Marker>(node: impl Node, checker: S) -> Self
-    where
-        S: IntoSystem<In<(Entity, LoopState)>, bool, Marker>,
-        <S as IntoSystem<In<(Entity, LoopState)>, bool, Marker>>::System: LoopCondChecker,
-    {
+    pub fn new(child: impl Node, checker_builder: impl LoopCondCheckerBuilder) -> Self {
         Self {
-            child: Box::new(node),
-            checker: Mutex::new(Box::new(IntoSystem::into_system(checker))),
+            child: Box::new(child),
+            checker_builder: Box::new(checker_builder),
+            checker_runtime: Mutex::new(None),
         }
     }
-
     pub fn check(&self, world: &mut World, entity: Entity, loop_state: LoopState) -> bool {
-        let mut checker = self.checker.lock().expect("Failed to lock.");
-        checker.initialize(world);
-        checker
+        let mut checker_lock = self.checker_runtime.lock().expect("Failed to lock.");
+        if checker_lock.is_none() {
+            let mut new_checker = self.checker_builder.build();
+            new_checker.initialize(world);
+            *checker_lock = Some(new_checker);
+        }
+        checker_lock
+            .as_mut()
+            .expect("Checker not initialized.")
             .run((entity, loop_state), world)
             .expect("Failed to run checker system.")
     }
 }
+#[cfg_attr(feature = "serde", typetag::serde)]
 impl Node for ConditionalLoop {
     fn begin(&self, world: &mut World, entity: Entity) -> NodeStatus {
         let state = ConditionalLoopState {
@@ -98,6 +123,7 @@ impl Node for ConditionalLoop {
     }
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(NodeState, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct LoopState {
     count: usize,
@@ -113,40 +139,56 @@ impl LoopState {
 }
 
 /// State for [`ConditionalLoop`]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(NodeState)]
 struct ConditionalLoopState {
     loop_state: LoopState,
     child_status: NodeStatus,
 }
 
+pub trait CondChecker: System<In = In<Entity>, Out = bool> {}
+impl<S> CondChecker for S where S: System<In = In<Entity>, Out = bool> {}
+
+#[cfg_attr(feature = "serde", typetag::serde(tag = "type"))]
+pub trait CondCheckerBuilder: 'static + Send + Sync {
+    fn build(&self) -> Box<dyn CondChecker>;
+}
+
 /// State for [`CheckIf`]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(NodeState, Debug)]
 struct CheckIfState;
 
 /// Node that check the condition, then return it as [`NodeResult`].
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[with_state(CheckIfState)]
 pub struct CheckIf {
-    checker: Mutex<Box<dyn ReadOnlySystem<In = In<Entity>, Out = bool>>>,
+    checker_builder: Box<dyn CondCheckerBuilder>,
+    #[cfg_attr(feature = "serde", serde(skip))]
+    checker_runtime: Mutex<Option<Box<dyn CondChecker>>>,
 }
 impl CheckIf {
-    pub fn new<F, Marker>(checker: F) -> Self
-    where
-        F: IntoSystem<In<Entity>, bool, Marker>,
-        <F as IntoSystem<In<Entity>, bool, Marker>>::System: ReadOnlySystem,
-    {
+    pub fn new(checker_builder: impl CondCheckerBuilder) -> Self {
         Self {
-            checker: Mutex::new(Box::new(IntoSystem::into_system(checker))),
+            checker_builder: Box::new(checker_builder),
+            checker_runtime: Mutex::new(None),
         }
     }
-
     fn check(&self, world: &mut World, entity: Entity) -> bool {
-        let mut checker = self.checker.lock().expect("Failed to lock.");
-        checker.initialize(world);
-        checker
+        let mut checker_lock = self.checker_runtime.lock().expect("Failed to lock.");
+        if checker_lock.is_none() {
+            let mut new_checker = self.checker_builder.build();
+            new_checker.initialize(world);
+            *checker_lock = Some(new_checker);
+        }
+        checker_lock
+            .as_mut()
+            .expect("Checker not initialized.")
             .run(entity, world)
             .expect("Failed to run checker system.")
     }
 }
+#[cfg_attr(feature = "serde", typetag::serde)]
 impl Node for CheckIf {
     fn begin(&self, world: &mut World, entity: Entity) -> NodeStatus {
         self.resume(world, entity, Box::new(CheckIfState))
@@ -166,31 +208,37 @@ impl Node for CheckIf {
 
 /// Node that run the child while condition matched, else freeze.
 /// Freezes transition of the child sub-tree, not running task.
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[with_state(ElseFreezeState)]
 pub struct ElseFreeze {
     child: Box<dyn Node>,
-    checker: Mutex<Box<dyn ReadOnlySystem<In = In<Entity>, Out = bool>>>,
+    checker_builder: Box<dyn CondCheckerBuilder>,
+    #[cfg_attr(feature = "serde", serde(skip))]
+    checker_runtime: Mutex<Option<Box<dyn CondChecker>>>,
 }
 impl ElseFreeze {
-    pub fn new<F, Marker>(child: impl Node, checker: F) -> Self
-    where
-        F: IntoSystem<In<Entity>, bool, Marker>,
-        <F as IntoSystem<In<Entity>, bool, Marker>>::System: ReadOnlySystem,
-    {
+    pub fn new(child: impl Node, checker_builder: impl CondCheckerBuilder) -> Self {
         Self {
             child: Box::new(child),
-            checker: Mutex::new(Box::new(IntoSystem::into_system(checker))),
+            checker_builder: Box::new(checker_builder),
+            checker_runtime: Mutex::new(None),
         }
     }
-
     fn check(&self, world: &mut World, entity: Entity) -> bool {
-        let mut checker = self.checker.lock().expect("Failed to lock.");
-        checker.initialize(world);
-        checker
+        let mut checker_lock = self.checker_runtime.lock().expect("Failed to lock.");
+        if checker_lock.is_none() {
+            let mut new_checker = self.checker_builder.build();
+            new_checker.initialize(world);
+            *checker_lock = Some(new_checker);
+        }
+        checker_lock
+            .as_mut()
+            .expect("Checker not initialized.")
             .run(entity, world)
             .expect("Failed to run checker system.")
     }
 }
+#[cfg_attr(feature = "serde", typetag::serde)]
 impl Node for ElseFreeze {
     fn begin(&self, world: &mut World, entity: Entity) -> NodeStatus {
         self.resume(
@@ -235,6 +283,7 @@ impl Node for ElseFreeze {
 }
 
 /// State for [`ElseFreeze`]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(NodeState)]
 struct ElseFreezeState {
     child_status: NodeStatus,
@@ -242,12 +291,14 @@ struct ElseFreezeState {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::tester_util::prelude::*;
     use bevy::state::app::StatesPlugin;
 
     #[derive(Component)]
     struct TestMarker;
 
+    #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
     #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, Default, States)]
     enum TestStates {
         #[default]
@@ -255,19 +306,41 @@ mod tests {
         FreezeState,
     }
 
-    fn test_marker_exists(In(entity): In<Entity>, world: &World) -> bool {
-        world.entity(entity).contains::<TestMarker>()
+    #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+    struct TestMarkerExistsCondCheckerBuilder;
+    #[cfg_attr(feature = "serde", typetag::serde)]
+    impl CondCheckerBuilder for TestMarkerExistsCondCheckerBuilder {
+        fn build(&self) -> Box<dyn CondChecker> {
+            Box::new(IntoSystem::into_system(
+                |In(entity): In<Entity>, world: &World| -> bool {
+                    world.entity(entity).contains::<TestMarker>()
+                },
+            ))
+        }
+    }
+
+    #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+    struct TestStateMatcherCondCheckerBuilder {
+        target_state: TestStates,
+    }
+    #[cfg_attr(feature = "serde", typetag::serde)]
+    impl CondCheckerBuilder for TestStateMatcherCondCheckerBuilder {
+        fn build(&self) -> Box<dyn CondChecker> {
+            let target_state = self.target_state;
+            Box::new(IntoSystem::into_system(
+                move |In(_): In<Entity>, state: Res<State<TestStates>>| -> bool {
+                    *state.get() == target_state
+                },
+            ))
+        }
     }
 
     #[test]
     fn test_repeat_count() {
         let mut app = App::new();
-        app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
-        let task = TesterTask::<0>::new(1, NodeResult::Success);
-        let repeater =
-            ConditionalLoop::new(task, |In((_, loop_state)): In<(Entity, LoopState)>| {
-                loop_state.count < 3
-            });
+        app.add_plugins((TesterPlugin, BehaviorTreePlugin::default()));
+        let task = TesterTask0::new(1, NodeResult::Success);
+        let repeater = ConditionalLoop::new(task, LoopCountCondCheckerBuilder { max_count: 3 });
         let tree = BehaviorTree::from_node(
             repeater,
             &mut app.world_mut().resource_mut::<Assets<BehaviorTreeRoot>>(),
@@ -307,8 +380,8 @@ mod tests {
     #[test]
     fn test_check_if_false() {
         let mut app = App::new();
-        app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
-        let task = CheckIf::new(test_marker_exists);
+        app.add_plugins((TesterPlugin, BehaviorTreePlugin::default()));
+        let task = CheckIf::new(TestMarkerExistsCondCheckerBuilder);
         let tree = BehaviorTree::from_node(
             task,
             &mut app.world_mut().resource_mut::<Assets<BehaviorTreeRoot>>(),
@@ -329,8 +402,8 @@ mod tests {
     #[test]
     fn test_check_if_true() {
         let mut app = App::new();
-        app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
-        let task = CheckIf::new(test_marker_exists);
+        app.add_plugins((TesterPlugin, BehaviorTreePlugin::default()));
+        let task = CheckIf::new(TestMarkerExistsCondCheckerBuilder);
         let tree = BehaviorTree::from_node(
             task,
             &mut app.world_mut().resource_mut::<Assets<BehaviorTreeRoot>>(),
@@ -351,11 +424,14 @@ mod tests {
     #[test]
     fn test_conditional_freeze() {
         let mut app = App::new();
-        app.add_plugins((StatesPlugin, BehaviorTreePlugin::default(), TesterPlugin));
-        let task = TesterTask::<0>::new(2, NodeResult::Success);
-        let root = ElseFreeze::new(task, |In(_), state: Res<State<TestStates>>| {
-            *state.get() == TestStates::MainState
-        });
+        app.add_plugins((StatesPlugin, TesterPlugin, BehaviorTreePlugin::default()));
+        let task = TesterTask0::new(2, NodeResult::Success);
+        let root = ElseFreeze::new(
+            task,
+            TestStateMatcherCondCheckerBuilder {
+                target_state: TestStates::MainState,
+            },
+        );
         let tree = BehaviorTree::from_node(
             root,
             &mut app.world_mut().resource_mut::<Assets<BehaviorTreeRoot>>(),

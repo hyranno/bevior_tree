@@ -1,41 +1,103 @@
-use std::{marker::PhantomData, sync::Mutex};
+use std::marker::PhantomData;
 
 use bevy::{
     ecs::system::{In, IntoSystem},
-    prelude::{Entity, ResMut, Resource},
+    prelude::{Entity, ResMut, Resource, World},
 };
 
 use rand::{Rng, distr::Uniform, prelude::Distribution};
 
-use super::sorted::{pick_max, pick_sorted};
-use super::{ScoredSequence, Scorer, result_and, result_forced, result_last, result_or};
+use super::sorted::{MaxPickerBuilder, SortedPickerBuilder};
+use super::{
+    AndResultStrategy, ForcedResultStrategy, LastResultStrategy, OrResultStrategy, Picker,
+    PickerBuilder, ScoredSequence, ScorerBuilder,
+};
 use crate as bevior_tree;
 use crate::node::prelude::*;
 
 pub mod prelude {
     pub use super::{
         RandomForcedSelector, RandomOrderedForcedSequence, RandomOrderedSequentialAnd,
-        RandomOrderedSequentialOr, randomize_picker,
+        RandomOrderedSequentialOr, RandomPickerBuilder, RngResource,
     };
+    #[cfg(feature = "serde")]
+    pub use crate::impl_random_picker;
 }
 
-/// Weighted random sampling.
-/// Probability of being picked next is proportional to the score.
-/// Using algorithm called A-ES by Efraimidis and Spirakis.
-pub fn randomize_picker<R, Marker>(
-    In((scores, entity)): In<(Vec<f32>, Entity)>,
-    mut rng_res: ResMut<RngResource<R, Marker>>,
-) -> (Vec<f32>, Entity)
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct RandomPickerBuilder<R, Marker>
 where
     R: Rng + 'static + Send + Sync,
     Marker: 'static + Send + Sync,
 {
-    let dist = Uniform::<f32>::new(0.0, 1.0).expect("Failed to init uniform distribution.");
-    let scores = scores
-        .into_iter()
-        .map(|score| dist.sample(&mut rng_res.rng).powf(1.0 / score))
-        .collect();
-    (scores, entity)
+    pub base: Box<dyn PickerBuilder>,
+    #[cfg_attr(feature = "serde", serde(skip))]
+    _phantom: PhantomData<(R, Marker)>,
+}
+impl<R, Marker> RandomPickerBuilder<R, Marker>
+where
+    R: Rng + 'static + Send + Sync,
+    Marker: 'static + Send + Sync,
+{
+    pub fn new(base: Box<dyn PickerBuilder>) -> Self {
+        Self {
+            base,
+            _phantom: PhantomData,
+        }
+    }
+    /// Weighted random sampling.
+    /// Probability of being picked next is proportional to the score.
+    /// Using algorithm called A-ES by Efraimidis and Spirakis.
+    fn randomizer(
+        In((scores, entity)): In<(Vec<f32>, Entity)>,
+        mut rng_res: ResMut<RngResource<R, Marker>>,
+    ) -> (Vec<f32>, Entity) {
+        let dist = Uniform::<f32>::new(0.0, 1.0).expect("Failed to init uniform distribution.");
+        let scores = scores
+            .into_iter()
+            .map(|score| dist.sample(&mut rng_res.rng).powf(1.0 / score))
+            .collect();
+        (scores, entity)
+    }
+    pub fn inner_build(&self) -> Box<dyn Picker> {
+        let mut base = self.base.build();
+        // Wrap base picker while BoxedSystem does not implement IntoSystem directly.
+        let wrapped_base = move |In((scores, entity)): In<(Vec<f32>, Entity)>,
+                                 world: &mut World| {
+            base.initialize(world);
+            let picked = base.run((scores, entity), world);
+            picked.expect("Failed to run Picker")
+        };
+        let randomizer = Self::randomizer;
+        let piped = randomizer.pipe(wrapped_base);
+        Box::new(IntoSystem::into_system(piped))
+    }
+}
+#[cfg(not(feature = "serde"))]
+impl<R, Marker> PickerBuilder for RandomPickerBuilder<R, Marker>
+where
+    R: Rng + 'static + Send + Sync,
+    Marker: 'static + Send + Sync,
+{
+    fn build(&self) -> Box<dyn Picker> {
+        self.inner_build()
+    }
+}
+#[cfg(feature = "serde")]
+mod serde_impls {
+    /// Implement PickerBuilder for RandomPickerBuilder with given RNG type and Marker type.
+    /// This is a macro because typetag does not support generic impl directly.
+    #[macro_export]
+    macro_rules! impl_random_picker {
+        ($rng:ty, $marker:ty) => {
+            #[typetag::serde]
+            impl PickerBuilder for RandomPickerBuilder<$rng, $marker> {
+                fn build(&self) -> Box<dyn Picker> {
+                    self.inner_build()
+                }
+            }
+        };
+    }
 }
 
 /// Resource that holds RNG instance.
@@ -69,16 +131,17 @@ pub struct RandomOrderedSequentialAnd {
     delegate: ScoredSequence,
 }
 impl RandomOrderedSequentialAnd {
-    pub fn new<R, Marker>(nodes: Vec<(Box<dyn Node>, Mutex<Box<dyn Scorer>>)>) -> Self
+    pub fn new<R, Marker>(children: Vec<(Box<dyn Node>, Box<dyn ScorerBuilder>)>) -> Self
     where
         R: Rng + 'static + Send + Sync,
         Marker: 'static + Send + Sync,
+        RandomPickerBuilder<R, Marker>: PickerBuilder,
     {
         Self {
             delegate: ScoredSequence::new(
-                nodes,
-                randomize_picker::<R, Marker>.pipe(pick_sorted),
-                result_and,
+                children,
+                RandomPickerBuilder::<R, Marker>::new(Box::new(SortedPickerBuilder)),
+                AndResultStrategy,
             ),
         }
     }
@@ -91,16 +154,17 @@ pub struct RandomOrderedSequentialOr {
     delegate: ScoredSequence,
 }
 impl RandomOrderedSequentialOr {
-    pub fn new<R, Marker>(nodes: Vec<(Box<dyn Node>, Mutex<Box<dyn Scorer>>)>) -> Self
+    pub fn new<R, Marker>(children: Vec<(Box<dyn Node>, Box<dyn ScorerBuilder>)>) -> Self
     where
         R: Rng + 'static + Send + Sync,
         Marker: 'static + Send + Sync,
+        RandomPickerBuilder<R, Marker>: PickerBuilder,
     {
         Self {
             delegate: ScoredSequence::new(
-                nodes,
-                randomize_picker::<R, Marker>.pipe(pick_sorted),
-                result_or,
+                children,
+                RandomPickerBuilder::<R, Marker>::new(Box::new(SortedPickerBuilder)),
+                OrResultStrategy,
             ),
         }
     }
@@ -113,16 +177,17 @@ pub struct RandomOrderedForcedSequence {
     delegate: ScoredSequence,
 }
 impl RandomOrderedForcedSequence {
-    pub fn new<R, Marker>(nodes: Vec<(Box<dyn Node>, Mutex<Box<dyn Scorer>>)>) -> Self
+    pub fn new<R, Marker>(children: Vec<(Box<dyn Node>, Box<dyn ScorerBuilder>)>) -> Self
     where
         R: Rng + 'static + Send + Sync,
         Marker: 'static + Send + Sync,
+        RandomPickerBuilder<R, Marker>: PickerBuilder,
     {
         Self {
             delegate: ScoredSequence::new(
-                nodes,
-                randomize_picker::<R, Marker>.pipe(pick_sorted),
-                result_last,
+                children,
+                RandomPickerBuilder::<R, Marker>::new(Box::new(SortedPickerBuilder)),
+                LastResultStrategy,
             ),
         }
     }
@@ -134,16 +199,17 @@ pub struct RandomForcedSelector {
     delegate: ScoredSequence,
 }
 impl RandomForcedSelector {
-    pub fn new<R, Marker>(nodes: Vec<(Box<dyn Node>, Mutex<Box<dyn Scorer>>)>) -> Self
+    pub fn new<R, Marker>(children: Vec<(Box<dyn Node>, Box<dyn ScorerBuilder>)>) -> Self
     where
         R: Rng + 'static + Send + Sync,
         Marker: 'static + Send + Sync,
+        RandomPickerBuilder<R, Marker>: PickerBuilder,
     {
         Self {
             delegate: ScoredSequence::new(
-                nodes,
-                randomize_picker::<R, Marker>.pipe(pick_max),
-                result_forced,
+                children,
+                RandomPickerBuilder::<R, Marker>::new(Box::new(MaxPickerBuilder)),
+                ForcedResultStrategy,
             ),
         }
     }
@@ -151,24 +217,39 @@ impl RandomForcedSelector {
 
 #[cfg(test)]
 mod tests {
+    use super::super::ConstantScorerBuilder;
     use super::*;
-    use crate::tester_util::prelude::*;
+    use crate::{impl_random_picker, tester_util::prelude::*};
 
     use rand::SeedableRng;
 
     struct RngMarker;
+
+    impl_random_picker!(rand::rngs::StdRng, RngMarker);
 
     #[test]
     fn test_random_ordered_sequential_and() {
         let mut app = App::new();
         let rng_res = RngResource::<_, RngMarker>::new(rand::rngs::StdRng::seed_from_u64(224));
         app.insert_resource(rng_res);
-        app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
+        app.add_plugins((TesterPlugin, BehaviorTreePlugin::default()));
         let sequence = RandomOrderedSequentialAnd::new::<rand::rngs::StdRng, RngMarker>(vec![
-            pair_node_scorer_fn(TesterTask::<0>::new(1, NodeResult::Success), |In(_)| 0.1),
-            pair_node_scorer_fn(TesterTask::<1>::new(1, NodeResult::Success), |In(_)| 0.3),
-            pair_node_scorer_fn(TesterTask::<2>::new(1, NodeResult::Success), |In(_)| 0.2),
-            pair_node_scorer_fn(TesterTask::<3>::new(1, NodeResult::Failure), |In(_)| 0.4),
+            (
+                Box::new(TesterTask0::new(1, NodeResult::Success)),
+                Box::new(ConstantScorerBuilder { score: 0.1 }),
+            ),
+            (
+                Box::new(TesterTask1::new(1, NodeResult::Success)),
+                Box::new(ConstantScorerBuilder { score: 0.3 }),
+            ),
+            (
+                Box::new(TesterTask2::new(1, NodeResult::Success)),
+                Box::new(ConstantScorerBuilder { score: 0.2 }),
+            ),
+            (
+                Box::new(TesterTask3::new(1, NodeResult::Failure)),
+                Box::new(ConstantScorerBuilder { score: 0.4 }),
+            ),
         ]);
         let tree = BehaviorTree::from_node(
             sequence,
@@ -212,12 +293,24 @@ mod tests {
         let mut app = App::new();
         let rng_res = RngResource::<_, RngMarker>::new(rand::rngs::StdRng::seed_from_u64(224));
         app.insert_resource(rng_res);
-        app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
+        app.add_plugins((TesterPlugin, BehaviorTreePlugin::default()));
         let sequence = RandomOrderedSequentialOr::new::<rand::rngs::StdRng, RngMarker>(vec![
-            pair_node_scorer_fn(TesterTask::<0>::new(1, NodeResult::Failure), |In(_)| 0.1),
-            pair_node_scorer_fn(TesterTask::<1>::new(1, NodeResult::Failure), |In(_)| 0.3),
-            pair_node_scorer_fn(TesterTask::<2>::new(1, NodeResult::Failure), |In(_)| 0.2),
-            pair_node_scorer_fn(TesterTask::<3>::new(1, NodeResult::Success), |In(_)| 0.4),
+            (
+                Box::new(TesterTask0::new(1, NodeResult::Failure)),
+                Box::new(ConstantScorerBuilder { score: 0.1 }),
+            ),
+            (
+                Box::new(TesterTask1::new(1, NodeResult::Failure)),
+                Box::new(ConstantScorerBuilder { score: 0.3 }),
+            ),
+            (
+                Box::new(TesterTask2::new(1, NodeResult::Failure)),
+                Box::new(ConstantScorerBuilder { score: 0.2 }),
+            ),
+            (
+                Box::new(TesterTask3::new(1, NodeResult::Success)),
+                Box::new(ConstantScorerBuilder { score: 0.4 }),
+            ),
         ]);
         let tree = BehaviorTree::from_node(
             sequence,
@@ -261,12 +354,24 @@ mod tests {
         let mut app = App::new();
         let rng_res = RngResource::<_, RngMarker>::new(rand::rngs::StdRng::seed_from_u64(224));
         app.insert_resource(rng_res);
-        app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
+        app.add_plugins((TesterPlugin, BehaviorTreePlugin::default()));
         let sequence = RandomOrderedForcedSequence::new::<rand::rngs::StdRng, RngMarker>(vec![
-            pair_node_scorer_fn(TesterTask::<0>::new(1, NodeResult::Failure), |In(_)| 0.1),
-            pair_node_scorer_fn(TesterTask::<1>::new(1, NodeResult::Failure), |In(_)| 0.3),
-            pair_node_scorer_fn(TesterTask::<2>::new(1, NodeResult::Success), |In(_)| 0.2),
-            pair_node_scorer_fn(TesterTask::<3>::new(1, NodeResult::Failure), |In(_)| 0.4),
+            (
+                Box::new(TesterTask0::new(1, NodeResult::Failure)),
+                Box::new(ConstantScorerBuilder { score: 0.1 }),
+            ),
+            (
+                Box::new(TesterTask1::new(1, NodeResult::Failure)),
+                Box::new(ConstantScorerBuilder { score: 0.3 }),
+            ),
+            (
+                Box::new(TesterTask2::new(1, NodeResult::Success)),
+                Box::new(ConstantScorerBuilder { score: 0.2 }),
+            ),
+            (
+                Box::new(TesterTask3::new(1, NodeResult::Failure)),
+                Box::new(ConstantScorerBuilder { score: 0.4 }),
+            ),
         ]);
         let tree = BehaviorTree::from_node(
             sequence,
@@ -316,12 +421,24 @@ mod tests {
         let mut app = App::new();
         let rng_res = RngResource::<_, RngMarker>::new(rand::rngs::StdRng::seed_from_u64(224));
         app.insert_resource(rng_res);
-        app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
+        app.add_plugins((TesterPlugin, BehaviorTreePlugin::default()));
         let sequence = RandomForcedSelector::new::<rand::rngs::StdRng, RngMarker>(vec![
-            pair_node_scorer_fn(TesterTask::<0>::new(1, NodeResult::Failure), |In(_)| 0.1),
-            pair_node_scorer_fn(TesterTask::<1>::new(1, NodeResult::Failure), |In(_)| 0.3),
-            pair_node_scorer_fn(TesterTask::<2>::new(1, NodeResult::Success), |In(_)| 0.2),
-            pair_node_scorer_fn(TesterTask::<3>::new(1, NodeResult::Failure), |In(_)| 0.4),
+            (
+                Box::new(TesterTask0::new(1, NodeResult::Failure)),
+                Box::new(ConstantScorerBuilder { score: 0.1 }),
+            ),
+            (
+                Box::new(TesterTask1::new(1, NodeResult::Failure)),
+                Box::new(ConstantScorerBuilder { score: 0.3 }),
+            ),
+            (
+                Box::new(TesterTask2::new(1, NodeResult::Success)),
+                Box::new(ConstantScorerBuilder { score: 0.2 }),
+            ),
+            (
+                Box::new(TesterTask3::new(1, NodeResult::Failure)),
+                Box::new(ConstantScorerBuilder { score: 0.4 }),
+            ),
         ]);
         let tree = BehaviorTree::from_node(
             sequence,
