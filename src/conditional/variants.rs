@@ -15,6 +15,7 @@ pub mod prelude {
 }
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug)]
 pub struct OnceLoopCondCheckerBuilder {
     checker_builder: Box<dyn CondCheckerBuilder>,
 }
@@ -56,6 +57,7 @@ impl Conditional {
 }
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug)]
 pub struct AlwaysLoopCondCheckerBuilder;
 #[cfg_attr(feature = "serde", typetag::serde)]
 impl LoopCondCheckerBuilder for AlwaysLoopCondCheckerBuilder {
@@ -88,6 +90,7 @@ mod tests {
     struct TestMarker;
 
     #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+    #[derive(Debug)]
     struct TestMarkerExistsCondCheckerBuilder;
     #[cfg_attr(feature = "serde", typetag::serde)]
     impl CondCheckerBuilder for TestMarkerExistsCondCheckerBuilder {

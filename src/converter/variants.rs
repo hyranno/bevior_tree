@@ -8,6 +8,7 @@ pub mod prelude {
 }
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug)]
 struct InvertStrategy;
 #[cfg_attr(feature = "serde", typetag::serde)]
 impl ConverterStrategy for InvertStrategy {
@@ -30,6 +31,7 @@ impl Invert {
 }
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug)]
 struct ForceResultStrategy {
     result: NodeResult,
 }

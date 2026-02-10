@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use std::{fmt::Debug, marker::PhantomData};
 
 use bevy::{
     ecs::system::{In, IntoSystem},
@@ -25,10 +25,11 @@ pub mod prelude {
 }
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug)]
 pub struct RandomPickerBuilder<R, Marker>
 where
     R: Rng + 'static + Send + Sync,
-    Marker: 'static + Send + Sync,
+    Marker: 'static + Debug + Send + Sync,
 {
     pub base: Box<dyn PickerBuilder>,
     #[cfg_attr(feature = "serde", serde(skip))]
@@ -37,7 +38,7 @@ where
 impl<R, Marker> RandomPickerBuilder<R, Marker>
 where
     R: Rng + 'static + Send + Sync,
-    Marker: 'static + Send + Sync,
+    Marker: 'static + Debug + Send + Sync,
 {
     pub fn new(base: Box<dyn PickerBuilder>) -> Self {
         Self {
@@ -77,7 +78,7 @@ where
 impl<R, Marker> PickerBuilder for RandomPickerBuilder<R, Marker>
 where
     R: Rng + 'static + Send + Sync,
-    Marker: 'static + Send + Sync,
+    Marker: 'static + Debug + Send + Sync,
 {
     fn build(&self) -> Box<Picker> {
         self.inner_build()
@@ -102,11 +103,11 @@ mod serde_impls {
 
 /// Resource that holds RNG instance.
 /// Insert this resource to use random-based nodes.
-#[derive(Resource)]
+#[derive(Resource, Debug)]
 pub struct RngResource<R, Marker>
 where
     R: Rng + 'static + Send + Sync,
-    Marker: 'static + Send + Sync,
+    Marker: 'static + Debug + Send + Sync,
 {
     phantom: PhantomData<Marker>,
     rng: R,
@@ -114,7 +115,7 @@ where
 impl<R, Marker> RngResource<R, Marker>
 where
     R: Rng + 'static + Send + Sync,
-    Marker: 'static + Send + Sync,
+    Marker: 'static + Debug + Send + Sync,
 {
     pub fn new(rng: R) -> Self {
         Self {
@@ -134,7 +135,7 @@ impl RandomOrderedSequentialAnd {
     pub fn new<R, Marker>(children: Vec<(Box<dyn Node>, Box<dyn ScorerBuilder>)>) -> Self
     where
         R: Rng + 'static + Send + Sync,
-        Marker: 'static + Send + Sync,
+        Marker: 'static + Debug + Send + Sync,
         RandomPickerBuilder<R, Marker>: PickerBuilder,
     {
         Self {
@@ -157,7 +158,7 @@ impl RandomOrderedSequentialOr {
     pub fn new<R, Marker>(children: Vec<(Box<dyn Node>, Box<dyn ScorerBuilder>)>) -> Self
     where
         R: Rng + 'static + Send + Sync,
-        Marker: 'static + Send + Sync,
+        Marker: 'static + Debug + Send + Sync,
         RandomPickerBuilder<R, Marker>: PickerBuilder,
     {
         Self {
@@ -180,7 +181,7 @@ impl RandomOrderedForcedSequence {
     pub fn new<R, Marker>(children: Vec<(Box<dyn Node>, Box<dyn ScorerBuilder>)>) -> Self
     where
         R: Rng + 'static + Send + Sync,
-        Marker: 'static + Send + Sync,
+        Marker: 'static + Debug + Send + Sync,
         RandomPickerBuilder<R, Marker>: PickerBuilder,
     {
         Self {
@@ -202,7 +203,7 @@ impl RandomForcedSelector {
     pub fn new<R, Marker>(children: Vec<(Box<dyn Node>, Box<dyn ScorerBuilder>)>) -> Self
     where
         R: Rng + 'static + Send + Sync,
-        Marker: 'static + Send + Sync,
+        Marker: 'static + Debug + Send + Sync,
         RandomPickerBuilder<R, Marker>: PickerBuilder,
     {
         Self {
@@ -223,6 +224,7 @@ mod tests {
 
     use rand::SeedableRng;
 
+    #[derive(Debug)]
     struct RngMarker;
 
     impl_random_picker!(rand::rngs::StdRng, RngMarker);

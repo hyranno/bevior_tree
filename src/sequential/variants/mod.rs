@@ -20,6 +20,7 @@ pub mod prelude {
 }
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug)]
 pub struct UniformScorerBuilder;
 #[cfg_attr(feature = "serde", typetag::serde)]
 impl ScorerBuilder for UniformScorerBuilder {
@@ -41,6 +42,7 @@ pub fn score_uniform(nodes: Vec<Box<dyn Node>>) -> Vec<(Box<dyn Node>, Box<dyn S
 }
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug)]
 struct ConstantScorerBuilder {
     score: f32,
 }
@@ -55,6 +57,7 @@ impl ScorerBuilder for ConstantScorerBuilder {
 }
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug)]
 pub struct IdentityPickerBuilder;
 #[cfg_attr(feature = "serde", typetag::serde)]
 impl PickerBuilder for IdentityPickerBuilder {
@@ -69,6 +72,7 @@ impl PickerBuilder for IdentityPickerBuilder {
 }
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug)]
 pub struct AndResultStrategy;
 #[cfg_attr(feature = "serde", typetag::serde)]
 impl ResultStrategy for AndResultStrategy {
@@ -84,6 +88,7 @@ impl ResultStrategy for AndResultStrategy {
 }
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug)]
 pub struct OrResultStrategy;
 #[cfg_attr(feature = "serde", typetag::serde)]
 impl ResultStrategy for OrResultStrategy {
@@ -99,6 +104,7 @@ impl ResultStrategy for OrResultStrategy {
 }
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug)]
 pub struct LastResultStrategy;
 #[cfg_attr(feature = "serde", typetag::serde)]
 impl ResultStrategy for LastResultStrategy {
@@ -115,6 +121,7 @@ impl ResultStrategy for LastResultStrategy {
 }
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug)]
 pub struct ForcedResultStrategy;
 #[cfg_attr(feature = "serde", typetag::serde)]
 impl ResultStrategy for ForcedResultStrategy {

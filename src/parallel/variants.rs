@@ -39,6 +39,7 @@ impl ParallelOr {
 }
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug)]
 pub struct JoinResultStrategy;
 #[cfg_attr(feature = "serde", typetag::serde)]
 impl crate::sequential::ResultStrategy for JoinResultStrategy {

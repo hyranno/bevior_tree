@@ -16,6 +16,7 @@ pub fn delegate_node(attr: TokenStream, item: TokenStream) -> TokenStream {
 
     let expand = quote! {
         #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+        #[derive(Debug)]
         #item_input
         #[cfg_attr(feature = "serde", typetag::serde)]
         impl bevior_tree::node::Node for #node {

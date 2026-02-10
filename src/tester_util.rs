@@ -45,7 +45,7 @@ impl Plugin for TesterPlugin {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct TesterTaskDef<const ID: i32> {
     pub count: u32,
@@ -83,6 +83,7 @@ macro_rules! define_tester_node {
         }
 
         #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+        #[derive(Debug)]
         pub struct $wrapper_name {
             task: TaskBridge,
         }
