@@ -54,6 +54,7 @@ impl NodeStatus {
 /// Node of behavior trees.
 /// Nodes should not hold the state of execution.
 /// Nodes take state of execution as argument, do things with it, then return the status of the execution.
+/// `#[delegate_node(target)]` is available for shorthand to delegate node.
 #[cfg_attr(feature = "serde", typetag::serde(tag = "type"))]
 pub trait Node: 'static + Debug + Send + Sync {
     fn begin(&self, world: &mut World, entity: Entity) -> NodeStatus;
@@ -79,10 +80,4 @@ pub trait WithState<State: NodeState>: Node {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NodeStateError {
     InvalidTypeOfState,
-}
-
-/// Shorthand to delegate node.
-/// `#[delegate_node(target)]` is available for simple cases.
-pub trait DelegateNode: 'static + Send + Sync {
-    fn delegate_node(&self) -> &dyn Node;
 }
