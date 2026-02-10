@@ -168,7 +168,6 @@ pub fn load_from_source(
     asset_server: Res<AssetServer>,
     query: Query<(Entity, &BehaviorTreeSource), (Added<BehaviorTreeSource>, Without<BehaviorTree>)>,
 ) {
-    debug!("Loading behavior tree assets from source...");
     for (entity, source) in query.iter() {
         let handle = asset_server.load(&source.path);
         commands
