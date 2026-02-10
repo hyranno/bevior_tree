@@ -18,12 +18,11 @@ pub mod prelude {
     };
 }
 
-pub trait LoopCondChecker: System<In = In<(Entity, LoopState)>, Out = bool> {}
-impl<S> LoopCondChecker for S where S: System<In = In<(Entity, LoopState)>, Out = bool> {}
+pub type LoopCondChecker = dyn System<In = In<(Entity, LoopState)>, Out = bool>;
 
 #[cfg_attr(feature = "serde", typetag::serde(tag = "type"))]
 pub trait LoopCondCheckerBuilder: 'static + Send + Sync {
-    fn build(&self) -> Box<dyn LoopCondChecker>;
+    fn build(&self) -> Box<LoopCondChecker>;
 }
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -32,7 +31,7 @@ pub struct LoopCountCondCheckerBuilder {
 }
 #[cfg_attr(feature = "serde", typetag::serde)]
 impl LoopCondCheckerBuilder for LoopCountCondCheckerBuilder {
-    fn build(&self) -> Box<dyn LoopCondChecker> {
+    fn build(&self) -> Box<LoopCondChecker> {
         let max_count = self.max_count;
         Box::new(IntoSystem::into_system(
             move |In((_, loop_state)): In<(Entity, LoopState)>| loop_state.count < max_count,
@@ -47,7 +46,7 @@ pub struct ConditionalLoop {
     child: Box<dyn Node>,
     checker_builder: Box<dyn LoopCondCheckerBuilder>,
     #[cfg_attr(feature = "serde", serde(skip))]
-    checker_runtime: Mutex<Option<Box<dyn LoopCondChecker>>>,
+    checker_runtime: Mutex<Option<Box<LoopCondChecker>>>,
 }
 impl ConditionalLoop {
     pub fn new(child: impl Node, checker_builder: impl LoopCondCheckerBuilder) -> Self {
@@ -146,12 +145,11 @@ struct ConditionalLoopState {
     child_status: NodeStatus,
 }
 
-pub trait CondChecker: System<In = In<Entity>, Out = bool> {}
-impl<S> CondChecker for S where S: System<In = In<Entity>, Out = bool> {}
+pub type CondChecker = dyn System<In = In<Entity>, Out = bool>;
 
 #[cfg_attr(feature = "serde", typetag::serde(tag = "type"))]
 pub trait CondCheckerBuilder: 'static + Send + Sync {
-    fn build(&self) -> Box<dyn CondChecker>;
+    fn build(&self) -> Box<CondChecker>;
 }
 
 /// State for [`CheckIf`]
@@ -165,7 +163,7 @@ struct CheckIfState;
 pub struct CheckIf {
     checker_builder: Box<dyn CondCheckerBuilder>,
     #[cfg_attr(feature = "serde", serde(skip))]
-    checker_runtime: Mutex<Option<Box<dyn CondChecker>>>,
+    checker_runtime: Mutex<Option<Box<CondChecker>>>,
 }
 impl CheckIf {
     pub fn new(checker_builder: impl CondCheckerBuilder) -> Self {
@@ -214,7 +212,7 @@ pub struct ElseFreeze {
     child: Box<dyn Node>,
     checker_builder: Box<dyn CondCheckerBuilder>,
     #[cfg_attr(feature = "serde", serde(skip))]
-    checker_runtime: Mutex<Option<Box<dyn CondChecker>>>,
+    checker_runtime: Mutex<Option<Box<CondChecker>>>,
 }
 impl ElseFreeze {
     pub fn new(child: impl Node, checker_builder: impl CondCheckerBuilder) -> Self {
@@ -310,7 +308,7 @@ mod tests {
     struct TestMarkerExistsCondCheckerBuilder;
     #[cfg_attr(feature = "serde", typetag::serde)]
     impl CondCheckerBuilder for TestMarkerExistsCondCheckerBuilder {
-        fn build(&self) -> Box<dyn CondChecker> {
+        fn build(&self) -> Box<CondChecker> {
             Box::new(IntoSystem::into_system(
                 |In(entity): In<Entity>, world: &World| -> bool {
                     world.entity(entity).contains::<TestMarker>()
@@ -325,7 +323,7 @@ mod tests {
     }
     #[cfg_attr(feature = "serde", typetag::serde)]
     impl CondCheckerBuilder for TestStateMatcherCondCheckerBuilder {
-        fn build(&self) -> Box<dyn CondChecker> {
+        fn build(&self) -> Box<CondChecker> {
             let target_state = self.target_state;
             Box::new(IntoSystem::into_system(
                 move |In(_): In<Entity>, state: Res<State<TestStates>>| -> bool {
