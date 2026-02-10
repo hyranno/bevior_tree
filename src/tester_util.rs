@@ -3,7 +3,7 @@ use crate::{
     node::prelude::*,
     task::{TaskBridge, TaskStatus, TaskDefinition, TaskChecker, TaskEventListener, TaskEvent, insert_while_running},
 };
-use bevy::diagnostic::{FrameCount, FrameCountPlugin};
+use bevy::diagnostic::FrameCount;
 
 use bevy::prelude::*;
 
@@ -16,7 +16,7 @@ pub mod prelude {
 pub struct TesterPlugin;
 impl Plugin for TesterPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(FrameCountPlugin)
+        app.add_plugins(MinimalPlugins)
             .add_systems(Update, update::<0>)
             .add_systems(Update, update::<1>)
             .add_systems(Update, update::<2>)
@@ -26,6 +26,18 @@ impl Plugin for TesterPlugin {
             .add_systems(Update, update::<6>)
             .add_systems(Update, update::<7>)
             .init_resource::<TestLog>();
+        #[cfg(feature = "serde")]
+        {
+            let test_asset_dir = std::path::Path::new("target").join("test_assets");
+            app
+            .add_plugins((
+                AssetPlugin {
+                    file_path: test_asset_dir.to_string_lossy().to_string(),
+                    ..default()
+                },
+                bevy_common_assets::ron::RonAssetPlugin::<BehaviorTreeRoot>::new(&["ron"])
+            ));
+        }
     }
 }
 
@@ -128,7 +140,7 @@ fn update<const ID: i32>(
 #[test]
 fn test_enter_tester_task() {
     let mut app = App::new();
-    app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
+    app.add_plugins((TesterPlugin, BehaviorTreePlugin::default()));
     let task = TesterTask0::new(1, NodeResult::Success);
     let tree = BehaviorTree::from_node(
         task,
@@ -147,7 +159,7 @@ fn test_enter_tester_task() {
 #[test]
 fn test_exit_tester_task() {
     let mut app = App::new();
-    app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
+    app.add_plugins((TesterPlugin, BehaviorTreePlugin::default()));
     let task = TesterTask0::new(1, NodeResult::Success);
     let tree = BehaviorTree::from_node(
         task,
@@ -165,7 +177,7 @@ fn test_exit_tester_task() {
 #[test]
 fn test_log_test_task() {
     let mut app = App::new();
-    app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
+    app.add_plugins((TesterPlugin, BehaviorTreePlugin::default()));
     let task = TesterTask0::new(1, NodeResult::Success);
     let tree = BehaviorTree::from_node(
         task,

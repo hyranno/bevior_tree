@@ -333,7 +333,7 @@ mod tests {
     #[test]
     fn test_repeat_count() {
         let mut app = App::new();
-        app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
+        app.add_plugins((TesterPlugin, BehaviorTreePlugin::default()));
         let task = TesterTask0::new(1, NodeResult::Success);
         let repeater =
             ConditionalLoop::new(task, LoopCountCondCheckerBuilder { max_count: 3 });
@@ -376,7 +376,7 @@ mod tests {
     #[test]
     fn test_check_if_false() {
         let mut app = App::new();
-        app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
+        app.add_plugins((TesterPlugin, BehaviorTreePlugin::default()));
         let task = CheckIf::new(TestMarkerExistsCondCheckerBuilder);
         let tree = BehaviorTree::from_node(
             task,
@@ -398,7 +398,7 @@ mod tests {
     #[test]
     fn test_check_if_true() {
         let mut app = App::new();
-        app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
+        app.add_plugins((TesterPlugin, BehaviorTreePlugin::default()));
         let task = CheckIf::new(TestMarkerExistsCondCheckerBuilder);
         let tree = BehaviorTree::from_node(
             task,
@@ -420,7 +420,7 @@ mod tests {
     #[test]
     fn test_conditional_freeze() {
         let mut app = App::new();
-        app.add_plugins((StatesPlugin, BehaviorTreePlugin::default(), TesterPlugin));
+        app.add_plugins((StatesPlugin, TesterPlugin, BehaviorTreePlugin::default()));
         let task = TesterTask0::new(2, NodeResult::Success);
         let root = ElseFreeze::new(task, TestStateMatcherCondCheckerBuilder {
             target_state: TestStates::MainState,

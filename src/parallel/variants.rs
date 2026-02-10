@@ -74,7 +74,7 @@ mod tests {
     #[test]
     fn test_and() {
         let mut app = App::new();
-        app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
+        app.add_plugins((TesterPlugin, BehaviorTreePlugin::default()));
         let parallel = ParallelAnd::new(vec![
             Box::new(TesterTask0::new(1, NodeResult::Success)),
             Box::new(TesterTask1::new(2, NodeResult::Success)),
@@ -159,7 +159,7 @@ mod tests {
     #[test]
     fn test_or() {
         let mut app = App::new();
-        app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
+        app.add_plugins((TesterPlugin, BehaviorTreePlugin::default()));
         let parallel = ParallelOr::new(vec![
             Box::new(TesterTask0::new(1, NodeResult::Failure)),
             Box::new(TesterTask1::new(2, NodeResult::Failure)),
@@ -244,7 +244,7 @@ mod tests {
     #[test]
     fn test_join() {
         let mut app = App::new();
-        app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
+        app.add_plugins((TesterPlugin, BehaviorTreePlugin::default()));
         let parallel = Join::new(vec![
             Box::new(TesterTask0::new(1, NodeResult::Success)),
             Box::new(TesterTask1::new(2, NodeResult::Success)),

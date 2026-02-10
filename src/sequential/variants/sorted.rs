@@ -115,7 +115,7 @@ mod tests {
     #[test]
     fn test_score_ordered_sequential_and() {
         let mut app = App::new();
-        app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
+        app.add_plugins((TesterPlugin, BehaviorTreePlugin::default()));
         let sequence = ScoreOrderedSequentialAnd::new(vec![
             (Box::new(TesterTask0::new(1, NodeResult::Success)), Box::new(ConstantScorerBuilder { score: 0.1 })),
             (Box::new(TesterTask1::new(1, NodeResult::Success)), Box::new(ConstantScorerBuilder { score: 0.3 })),
@@ -158,7 +158,7 @@ mod tests {
     #[test]
     fn test_score_ordered_sequential_or() {
         let mut app = App::new();
-        app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
+        app.add_plugins((TesterPlugin, BehaviorTreePlugin::default()));
         let sequence = ScoreOrderedSequentialOr::new(vec![
             (Box::new(TesterTask0::new(1, NodeResult::Failure)), Box::new(ConstantScorerBuilder { score: 0.1 })),
             (Box::new(TesterTask1::new(1, NodeResult::Failure)), Box::new(ConstantScorerBuilder { score: 0.3 })),
@@ -201,7 +201,7 @@ mod tests {
     #[test]
     fn test_score_ordered_forced_sequence() {
         let mut app = App::new();
-        app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
+        app.add_plugins((TesterPlugin, BehaviorTreePlugin::default()));
         let sequence = ScoreOrderedForcedSequence::new(vec![
             (Box::new(TesterTask0::new(1, NodeResult::Failure)), Box::new(ConstantScorerBuilder { score: 0.1 })),
             (Box::new(TesterTask1::new(1, NodeResult::Failure)), Box::new(ConstantScorerBuilder { score: 0.3 })),
@@ -250,7 +250,7 @@ mod tests {
     #[test]
     fn test_score_ordered_forced_selector() {
         let mut app = App::new();
-        app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
+        app.add_plugins((TesterPlugin, BehaviorTreePlugin::default()));
         let sequence = ScoredForcedSelector::new(vec![
             (Box::new(TesterTask0::new(1, NodeResult::Failure)), Box::new(ConstantScorerBuilder { score: 0.1 })),
             (Box::new(TesterTask1::new(1, NodeResult::Failure)), Box::new(ConstantScorerBuilder { score: 0.3 })),

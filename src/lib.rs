@@ -24,6 +24,8 @@ pub mod prelude {
         TreeStatus, conditional::prelude::*, converter::prelude::*, node::prelude::*,
         parallel::prelude::*, sequential::prelude::*, task::prelude::*,
     };
+    #[cfg(feature = "serde")]
+    pub use crate::BehaviorTreeSource;
 }
 
 /// Add to your app to use this crate.
@@ -50,19 +52,38 @@ impl Plugin for BehaviorTreePlugin {
             self.schedule,
             (update).in_set(BehaviorTreeSystemSet::Update),
         );
+        #[cfg(feature = "serde")]
+        {
+            app
+                .init_asset::<BehaviorTreeRoot>()
+                .add_systems(
+                    PreUpdate,
+                    load_from_source,
+                );
+        }
     }
 }
 
 /// SystemSet that the plugin use.
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, SystemSet)]
 pub enum BehaviorTreeSystemSet {
     Update,
 }
 
 /// Asset representing behavior tree root node.
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Asset, TypePath)]
 pub struct BehaviorTreeRoot {
     node: Box<dyn Node>,
+}
+
+/// Component to specify the source path of the behavior tree asset.
+#[cfg(feature = "serde")]
+#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Component, Clone)]
+pub struct BehaviorTreeSource {
+    pub path: String,
 }
 
 /// Behavior tree component.
@@ -108,10 +129,12 @@ impl BehaviorTree {
 /// Add to the same entity with the BehaviorTree to temporarily freeze the update.
 /// You may prefer [`conditional::ElseFreeze`] node.
 /// Freezes transition of the tree, not running task.
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Component, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Freeze;
 
 /// Represents the state of the tree.
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Component)]
 pub struct TreeStatus(NodeStatus);
 
@@ -142,6 +165,23 @@ fn update(
     });
 }
 
+/// System to load behavior tree assets from source paths.
+/// Attach `BehaviorTreeSource` component to an entity to trigger loading.
+#[cfg(feature = "serde")]
+pub fn load_from_source(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    query: Query<(Entity, &BehaviorTreeSource), (Added<BehaviorTreeSource>, Without<BehaviorTree>)>,
+) {
+    debug!("Loading behavior tree assets from source...");
+    for (entity, source) in query.iter() {
+        let handle = asset_server.load(&source.path);
+        commands.entity(entity).insert(BehaviorTree {
+            root: handle,
+        });
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::{node::NodeStatus, tester_util::prelude::*};
@@ -149,7 +189,7 @@ mod tests {
     #[test]
     fn test_tree_end_with_result() {
         let mut app = App::new();
-        app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
+        app.add_plugins((TesterPlugin, BehaviorTreePlugin::default()));
         let task = TesterTask0::new(1, NodeResult::Success);
         let tree = BehaviorTree::from_node(
             task,
@@ -176,7 +216,7 @@ mod tests {
     #[test]
     fn test_freeze() {
         let mut app = App::new();
-        app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
+        app.add_plugins((TesterPlugin, BehaviorTreePlugin::default()));
         let task = TesterTask0::new(2, NodeResult::Success);
         let tree = BehaviorTree::from_node(
             task,
@@ -219,6 +259,70 @@ mod tests {
             found == &expected,
             "Task should not proceed while freeze. found: {:?}",
             found
+        );
+    }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn test_save_and_load_roundtrip() {
+        use std::fs;
+        use std::path::Path;
+
+        let task = TesterTask0::new(1, NodeResult::Success);
+        let root = BehaviorTreeRoot {
+            node: Box::new(task),
+        };
+
+        // Save the asset to a temporary file
+        let test_asset_dir = Path::new("target").join("test_assets");
+        fs::create_dir_all(&test_asset_dir).expect("Failed to create test directory");
+        let file_name = "roundtrip_tree.ron";
+        let file_path = test_asset_dir.join(file_name);
+        let ron = ron::to_string(&root).expect("Failed to serialize test asset");
+        fs::write(&file_path, ron).expect("Failed to write test asset");
+
+        let mut app = App::new();
+        app.add_plugins((
+            TesterPlugin, BehaviorTreePlugin::default(),
+        ));
+
+        let source = BehaviorTreeSource {
+            path: file_name.to_string(),
+        };
+        let entity = app.world_mut().spawn(source).id();
+
+        // Allow some frames for asset loading and processing
+        for _ in 0..50 {
+            app.update();
+        }
+
+        app.world_mut().resource_scope(|world, asset_server: Mut<AssetServer>| {
+            if let Some(tree) = world.query::<&BehaviorTree>().iter(world).next() {
+                let load_state = asset_server.get_load_state(&tree.root);
+                println!("LoadState = {:?}", load_state);
+            }
+        });
+
+        let status = app.world().get::<TreeStatus>(entity);
+        assert!(
+            status.is_some(),
+            "BehaviorTree should have result on the end."
+        );
+        assert!(
+            if let Some(TreeStatus(NodeStatus::Complete(result))) = status {
+                println!("Found TreeStatus with result: {:?}", result);
+                result == &NodeResult::Success
+            } else {
+                if let Some(TreeStatus(s)) = status {
+                    match s {
+                        NodeStatus::Beginning => println!("TreeStatus is still Beginning"),
+                        NodeStatus::Pending(_) => println!("TreeStatus is still Pending"),
+                        NodeStatus::Complete(r) => println!("TreeStatus is Complete with result: {:?}", r),
+                    }
+                }
+                false
+            },
+            "BehaviorTree should have result that match with the result of the root."
         );
     }
 }

@@ -121,7 +121,7 @@ mod tests {
     #[test]
     fn test_conditional_false() {
         let mut app = App::new();
-        app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
+        app.add_plugins((TesterPlugin, BehaviorTreePlugin::default()));
         let task = TesterTask0::new(1, NodeResult::Success);
         let conditional = Conditional::new(task, TestMarkerExistsCondCheckerBuilder);
         let tree = BehaviorTree::from_node(
@@ -143,7 +143,7 @@ mod tests {
     #[test]
     fn test_conditional_true() {
         let mut app = App::new();
-        app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
+        app.add_plugins((TesterPlugin, BehaviorTreePlugin::default()));
         let task = TesterTask0::new(1, NodeResult::Success);
         let conditional = Conditional::new(task, TestMarkerExistsCondCheckerBuilder);
         let tree = BehaviorTree::from_node(
@@ -172,7 +172,7 @@ mod tests {
     #[test]
     fn test_infinite_loop() {
         let mut app = App::new();
-        app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
+        app.add_plugins((TesterPlugin, BehaviorTreePlugin::default()));
         let task = TesterTask0::new(1, NodeResult::Success);
         let repeater = InfiniteLoop::new(task);
         let tree = BehaviorTree::from_node(

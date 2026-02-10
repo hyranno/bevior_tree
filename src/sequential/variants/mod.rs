@@ -170,7 +170,7 @@ mod tests {
     #[test]
     fn test_sequential_and() {
         let mut app = App::new();
-        app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
+        app.add_plugins((TesterPlugin, BehaviorTreePlugin::default()));
         let sequence = Sequence::new(vec![
             Box::new(TesterTask0::new(1, NodeResult::Success)),
             Box::new(TesterTask1::new(1, NodeResult::Success)),
@@ -217,7 +217,7 @@ mod tests {
     #[test]
     fn test_sequential_or() {
         let mut app = App::new();
-        app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
+        app.add_plugins((TesterPlugin, BehaviorTreePlugin::default()));
         let sequence = Selector::new(vec![
             Box::new(TesterTask0::new(1, NodeResult::Failure)),
             Box::new(TesterTask1::new(1, NodeResult::Failure)),
@@ -264,7 +264,7 @@ mod tests {
     #[test]
     fn test_forced_sequence() {
         let mut app = App::new();
-        app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
+        app.add_plugins((TesterPlugin, BehaviorTreePlugin::default()));
         let sequence = ForcedSequence::new(vec![
             Box::new(TesterTask0::new(1, NodeResult::Success)),
             Box::new(TesterTask1::new(1, NodeResult::Failure)),

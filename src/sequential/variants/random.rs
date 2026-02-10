@@ -228,7 +228,7 @@ mod tests {
         let mut app = App::new();
         let rng_res = RngResource::<_, RngMarker>::new(rand::rngs::StdRng::seed_from_u64(224));
         app.insert_resource(rng_res);
-        app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
+        app.add_plugins((TesterPlugin, BehaviorTreePlugin::default()));
         let sequence = RandomOrderedSequentialAnd::new::<rand::rngs::StdRng, RngMarker>(vec![
             (Box::new(TesterTask0::new(1, NodeResult::Success)), Box::new(ConstantScorerBuilder { score: 0.1 })),
             (Box::new(TesterTask1::new(1, NodeResult::Success)), Box::new(ConstantScorerBuilder { score: 0.3 })),
@@ -277,7 +277,7 @@ mod tests {
         let mut app = App::new();
         let rng_res = RngResource::<_, RngMarker>::new(rand::rngs::StdRng::seed_from_u64(224));
         app.insert_resource(rng_res);
-        app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
+        app.add_plugins((TesterPlugin, BehaviorTreePlugin::default()));
         let sequence = RandomOrderedSequentialOr::new::<rand::rngs::StdRng, RngMarker>(vec![
             (Box::new(TesterTask0::new(1, NodeResult::Failure)), Box::new(ConstantScorerBuilder { score: 0.1 })),
             (Box::new(TesterTask1::new(1, NodeResult::Failure)), Box::new(ConstantScorerBuilder { score: 0.3 })),
@@ -326,7 +326,7 @@ mod tests {
         let mut app = App::new();
         let rng_res = RngResource::<_, RngMarker>::new(rand::rngs::StdRng::seed_from_u64(224));
         app.insert_resource(rng_res);
-        app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
+        app.add_plugins((TesterPlugin, BehaviorTreePlugin::default()));
         let sequence = RandomOrderedForcedSequence::new::<rand::rngs::StdRng, RngMarker>(vec![
             (Box::new(TesterTask0::new(1, NodeResult::Failure)), Box::new(ConstantScorerBuilder { score: 0.1 })),
             (Box::new(TesterTask1::new(1, NodeResult::Failure)), Box::new(ConstantScorerBuilder { score: 0.3 })),
@@ -381,7 +381,7 @@ mod tests {
         let mut app = App::new();
         let rng_res = RngResource::<_, RngMarker>::new(rand::rngs::StdRng::seed_from_u64(224));
         app.insert_resource(rng_res);
-        app.add_plugins((BehaviorTreePlugin::default(), TesterPlugin));
+        app.add_plugins((TesterPlugin, BehaviorTreePlugin::default()));
         let sequence = RandomForcedSelector::new::<rand::rngs::StdRng, RngMarker>(vec![
             (Box::new(TesterTask0::new(1, NodeResult::Failure)), Box::new(ConstantScorerBuilder { score: 0.1 })),
             (Box::new(TesterTask1::new(1, NodeResult::Failure)), Box::new(ConstantScorerBuilder { score: 0.3 })),
