@@ -42,14 +42,19 @@ fn init(
         Transform::from_xyz(500., 0., 0.),
         // This behavior tree handles the enemy's behavior.
         BehaviorTree::from_node(
-            InfiniteLoop::new(
-                Sequence::new(vec![
-                    // Task to wait until player get near.
-                    Box::new(TaskBridge::new(Box::new(NearTaskDefinition { target: player, range: 300. }))),
-                    // Task to follow the player.
-                    Box::new(TaskBridge::new(Box::new(FollowTaskDefinition { target: player, range: 300., speed: 100. }))),
-                ]),
-            ),
+            InfiniteLoop::new(Sequence::new(vec![
+                // Task to wait until player get near.
+                Box::new(TaskBridge::new(Box::new(NearTaskDefinition {
+                    target: player,
+                    range: 300.,
+                }))),
+                // Task to follow the player.
+                Box::new(TaskBridge::new(Box::new(FollowTaskDefinition {
+                    target: player,
+                    range: 300.,
+                    speed: 100.,
+                }))),
+            ])),
             &mut tree_assets,
         ),
     ));
@@ -74,14 +79,16 @@ impl TaskDefinition for NearTaskDefinition {
     fn build_checker(&self) -> Box<dyn TaskChecker> {
         let target = self.target;
         let range = self.range;
-        Box::new(IntoSystem::into_system(move |In(entity): In<Entity>, param: Query<&Transform>| {
-            let distance = get_distance(entity, target, param);
-            // Check whether the target is within range. If it is, return `Success`.
-            match distance <= range {
-                true => TaskStatus::Complete(NodeResult::Success),
-                false => TaskStatus::Running,
-            }
-        }))
+        Box::new(IntoSystem::into_system(
+            move |In(entity): In<Entity>, param: Query<&Transform>| {
+                let distance = get_distance(entity, target, param);
+                // Check whether the target is within range. If it is, return `Success`.
+                match distance <= range {
+                    true => TaskStatus::Complete(NodeResult::Success),
+                    false => TaskStatus::Running,
+                }
+            },
+        ))
     }
     fn build_event_listeners(&self) -> Vec<(TaskEvent, Box<dyn TaskEventListener>)> {
         vec![]
@@ -99,26 +106,33 @@ impl TaskDefinition for FollowTaskDefinition {
     fn build_checker(&self) -> Box<dyn TaskChecker> {
         let target = self.target;
         let range = self.range;
-        Box::new(IntoSystem::into_system(move |In(entity): In<Entity>, param: Query<&Transform>| {
-            let distance = get_distance(entity, target, param);
-            // Return `Failure` if target is out of range.
-            match distance <= range {
-                true => TaskStatus::Running,
-                false => TaskStatus::Complete(NodeResult::Failure),
-            }
-        }))
+        Box::new(IntoSystem::into_system(
+            move |In(entity): In<Entity>, param: Query<&Transform>| {
+                let distance = get_distance(entity, target, param);
+                // Return `Failure` if target is out of range.
+                match distance <= range {
+                    true => TaskStatus::Running,
+                    false => TaskStatus::Complete(NodeResult::Failure),
+                }
+            },
+        ))
     }
     fn build_event_listeners(&self) -> Vec<(TaskEvent, Box<dyn TaskEventListener>)> {
         // Task inserts some components to the entity while running.
-        let mut listeners = insert_while_running(Follow { target: self.target, speed: self.speed });
+        let mut listeners = insert_while_running(Follow {
+            target: self.target,
+            speed: self.speed,
+        });
         listeners.push(
             // Or run some commands on enter/exit.
             (
                 TaskEvent::Enter,
-                Box::new(IntoSystem::into_system(move |In(_entity): In<Entity>, mut _commands: Commands| {
-                    info!("Beginning to follow.");
-                }))
-            )
+                Box::new(IntoSystem::into_system(
+                    move |In(_entity): In<Entity>, mut _commands: Commands| {
+                        info!("Beginning to follow.");
+                    },
+                )),
+            ),
         );
         listeners
     }

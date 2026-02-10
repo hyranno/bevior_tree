@@ -1,14 +1,19 @@
 use crate::{
     BehaviorTree, BehaviorTreePlugin, BehaviorTreeRoot,
     node::prelude::*,
-    task::{TaskBridge, TaskStatus, TaskDefinition, TaskChecker, TaskEventListener, TaskEvent, insert_while_running},
+    task::{
+        TaskBridge, TaskChecker, TaskDefinition, TaskEvent, TaskEventListener, TaskStatus,
+        insert_while_running,
+    },
 };
 use bevy::diagnostic::FrameCount;
 
 use bevy::prelude::*;
 
 pub mod prelude {
-    pub use super::{TestLog, TestLogEntry, TesterPlugin, TesterTask0, TesterTask1, TesterTask2, TesterTask3};
+    pub use super::{
+        TestLog, TestLogEntry, TesterPlugin, TesterTask0, TesterTask1, TesterTask2, TesterTask3,
+    };
     pub use crate::prelude::*;
     pub use bevy::prelude::*;
 }
@@ -29,13 +34,12 @@ impl Plugin for TesterPlugin {
         #[cfg(feature = "serde")]
         {
             let test_asset_dir = std::path::Path::new("target").join("test_assets");
-            app
-            .add_plugins((
+            app.add_plugins((
                 AssetPlugin {
                     file_path: test_asset_dir.to_string_lossy().to_string(),
                     ..default()
                 },
-                bevy_common_assets::ron::RonAssetPlugin::<BehaviorTreeRoot>::new(&["ron"])
+                bevy_common_assets::ron::RonAssetPlugin::<BehaviorTreeRoot>::new(&["ron"]),
             ));
         }
     }
@@ -50,23 +54,27 @@ pub struct TesterTaskDef<const ID: i32> {
 
 macro_rules! define_tester_node {
     (
-        $id:expr, 
-        $wrapper_name:ident, 
-        $def_tag_name:literal 
+        $id:expr,
+        $wrapper_name:ident,
+        $def_tag_name:literal
     ) => {
         #[cfg_attr(feature = "serde", typetag::serde(name = $def_tag_name))]
         impl TaskDefinition for TesterTaskDef<$id> {
             fn build_checker(&self) -> Box<dyn TaskChecker> {
                 let count = self.count;
                 let result = self.result;
-                Box::new(IntoSystem::into_system(move |In(entity), param: Query<&TesterComponent<$id>>| {
-                    let comp = param.get(entity).expect(concat!("TesterComponent not found for ID ", $id));
-                    if comp.updated_count < count {
-                        TaskStatus::Running
-                    } else {
-                        TaskStatus::Complete(result)
-                    }
-                }))
+                Box::new(IntoSystem::into_system(
+                    move |In(entity), param: Query<&TesterComponent<$id>>| {
+                        let comp = param
+                            .get(entity)
+                            .expect(concat!("TesterComponent not found for ID ", $id));
+                        if comp.updated_count < count {
+                            TaskStatus::Running
+                        } else {
+                            TaskStatus::Complete(result)
+                        }
+                    },
+                ))
             }
 
             fn build_event_listeners(&self) -> Vec<(TaskEvent, Box<dyn TaskEventListener>)> {
@@ -80,13 +88,27 @@ macro_rules! define_tester_node {
         }
         #[cfg_attr(feature = "serde", typetag::serde)]
         impl crate::node::Node for $wrapper_name {
-            fn begin(&self, world: &mut bevy::ecs::world::World, entity: bevy::ecs::entity::Entity) -> crate::node::NodeStatus {
+            fn begin(
+                &self,
+                world: &mut bevy::ecs::world::World,
+                entity: bevy::ecs::entity::Entity,
+            ) -> crate::node::NodeStatus {
                 self.task.begin(world, entity)
             }
-            fn resume(&self, world: &mut bevy::ecs::world::World, entity: bevy::ecs::entity::Entity, state: Box<dyn crate::node::NodeState>) -> crate::node::NodeStatus {
+            fn resume(
+                &self,
+                world: &mut bevy::ecs::world::World,
+                entity: bevy::ecs::entity::Entity,
+                state: Box<dyn crate::node::NodeState>,
+            ) -> crate::node::NodeStatus {
                 self.task.resume(world, entity, state)
             }
-            fn force_exit(&self, world: &mut bevy::ecs::world::World, entity: bevy::ecs::entity::Entity, state: Box<dyn crate::node::NodeState>) {
+            fn force_exit(
+                &self,
+                world: &mut bevy::ecs::world::World,
+                entity: bevy::ecs::entity::Entity,
+                state: Box<dyn crate::node::NodeState>,
+            ) {
                 self.task.force_exit(world, entity, state)
             }
         }

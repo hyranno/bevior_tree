@@ -3,7 +3,7 @@ use bevy::ecs::{
     system::{In, IntoSystem},
 };
 
-use super::{ScoredSequence, Scorer, ScorerBuilder, Picker, PickerBuilder, ResultStrategy};
+use super::{Picker, PickerBuilder, ResultStrategy, ScoredSequence, Scorer, ScorerBuilder};
 use crate as bevior_tree;
 use crate::node::prelude::*;
 
@@ -14,7 +14,7 @@ pub mod random;
 
 pub mod prelude {
     pub use super::{
-        ForcedSequence, Selector, Sequence, SequentialAnd, SequentialOr, IdentityPickerBuilder,
+        ForcedSequence, IdentityPickerBuilder, Selector, Sequence, SequentialAnd, SequentialOr,
         random::prelude::*, score_uniform, sorted::prelude::*,
     };
 }
@@ -32,7 +32,10 @@ pub fn score_uniform(nodes: Vec<Box<dyn Node>>) -> Vec<(Box<dyn Node>, Box<dyn S
     nodes
         .into_iter()
         .map(|node| {
-            (node, Box::new(UniformScorerBuilder) as Box<dyn ScorerBuilder>)
+            (
+                node,
+                Box::new(UniformScorerBuilder) as Box<dyn ScorerBuilder>,
+            )
         })
         .collect()
 }
@@ -50,7 +53,6 @@ impl ScorerBuilder for ConstantScorerBuilder {
         ))
     }
 }
-
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct IdentityPickerBuilder;
@@ -130,7 +132,11 @@ pub struct SequentialAnd {
 impl SequentialAnd {
     pub fn new(nodes: Vec<Box<dyn Node>>) -> Self {
         Self {
-            delegate: ScoredSequence::new(score_uniform(nodes), IdentityPickerBuilder, AndResultStrategy),
+            delegate: ScoredSequence::new(
+                score_uniform(nodes),
+                IdentityPickerBuilder,
+                AndResultStrategy,
+            ),
         }
     }
 }
@@ -144,7 +150,11 @@ pub struct SequentialOr {
 impl SequentialOr {
     pub fn new(nodes: Vec<Box<dyn Node>>) -> Self {
         Self {
-            delegate: ScoredSequence::new(score_uniform(nodes), IdentityPickerBuilder, OrResultStrategy),
+            delegate: ScoredSequence::new(
+                score_uniform(nodes),
+                IdentityPickerBuilder,
+                OrResultStrategy,
+            ),
         }
     }
 }
@@ -157,7 +167,11 @@ pub struct ForcedSequence {
 impl ForcedSequence {
     pub fn new(nodes: Vec<Box<dyn Node>>) -> Self {
         Self {
-            delegate: ScoredSequence::new(score_uniform(nodes), IdentityPickerBuilder, LastResultStrategy),
+            delegate: ScoredSequence::new(
+                score_uniform(nodes),
+                IdentityPickerBuilder,
+                LastResultStrategy,
+            ),
         }
     }
 }

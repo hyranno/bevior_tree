@@ -1,14 +1,12 @@
-use bevy::{
-    ecs::{
-        entity::Entity,
-        system::{
-            In, IntoSystem,
-        },
-        world::World,
-    },
+use bevy::ecs::{
+    entity::Entity,
+    system::{In, IntoSystem},
+    world::World,
 };
 
-use super::{ConditionalLoop, LoopState, LoopCondCheckerBuilder, LoopCondChecker, CondCheckerBuilder,};
+use super::{
+    CondCheckerBuilder, ConditionalLoop, LoopCondChecker, LoopCondCheckerBuilder, LoopState,
+};
 use crate as bevior_tree;
 use crate::node::prelude::*;
 
@@ -29,9 +27,7 @@ impl OnceLoopCondCheckerBuilder {
 }
 #[cfg_attr(feature = "serde", typetag::serde)]
 impl LoopCondCheckerBuilder for OnceLoopCondCheckerBuilder {
-    fn build(
-        &self,
-    ) -> Box<dyn LoopCondChecker> {
+    fn build(&self) -> Box<dyn LoopCondChecker> {
         let mut checker = self.checker_builder.build();
         Box::new(IntoSystem::into_system(
             move |In((entity, loop_state)): In<(Entity, LoopState)>, world: &mut World| {
@@ -41,12 +37,10 @@ impl LoopCondCheckerBuilder for OnceLoopCondCheckerBuilder {
                 } else {
                     false
                 }
-            }
+            },
         ))
     }
 }
-
-
 
 /// Node that runs the child once if condition is matched.
 #[delegate_node(delegate)]
@@ -54,17 +48,12 @@ pub struct Conditional {
     delegate: ConditionalLoop,
 }
 impl Conditional {
-    pub fn new(child: impl Node, checker_builder: impl CondCheckerBuilder) -> Self
-    {
+    pub fn new(child: impl Node, checker_builder: impl CondCheckerBuilder) -> Self {
         Self {
-            delegate: ConditionalLoop::new(
-                child,
-                OnceLoopCondCheckerBuilder::new(checker_builder),
-            ),
+            delegate: ConditionalLoop::new(child, OnceLoopCondCheckerBuilder::new(checker_builder)),
         }
     }
 }
-
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct AlwaysLoopCondCheckerBuilder;
@@ -72,9 +61,7 @@ pub struct AlwaysLoopCondCheckerBuilder;
 impl LoopCondCheckerBuilder for AlwaysLoopCondCheckerBuilder {
     fn build(&self) -> Box<dyn LoopCondChecker> {
         Box::new(IntoSystem::into_system(
-            |In(_): In<(Entity, LoopState)>| -> bool {
-                true
-            },
+            |In(_): In<(Entity, LoopState)>| -> bool { true },
         ))
     }
 }
@@ -85,22 +72,17 @@ pub struct InfiniteLoop {
     delegate: ConditionalLoop,
 }
 impl InfiniteLoop {
-    pub fn new(child: impl Node) -> Self
-    {
+    pub fn new(child: impl Node) -> Self {
         Self {
-            delegate: ConditionalLoop::new(
-                child,
-                AlwaysLoopCondCheckerBuilder,
-            ),
+            delegate: ConditionalLoop::new(child, AlwaysLoopCondCheckerBuilder),
         }
     }
 }
 
-
 #[cfg(test)]
 mod tests {
-    use crate::tester_util::prelude::*;
     use super::super::{CondChecker, CondCheckerBuilder};
+    use crate::tester_util::prelude::*;
 
     #[derive(Component)]
     struct TestMarker;
@@ -210,5 +192,4 @@ mod tests {
             found
         );
     }
-
 }

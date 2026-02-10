@@ -1,4 +1,4 @@
-use std::{marker::PhantomData};
+use std::marker::PhantomData;
 
 use bevy::{
     ecs::system::{In, IntoSystem},
@@ -8,7 +8,10 @@ use bevy::{
 use rand::{Rng, distr::Uniform, prelude::Distribution};
 
 use super::sorted::{MaxPickerBuilder, SortedPickerBuilder};
-use super::{ScoredSequence, ScorerBuilder, Picker, PickerBuilder, AndResultStrategy, ForcedResultStrategy, LastResultStrategy, OrResultStrategy};
+use super::{
+    AndResultStrategy, ForcedResultStrategy, LastResultStrategy, OrResultStrategy, Picker,
+    PickerBuilder, ScoredSequence, ScorerBuilder,
+};
 use crate as bevior_tree;
 use crate::node::prelude::*;
 
@@ -59,7 +62,8 @@ where
     pub fn inner_build(&self) -> Box<dyn Picker> {
         let mut base = self.base.build();
         // Wrap base picker while BoxedSystem does not implement IntoSystem directly.
-        let wrapped_base = move |In((scores, entity)): In<(Vec<f32>, Entity)>, world: &mut World| {
+        let wrapped_base = move |In((scores, entity)): In<(Vec<f32>, Entity)>,
+                                 world: &mut World| {
             base.initialize(world);
             let picked = base.run((scores, entity), world);
             picked.expect("Failed to run Picker")
@@ -131,7 +135,7 @@ impl RandomOrderedSequentialAnd {
     where
         R: Rng + 'static + Send + Sync,
         Marker: 'static + Send + Sync,
-        RandomPickerBuilder::<R, Marker>: PickerBuilder,
+        RandomPickerBuilder<R, Marker>: PickerBuilder,
     {
         Self {
             delegate: ScoredSequence::new(
@@ -154,7 +158,7 @@ impl RandomOrderedSequentialOr {
     where
         R: Rng + 'static + Send + Sync,
         Marker: 'static + Send + Sync,
-        RandomPickerBuilder::<R, Marker>: PickerBuilder,
+        RandomPickerBuilder<R, Marker>: PickerBuilder,
     {
         Self {
             delegate: ScoredSequence::new(
@@ -177,7 +181,7 @@ impl RandomOrderedForcedSequence {
     where
         R: Rng + 'static + Send + Sync,
         Marker: 'static + Send + Sync,
-        RandomPickerBuilder::<R, Marker>: PickerBuilder,
+        RandomPickerBuilder<R, Marker>: PickerBuilder,
     {
         Self {
             delegate: ScoredSequence::new(
@@ -199,7 +203,7 @@ impl RandomForcedSelector {
     where
         R: Rng + 'static + Send + Sync,
         Marker: 'static + Send + Sync,
-        RandomPickerBuilder::<R, Marker>: PickerBuilder,
+        RandomPickerBuilder<R, Marker>: PickerBuilder,
     {
         Self {
             delegate: ScoredSequence::new(
@@ -213,8 +217,8 @@ impl RandomForcedSelector {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::ConstantScorerBuilder;
+    use super::*;
     use crate::{impl_random_picker, tester_util::prelude::*};
 
     use rand::SeedableRng;
@@ -230,10 +234,22 @@ mod tests {
         app.insert_resource(rng_res);
         app.add_plugins((TesterPlugin, BehaviorTreePlugin::default()));
         let sequence = RandomOrderedSequentialAnd::new::<rand::rngs::StdRng, RngMarker>(vec![
-            (Box::new(TesterTask0::new(1, NodeResult::Success)), Box::new(ConstantScorerBuilder { score: 0.1 })),
-            (Box::new(TesterTask1::new(1, NodeResult::Success)), Box::new(ConstantScorerBuilder { score: 0.3 })),
-            (Box::new(TesterTask2::new(1, NodeResult::Success)), Box::new(ConstantScorerBuilder { score: 0.2 })),
-            (Box::new(TesterTask3::new(1, NodeResult::Failure)), Box::new(ConstantScorerBuilder { score: 0.4 })),
+            (
+                Box::new(TesterTask0::new(1, NodeResult::Success)),
+                Box::new(ConstantScorerBuilder { score: 0.1 }),
+            ),
+            (
+                Box::new(TesterTask1::new(1, NodeResult::Success)),
+                Box::new(ConstantScorerBuilder { score: 0.3 }),
+            ),
+            (
+                Box::new(TesterTask2::new(1, NodeResult::Success)),
+                Box::new(ConstantScorerBuilder { score: 0.2 }),
+            ),
+            (
+                Box::new(TesterTask3::new(1, NodeResult::Failure)),
+                Box::new(ConstantScorerBuilder { score: 0.4 }),
+            ),
         ]);
         let tree = BehaviorTree::from_node(
             sequence,
@@ -279,10 +295,22 @@ mod tests {
         app.insert_resource(rng_res);
         app.add_plugins((TesterPlugin, BehaviorTreePlugin::default()));
         let sequence = RandomOrderedSequentialOr::new::<rand::rngs::StdRng, RngMarker>(vec![
-            (Box::new(TesterTask0::new(1, NodeResult::Failure)), Box::new(ConstantScorerBuilder { score: 0.1 })),
-            (Box::new(TesterTask1::new(1, NodeResult::Failure)), Box::new(ConstantScorerBuilder { score: 0.3 })),
-            (Box::new(TesterTask2::new(1, NodeResult::Failure)), Box::new(ConstantScorerBuilder { score: 0.2 })),
-            (Box::new(TesterTask3::new(1, NodeResult::Success)), Box::new(ConstantScorerBuilder { score: 0.4 })),
+            (
+                Box::new(TesterTask0::new(1, NodeResult::Failure)),
+                Box::new(ConstantScorerBuilder { score: 0.1 }),
+            ),
+            (
+                Box::new(TesterTask1::new(1, NodeResult::Failure)),
+                Box::new(ConstantScorerBuilder { score: 0.3 }),
+            ),
+            (
+                Box::new(TesterTask2::new(1, NodeResult::Failure)),
+                Box::new(ConstantScorerBuilder { score: 0.2 }),
+            ),
+            (
+                Box::new(TesterTask3::new(1, NodeResult::Success)),
+                Box::new(ConstantScorerBuilder { score: 0.4 }),
+            ),
         ]);
         let tree = BehaviorTree::from_node(
             sequence,
@@ -328,10 +356,22 @@ mod tests {
         app.insert_resource(rng_res);
         app.add_plugins((TesterPlugin, BehaviorTreePlugin::default()));
         let sequence = RandomOrderedForcedSequence::new::<rand::rngs::StdRng, RngMarker>(vec![
-            (Box::new(TesterTask0::new(1, NodeResult::Failure)), Box::new(ConstantScorerBuilder { score: 0.1 })),
-            (Box::new(TesterTask1::new(1, NodeResult::Failure)), Box::new(ConstantScorerBuilder { score: 0.3 })),
-            (Box::new(TesterTask2::new(1, NodeResult::Success)), Box::new(ConstantScorerBuilder { score: 0.2 })),
-            (Box::new(TesterTask3::new(1, NodeResult::Failure)), Box::new(ConstantScorerBuilder { score: 0.4 })),
+            (
+                Box::new(TesterTask0::new(1, NodeResult::Failure)),
+                Box::new(ConstantScorerBuilder { score: 0.1 }),
+            ),
+            (
+                Box::new(TesterTask1::new(1, NodeResult::Failure)),
+                Box::new(ConstantScorerBuilder { score: 0.3 }),
+            ),
+            (
+                Box::new(TesterTask2::new(1, NodeResult::Success)),
+                Box::new(ConstantScorerBuilder { score: 0.2 }),
+            ),
+            (
+                Box::new(TesterTask3::new(1, NodeResult::Failure)),
+                Box::new(ConstantScorerBuilder { score: 0.4 }),
+            ),
         ]);
         let tree = BehaviorTree::from_node(
             sequence,
@@ -383,10 +423,22 @@ mod tests {
         app.insert_resource(rng_res);
         app.add_plugins((TesterPlugin, BehaviorTreePlugin::default()));
         let sequence = RandomForcedSelector::new::<rand::rngs::StdRng, RngMarker>(vec![
-            (Box::new(TesterTask0::new(1, NodeResult::Failure)), Box::new(ConstantScorerBuilder { score: 0.1 })),
-            (Box::new(TesterTask1::new(1, NodeResult::Failure)), Box::new(ConstantScorerBuilder { score: 0.3 })),
-            (Box::new(TesterTask2::new(1, NodeResult::Success)), Box::new(ConstantScorerBuilder { score: 0.2 })),
-            (Box::new(TesterTask3::new(1, NodeResult::Failure)), Box::new(ConstantScorerBuilder { score: 0.4 })),
+            (
+                Box::new(TesterTask0::new(1, NodeResult::Failure)),
+                Box::new(ConstantScorerBuilder { score: 0.1 }),
+            ),
+            (
+                Box::new(TesterTask1::new(1, NodeResult::Failure)),
+                Box::new(ConstantScorerBuilder { score: 0.3 }),
+            ),
+            (
+                Box::new(TesterTask2::new(1, NodeResult::Success)),
+                Box::new(ConstantScorerBuilder { score: 0.2 }),
+            ),
+            (
+                Box::new(TesterTask3::new(1, NodeResult::Failure)),
+                Box::new(ConstantScorerBuilder { score: 0.4 }),
+            ),
         ]);
         let tree = BehaviorTree::from_node(
             sequence,

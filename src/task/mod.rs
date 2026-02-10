@@ -12,7 +12,10 @@ use bevy::ecs::{
 use crate::node::prelude::*;
 
 pub mod prelude {
-    pub use super::{TaskBridge, TaskDefinition, TaskEventListener, TaskChecker, insert_while_running, TaskEvent, TaskStatus};
+    pub use super::{
+        TaskBridge, TaskChecker, TaskDefinition, TaskEvent, TaskEventListener, TaskStatus,
+        insert_while_running,
+    };
 }
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -38,7 +41,6 @@ pub enum TaskEvent {
     Failure,
 }
 
-
 pub trait TaskChecker: ReadOnlySystem<In = In<Entity>, Out = TaskStatus> {}
 impl<S> TaskChecker for S where S: ReadOnlySystem<In = In<Entity>, Out = TaskStatus> {}
 
@@ -52,19 +54,25 @@ pub trait TaskDefinition: 'static + Send + Sync {
 }
 
 /// Event listeners that add the bundle on entering node then remove it on exiting.
-pub fn insert_while_running<T: Bundle + 'static + Clone>(bundle: T) -> Vec<(TaskEvent, Box<dyn TaskEventListener>)> {
+pub fn insert_while_running<T: Bundle + 'static + Clone>(
+    bundle: T,
+) -> Vec<(TaskEvent, Box<dyn TaskEventListener>)> {
     vec![
         (
             TaskEvent::Enter,
-            Box::new(IntoSystem::into_system(move |In(entity), mut commands: Commands| {
-                commands.entity(entity).insert(bundle.clone());
-            }))
+            Box::new(IntoSystem::into_system(
+                move |In(entity), mut commands: Commands| {
+                    commands.entity(entity).insert(bundle.clone());
+                },
+            )),
         ),
         (
             TaskEvent::Exit,
-            Box::new(IntoSystem::into_system(|In(entity), mut commands: Commands| {
-                commands.entity(entity).remove::<T>();
-            }))
+            Box::new(IntoSystem::into_system(
+                |In(entity), mut commands: Commands| {
+                    commands.entity(entity).remove::<T>();
+                },
+            )),
         ),
     ]
 }
@@ -118,9 +126,9 @@ impl TaskBridge {
         // Initialize event listeners if not yet.
         if listeners.is_empty() {
             let mut built_listeners = self.definition.build_event_listeners();
-            built_listeners
-                .iter_mut()
-                .for_each(|(_, sys)| {sys.initialize(world);});
+            built_listeners.iter_mut().for_each(|(_, sys)| {
+                sys.initialize(world);
+            });
             *listeners = built_listeners;
         }
         listeners

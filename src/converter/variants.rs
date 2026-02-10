@@ -1,7 +1,7 @@
+use super::ConverterStrategy;
 use super::ResultConverter;
 use crate as bevior_tree;
 use crate::node::prelude::*;
-use super::{ConverterStrategy};
 
 pub mod prelude {
     pub use super::{ForceResult, Invert};

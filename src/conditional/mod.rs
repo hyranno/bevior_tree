@@ -26,7 +26,6 @@ pub trait LoopCondCheckerBuilder: 'static + Send + Sync {
     fn build(&self) -> Box<dyn LoopCondChecker>;
 }
 
-
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct LoopCountCondCheckerBuilder {
     max_count: usize,
@@ -65,7 +64,9 @@ impl ConditionalLoop {
             new_checker.initialize(world);
             *checker_lock = Some(new_checker);
         }
-        checker_lock.as_mut().expect("Checker not initialized.")
+        checker_lock
+            .as_mut()
+            .expect("Checker not initialized.")
             .run((entity, loop_state), world)
             .expect("Failed to run checker system.")
     }
@@ -180,7 +181,9 @@ impl CheckIf {
             new_checker.initialize(world);
             *checker_lock = Some(new_checker);
         }
-        checker_lock.as_mut().expect("Checker not initialized.")
+        checker_lock
+            .as_mut()
+            .expect("Checker not initialized.")
             .run(entity, world)
             .expect("Failed to run checker system.")
     }
@@ -228,7 +231,9 @@ impl ElseFreeze {
             new_checker.initialize(world);
             *checker_lock = Some(new_checker);
         }
-        checker_lock.as_mut().expect("Checker not initialized.")
+        checker_lock
+            .as_mut()
+            .expect("Checker not initialized.")
             .run(entity, world)
             .expect("Failed to run checker system.")
     }
@@ -335,8 +340,7 @@ mod tests {
         let mut app = App::new();
         app.add_plugins((TesterPlugin, BehaviorTreePlugin::default()));
         let task = TesterTask0::new(1, NodeResult::Success);
-        let repeater =
-            ConditionalLoop::new(task, LoopCountCondCheckerBuilder { max_count: 3 });
+        let repeater = ConditionalLoop::new(task, LoopCountCondCheckerBuilder { max_count: 3 });
         let tree = BehaviorTree::from_node(
             repeater,
             &mut app.world_mut().resource_mut::<Assets<BehaviorTreeRoot>>(),
@@ -422,9 +426,12 @@ mod tests {
         let mut app = App::new();
         app.add_plugins((StatesPlugin, TesterPlugin, BehaviorTreePlugin::default()));
         let task = TesterTask0::new(2, NodeResult::Success);
-        let root = ElseFreeze::new(task, TestStateMatcherCondCheckerBuilder {
-            target_state: TestStates::MainState,
-        });
+        let root = ElseFreeze::new(
+            task,
+            TestStateMatcherCondCheckerBuilder {
+                target_state: TestStates::MainState,
+            },
+        );
         let tree = BehaviorTree::from_node(
             root,
             &mut app.world_mut().resource_mut::<Assets<BehaviorTreeRoot>>(),

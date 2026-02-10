@@ -7,7 +7,7 @@ use crate::node::prelude::*;
 pub mod variants;
 
 pub mod prelude {
-    pub use super::{ResultConverter, ConverterStrategy, variants::prelude::*};
+    pub use super::{ConverterStrategy, ResultConverter, variants::prelude::*};
 }
 
 #[cfg_attr(feature = "serde", typetag::serde(tag = "type"))]
@@ -22,10 +22,7 @@ pub struct ResultConverter {
     converter: Box<dyn ConverterStrategy>,
 }
 impl ResultConverter {
-    pub fn new(
-        child: impl Node,
-        converter: impl ConverterStrategy,
-    ) -> Self {
+    pub fn new(child: impl Node, converter: impl ConverterStrategy) -> Self {
         Self {
             child: Box::new(child),
             converter: Box::new(converter),

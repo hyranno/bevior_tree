@@ -19,13 +19,13 @@ use node::{Node, NodeStatus};
 
 /// Module for convenient imports. Use with `use bevior_tree::prelude::*;`.
 pub mod prelude {
+    #[cfg(feature = "serde")]
+    pub use crate::BehaviorTreeSource;
     pub use crate::{
         BehaviorTree, BehaviorTreePlugin, BehaviorTreeRoot, BehaviorTreeSystemSet, Freeze,
         TreeStatus, conditional::prelude::*, converter::prelude::*, node::prelude::*,
         parallel::prelude::*, sequential::prelude::*, task::prelude::*,
     };
-    #[cfg(feature = "serde")]
-    pub use crate::BehaviorTreeSource;
 }
 
 /// Add to your app to use this crate.
@@ -54,12 +54,8 @@ impl Plugin for BehaviorTreePlugin {
         );
         #[cfg(feature = "serde")]
         {
-            app
-                .init_asset::<BehaviorTreeRoot>()
-                .add_systems(
-                    PreUpdate,
-                    load_from_source,
-                );
+            app.init_asset::<BehaviorTreeRoot>()
+                .add_systems(PreUpdate, load_from_source);
         }
     }
 }
@@ -80,8 +76,7 @@ pub struct BehaviorTreeRoot {
 
 /// Component to specify the source path of the behavior tree asset.
 #[cfg(feature = "serde")]
-#[derive(serde::Serialize, serde::Deserialize)]
-#[derive(Component, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Component, Clone)]
 pub struct BehaviorTreeSource {
     pub path: String,
 }
@@ -176,9 +171,9 @@ pub fn load_from_source(
     debug!("Loading behavior tree assets from source...");
     for (entity, source) in query.iter() {
         let handle = asset_server.load(&source.path);
-        commands.entity(entity).insert(BehaviorTree {
-            root: handle,
-        });
+        commands
+            .entity(entity)
+            .insert(BehaviorTree { root: handle });
     }
 }
 
@@ -282,9 +277,7 @@ mod tests {
         fs::write(&file_path, ron).expect("Failed to write test asset");
 
         let mut app = App::new();
-        app.add_plugins((
-            TesterPlugin, BehaviorTreePlugin::default(),
-        ));
+        app.add_plugins((TesterPlugin, BehaviorTreePlugin::default()));
 
         let source = BehaviorTreeSource {
             path: file_name.to_string(),
@@ -296,12 +289,13 @@ mod tests {
             app.update();
         }
 
-        app.world_mut().resource_scope(|world, asset_server: Mut<AssetServer>| {
-            if let Some(tree) = world.query::<&BehaviorTree>().iter(world).next() {
-                let load_state = asset_server.get_load_state(&tree.root);
-                println!("LoadState = {:?}", load_state);
-            }
-        });
+        app.world_mut()
+            .resource_scope(|world, asset_server: Mut<AssetServer>| {
+                if let Some(tree) = world.query::<&BehaviorTree>().iter(world).next() {
+                    let load_state = asset_server.get_load_state(&tree.root);
+                    println!("LoadState = {:?}", load_state);
+                }
+            });
 
         let status = app.world().get::<TreeStatus>(entity);
         assert!(
@@ -317,7 +311,9 @@ mod tests {
                     match s {
                         NodeStatus::Beginning => println!("TreeStatus is still Beginning"),
                         NodeStatus::Pending(_) => println!("TreeStatus is still Pending"),
-                        NodeStatus::Complete(r) => println!("TreeStatus is Complete with result: {:?}", r),
+                        NodeStatus::Complete(r) => {
+                            println!("TreeStatus is Complete with result: {:?}", r)
+                        }
                     }
                 }
                 false

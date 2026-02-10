@@ -4,14 +4,17 @@ use bevy::ecs::entity::Entity;
 use bevy::ecs::system::{In, IntoSystem};
 use ordered_float::OrderedFloat;
 
-use super::{ScoredSequence, ScorerBuilder, Picker, PickerBuilder, AndResultStrategy, ForcedResultStrategy, LastResultStrategy, OrResultStrategy};
+use super::{
+    AndResultStrategy, ForcedResultStrategy, LastResultStrategy, OrResultStrategy, Picker,
+    PickerBuilder, ScoredSequence, ScorerBuilder,
+};
 use crate as bevior_tree;
 use crate::node::prelude::*;
 
 pub mod prelude {
     pub use super::{
-        ScoreOrderedForcedSequence, ScoreOrderedSequentialAnd, ScoreOrderedSequentialOr,
-        ScoredForcedSelector, MaxPickerBuilder, SortedPickerBuilder,
+        MaxPickerBuilder, ScoreOrderedForcedSequence, ScoreOrderedSequentialAnd,
+        ScoreOrderedSequentialOr, ScoredForcedSelector, SortedPickerBuilder,
     };
 }
 
@@ -26,7 +29,7 @@ impl PickerBuilder for SortedPickerBuilder {
                 let mut enumerated: Vec<(usize, f32)> = scores.into_iter().enumerate().collect();
                 enumerated.sort_by_key(|(_, score)| Reverse(OrderedFloat(*score)));
                 enumerated.into_iter().map(|(index, _)| index).collect()
-            }
+            },
         ))
     }
 }
@@ -45,11 +48,10 @@ impl PickerBuilder for MaxPickerBuilder {
                     .map(|(index, _)| index)
                     .into_iter()
                     .collect()
-            }
+            },
         ))
     }
 }
-
 
 /// Node that runs children while their result is Success.
 /// Children are sorted descending by score on enter the node.
@@ -108,8 +110,8 @@ impl ScoredForcedSelector {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::ConstantScorerBuilder;
+    use super::*;
     use crate::tester_util::prelude::*;
 
     #[test]
@@ -117,10 +119,22 @@ mod tests {
         let mut app = App::new();
         app.add_plugins((TesterPlugin, BehaviorTreePlugin::default()));
         let sequence = ScoreOrderedSequentialAnd::new(vec![
-            (Box::new(TesterTask0::new(1, NodeResult::Success)), Box::new(ConstantScorerBuilder { score: 0.1 })),
-            (Box::new(TesterTask1::new(1, NodeResult::Success)), Box::new(ConstantScorerBuilder { score: 0.3 })),
-            (Box::new(TesterTask2::new(1, NodeResult::Failure)), Box::new(ConstantScorerBuilder { score: 0.2 })),
-            (Box::new(TesterTask3::new(1, NodeResult::Success)), Box::new(ConstantScorerBuilder { score: 0.4 })),
+            (
+                Box::new(TesterTask0::new(1, NodeResult::Success)),
+                Box::new(ConstantScorerBuilder { score: 0.1 }),
+            ),
+            (
+                Box::new(TesterTask1::new(1, NodeResult::Success)),
+                Box::new(ConstantScorerBuilder { score: 0.3 }),
+            ),
+            (
+                Box::new(TesterTask2::new(1, NodeResult::Failure)),
+                Box::new(ConstantScorerBuilder { score: 0.2 }),
+            ),
+            (
+                Box::new(TesterTask3::new(1, NodeResult::Success)),
+                Box::new(ConstantScorerBuilder { score: 0.4 }),
+            ),
         ]);
         let tree = BehaviorTree::from_node(
             sequence,
@@ -160,10 +174,22 @@ mod tests {
         let mut app = App::new();
         app.add_plugins((TesterPlugin, BehaviorTreePlugin::default()));
         let sequence = ScoreOrderedSequentialOr::new(vec![
-            (Box::new(TesterTask0::new(1, NodeResult::Failure)), Box::new(ConstantScorerBuilder { score: 0.1 })),
-            (Box::new(TesterTask1::new(1, NodeResult::Failure)), Box::new(ConstantScorerBuilder { score: 0.3 })),
-            (Box::new(TesterTask2::new(1, NodeResult::Success)), Box::new(ConstantScorerBuilder { score: 0.2 })),
-            (Box::new(TesterTask3::new(1, NodeResult::Failure)), Box::new(ConstantScorerBuilder { score: 0.4 })),
+            (
+                Box::new(TesterTask0::new(1, NodeResult::Failure)),
+                Box::new(ConstantScorerBuilder { score: 0.1 }),
+            ),
+            (
+                Box::new(TesterTask1::new(1, NodeResult::Failure)),
+                Box::new(ConstantScorerBuilder { score: 0.3 }),
+            ),
+            (
+                Box::new(TesterTask2::new(1, NodeResult::Success)),
+                Box::new(ConstantScorerBuilder { score: 0.2 }),
+            ),
+            (
+                Box::new(TesterTask3::new(1, NodeResult::Failure)),
+                Box::new(ConstantScorerBuilder { score: 0.4 }),
+            ),
         ]);
         let tree = BehaviorTree::from_node(
             sequence,
@@ -203,10 +229,22 @@ mod tests {
         let mut app = App::new();
         app.add_plugins((TesterPlugin, BehaviorTreePlugin::default()));
         let sequence = ScoreOrderedForcedSequence::new(vec![
-            (Box::new(TesterTask0::new(1, NodeResult::Failure)), Box::new(ConstantScorerBuilder { score: 0.1 })),
-            (Box::new(TesterTask1::new(1, NodeResult::Failure)), Box::new(ConstantScorerBuilder { score: 0.3 })),
-            (Box::new(TesterTask2::new(1, NodeResult::Success)), Box::new(ConstantScorerBuilder { score: 0.2 })),
-            (Box::new(TesterTask3::new(1, NodeResult::Failure)), Box::new(ConstantScorerBuilder { score: 0.4 })),
+            (
+                Box::new(TesterTask0::new(1, NodeResult::Failure)),
+                Box::new(ConstantScorerBuilder { score: 0.1 }),
+            ),
+            (
+                Box::new(TesterTask1::new(1, NodeResult::Failure)),
+                Box::new(ConstantScorerBuilder { score: 0.3 }),
+            ),
+            (
+                Box::new(TesterTask2::new(1, NodeResult::Success)),
+                Box::new(ConstantScorerBuilder { score: 0.2 }),
+            ),
+            (
+                Box::new(TesterTask3::new(1, NodeResult::Failure)),
+                Box::new(ConstantScorerBuilder { score: 0.4 }),
+            ),
         ]);
         let tree = BehaviorTree::from_node(
             sequence,
@@ -252,10 +290,22 @@ mod tests {
         let mut app = App::new();
         app.add_plugins((TesterPlugin, BehaviorTreePlugin::default()));
         let sequence = ScoredForcedSelector::new(vec![
-            (Box::new(TesterTask0::new(1, NodeResult::Failure)), Box::new(ConstantScorerBuilder { score: 0.1 })),
-            (Box::new(TesterTask1::new(1, NodeResult::Failure)), Box::new(ConstantScorerBuilder { score: 0.3 })),
-            (Box::new(TesterTask2::new(1, NodeResult::Success)), Box::new(ConstantScorerBuilder { score: 0.2 })),
-            (Box::new(TesterTask3::new(1, NodeResult::Failure)), Box::new(ConstantScorerBuilder { score: 0.4 })),
+            (
+                Box::new(TesterTask0::new(1, NodeResult::Failure)),
+                Box::new(ConstantScorerBuilder { score: 0.1 }),
+            ),
+            (
+                Box::new(TesterTask1::new(1, NodeResult::Failure)),
+                Box::new(ConstantScorerBuilder { score: 0.3 }),
+            ),
+            (
+                Box::new(TesterTask2::new(1, NodeResult::Success)),
+                Box::new(ConstantScorerBuilder { score: 0.2 }),
+            ),
+            (
+                Box::new(TesterTask3::new(1, NodeResult::Failure)),
+                Box::new(ConstantScorerBuilder { score: 0.4 }),
+            ),
         ]);
         let tree = BehaviorTree::from_node(
             sequence,

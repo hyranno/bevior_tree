@@ -69,11 +69,15 @@ impl ScoredSequence {
     fn init(&self, world: &mut World) {
         let mut scorers_runtime = self.scorers_runtime.lock().expect("Failed to lock");
         if scorers_runtime.is_empty() {
-            *scorers_runtime = self.children.iter().map(|(_, builder)| {
-                let mut scorer = builder.build();
-                scorer.initialize(world);
-                scorer
-            }).collect();
+            *scorers_runtime = self
+                .children
+                .iter()
+                .map(|(_, builder)| {
+                    let mut scorer = builder.build();
+                    scorer.initialize(world);
+                    scorer
+                })
+                .collect();
         }
         let mut picker_runtime = self.picker_runtime.lock().expect("Failed to lock");
         if picker_runtime.is_none() {
@@ -89,15 +93,17 @@ impl Node for ScoredSequence {
         self.init(world);
         let scores = self
             .scorers_runtime
-            .lock().expect("Failed to lock")
+            .lock()
+            .expect("Failed to lock")
             .iter_mut()
-            .map(|scorer| {
-                scorer.run(entity, world).expect("Scorer failed")
-            })
+            .map(|scorer| scorer.run(entity, world).expect("Scorer failed"))
             .collect();
         let mut picker_lock = self.picker_runtime.lock().expect("Failed to lock");
-        let indices = picker_lock.as_mut().expect("Picker not initialized")
-            .run((scores, entity), world).expect("Picker failed");
+        let indices = picker_lock
+            .as_mut()
+            .expect("Picker not initialized")
+            .run((scores, entity), world)
+            .expect("Picker failed");
         let state = Box::new(ScoredSequenceState::new(indices));
         self.resume(world, entity, state)
     }
