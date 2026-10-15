@@ -36,7 +36,7 @@ macro-delegatenode = { version = "0.11", path = "libs/macro-delegatenode" }
 
 [dev-dependencies]
 bevy = {version = "0.20", features = ["debug"]}
-bevy_common_assets = { version = "0.17", features = ["ron"] }
+bevy_common_assets = { version = "0.18", features = ["ron"] }
 ron = "0.12"
 
 [package.metadata.docs.rs]
